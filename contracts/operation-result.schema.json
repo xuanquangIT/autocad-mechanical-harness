@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "CommitStatus": {
+      "enum": [
+        "committed",
+        "aborted",
+        "unknown"
+      ],
+      "title": "CommitStatus",
+      "type": "string"
+    },
+    "EntityResult": {
+      "additionalProperties": false,
+      "description": "What the adapter actually produced, plus the measurements read back.",
+      "properties": {
+        "entity_ref": {
+          "title": "Entity Ref",
+          "type": "string"
+        },
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "measurements": {
+          "additionalProperties": true,
+          "title": "Measurements",
+          "type": "object"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "feature_id",
+        "entity_ref",
+        "entity_type"
+      ],
+      "title": "EntityResult",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/operation-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checkpoint_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checkpoint Id"
+    },
+    "entity_results": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EntityResult"
+      },
+      "title": "Entity Results",
+      "type": "array"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "new_revision": {
+      "title": "New Revision",
+      "type": "string"
+    },
+    "plan_hash": {
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "previous_revision": {
+      "title": "Previous Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/CommitStatus"
+    },
+    "undo_group": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Undo Group"
+    }
+  },
+  "required": [
+    "job_id",
+    "plan_hash",
+    "status",
+    "previous_revision",
+    "new_revision"
+  ],
+  "title": "CommitResult",
+  "type": "object"
+}

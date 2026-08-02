@@ -1,0 +1,78 @@
+# Security
+
+Full threat model: section 17 of the architecture document. This page records what is
+implemented today and what is still open.
+
+## Trust boundaries
+
+```
+AI client (untrusted intent)
+  -> MCP server        : schema validation, permission scope
+    -> application     : approval, revision, idempotency gates
+      -> adapter       : the only code that writes
+```
+
+The AI client is treated as an untrusted source of *intent*. It may propose anything; it
+cannot commit anything without a human-issued approval token it does not have access to.
+
+## Implemented controls
+
+| Control | Where |
+|---|---|
+| No primitive drawing tools exposed | `apps/mcp_server/tools/` — 13 high-level tools only |
+| HMAC-signed approval tokens scoped to `(job_id, plan_hash, revision)` | `security/approval.py` |
+| Short-lived approvals (15 min default) | `config.security.approval_ttl_minutes` |
+| Approval revoked on any spec or plan change | `HarnessService.submit_spec` |
+| Optimistic concurrency on document revision | `HarnessService.commit`, adapters |
+| Idempotency keys with request-digest comparison | `HarnessService.commit` |
+| Export path allowlist, no overwrite by default | `security/paths.py` |
+| Path traversal resolved before the allowlist check | `security/paths.py::_resolve` |
+| Token, secret and prompt redaction | `security/redaction.py` |
+| Path pseudonymisation in logs and audit | `security/redaction.py::redact_path` |
+| Hash-chained append-only audit | `observability/audit.py` |
+| Strict schemas (`extra="forbid"`) at every boundary | `domain/models/base.py` |
+| No `eval`, shell, AutoLISP, or business `SendCommand` | enforced by review; COM adapter uses the object API |
+| COM confined to one module | Ruff banned-api rule on `win32com` / `pythoncom` |
+| Local-only by default | `config.app.local_only` |
+
+## Prompt injection
+
+The mitigation is structural rather than filter-based. Even if a drawing, a filename or a
+user message convinces the model to attempt a destructive write:
+
+- `cad_commit` needs a `plan_hash` matching an approved plan, and an `approval_token` the
+  model never sees. It is issued to the engineer through the approval surface.
+- `cad_rollback` and `cad_export` are approval-gated by policy.
+- Preview cannot modify the drawing at all, whatever the model asks for.
+
+Content arriving from a drawing, a command output or a fetched URL is data, not
+instruction.
+
+## Secrets
+
+`CAD_HARNESS_APPROVAL_SECRET` is per workstation, read from the environment only, and
+never written to a config file, a log line or an audit payload. An empty secret is a
+hard error rather than a silent fallback: signing with `""` would make forgery trivial.
+
+## Data minimisation
+
+Tool responses carry document metadata, feature summaries, the selection the engineer
+permitted, and the measurements needed to judge the result. `cad_selection_inspect` is
+capped (`max_entities`, default 200) and reports `truncated` rather than dumping the
+entity database into a model's context.
+
+## Open items
+
+| Item | Phase | Note |
+|---|---|---|
+| Named-pipe ACL | 5 | Contract defined; the installer must restrict the pipe to one account |
+| Code signing for plug-in and installer | 5 | Required before any production deployment |
+| Writer lease enforcement across processes | 4 | `WRITER_LEASE_CONFLICT` exists; the lease store does not |
+| Per-client tool allowlist | 4 | Groups exist (`READ_ONLY_TOOLS`, `APPROVAL_REQUIRED_TOOLS`); enforcement is not wired |
+| Checkpoint encryption and quota | 4 | Checkpoints hold full drawing copies |
+| SQLite audit sink with chain verification on read | 2 | In-memory sink implements the chain; the durable one does not yet |
+
+## Reporting
+
+Security-relevant findings go to the project security reviewer before any code change.
+Do not open a public issue containing customer drawing data, file paths or project names.

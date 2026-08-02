@@ -1,0 +1,42 @@
+{
+  "_comment": "Reference case from architecture section 32: 160x100x12 SS400 base plate, 4x diameter 14 holes at 20 mm edge offsets, ISO 2768-m.",
+  "units": "mm",
+  "drawing": {
+    "projection": "orthographic",
+    "view": "top",
+    "datum": {
+      "type": "point",
+      "point_mm": [0.0, 0.0]
+    }
+  },
+  "features": [
+    {
+      "feature_id": "base-plate-001",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 160.0,
+        "height_mm": 100.0,
+        "thickness_mm": 12.0,
+        "material": "SS400",
+        "origin_mm": [0.0, 0.0]
+      },
+      "children": [
+        {
+          "feature_id": "base-plate-001-holes",
+          "type": "rectangular_hole_pattern",
+          "parameters": {
+            "hole_diameter_mm": 14.0,
+            "edge_offset_x_mm": 20.0,
+            "edge_offset_y_mm": 20.0,
+            "count_x": 2,
+            "count_y": 2
+          }
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "general_tolerance": "ISO 2768-m",
+    "dimensions": "auto_required"
+  }
+}

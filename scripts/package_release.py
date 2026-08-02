@@ -1,0 +1,87 @@
+"""Build a release bundle with checksums.
+
+    uv run python scripts/package_release.py --out dist/
+
+Produces the MVP release contents from architecture section 26.2. The C# bundle and
+code signing belong to the production release (26.3) and are not handled here.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+#: Files and directories shipped alongside the wheel.
+PAYLOAD: tuple[str, ...] = (
+    "config/base.yaml",
+    ".env.example",
+    "README.md",
+    "docs/AUTOCAD_MECHANICAL_HARNESS_ARCHITECTURE.vn.md",
+    "docs/AUTOCAD_MECHANICAL_HARNESS_ARCHITECTURE.en.md",
+    "contracts",
+    "src/cad_harness/company_rules/profiles/demo-profile.yaml",
+)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Package an MVP release bundle")
+    parser.add_argument("--out", type=Path, default=ROOT / "dist")
+    parser.add_argument("--skip-build", action="store_true", help="Reuse an existing wheel")
+    args = parser.parse_args()
+
+    staging = args.out / "bundle"
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.mkdir(parents=True)
+
+    if not args.skip_build:
+        result = subprocess.run(["uv", "build", "--out-dir", str(args.out)], cwd=ROOT, check=False)
+        if result.returncode != 0:
+            print("uv build failed", file=sys.stderr)
+            return result.returncode
+
+    for wheel in args.out.glob("*.whl"):
+        shutil.copy2(wheel, staging / wheel.name)
+
+    for entry in PAYLOAD:
+        source = ROOT / entry
+        if not source.exists():
+            print(f"warning: missing payload entry {entry}", file=sys.stderr)
+            continue
+        target = staging / entry
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            shutil.copytree(source, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(source, target)
+
+    # Checksums let an operator verify the bundle before installing it.
+    lines = [
+        f"{sha256_file(path)}  {path.relative_to(staging).as_posix()}"
+        for path in sorted(staging.rglob("*"))
+        if path.is_file()
+    ]
+    (staging / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    print(f"bundle: {staging}")
+    print(f"files:  {len(lines)}")
+    print("Reminder: production releases additionally require the signed C# .bundle.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

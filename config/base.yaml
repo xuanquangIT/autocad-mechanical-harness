@@ -1,0 +1,56 @@
+# Base configuration. Copy to config/local.yaml for machine-specific overrides.
+#
+# This file holds infrastructure settings only. Engineering values (sizes, datums,
+# tolerance classes) belong in a DrawingSpec or a company profile, never here.
+
+app:
+  environment: development
+  local_only: true
+
+mcp:
+  transport: stdio
+  server_name: cad-harness
+  # Baseline the server is verified against. Newer protocol revisions are opt-in.
+  protocol_compatibility_baseline: "2025-11-25"
+  enable_newer_protocol_by_feature_flag: true
+
+adapter:
+  # fake | dxf_preview | com | dotnet_bridge
+  # Default is 'fake' so a fresh checkout cannot touch a real drawing.
+  type: fake
+  autocad_prog_id: autocad
+  launch_autocad_if_missing: false
+  inspect_timeout_seconds: 15
+  preview_timeout_seconds: 60
+  commit_timeout_seconds: 120
+  export_timeout_seconds: 120
+
+storage:
+  sqlite_path: ./data/harness.db
+  preview_directory: ./data/previews
+  checkpoint_directory: ./data/checkpoints
+  export_directory: ./data/exports
+  preview_retention_days: 14
+
+security:
+  require_commit_approval: true
+  require_rollback_approval: true
+  require_export_approval: true
+  allow_arbitrary_export_path: false
+  redact_document_paths: true
+  approval_ttl_minutes: 15
+  export_path_allowlist:
+    - ./data/exports
+
+geometry:
+  canonical_unit: mm
+  tolerance_profile: demo-mechanical-mm@1.0
+
+standards:
+  # demo-profile is NOT company approved. Replace before any pilot.
+  company_profile: demo-profile@1.0
+
+observability:
+  log_level: INFO
+  log_json: true
+  log_prompts: false

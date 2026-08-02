@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "EntitySummary": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_ref": {
+          "title": "Entity Ref",
+          "type": "string"
+        },
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "feature_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feature Id"
+        },
+        "layer": {
+          "title": "Layer",
+          "type": "string"
+        },
+        "measurements": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "title": "Measurements",
+          "type": "object"
+        }
+      },
+      "required": [
+        "entity_ref",
+        "entity_type",
+        "layer"
+      ],
+      "title": "EntitySummary",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/selection-snapshot.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Scoped read of what the engineer selected. Never the whole database.",
+  "properties": {
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "entities": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EntitySummary"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "truncated": {
+      "default": false,
+      "title": "Truncated",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "document_id",
+    "revision"
+  ],
+  "title": "SelectionSnapshot",
+  "type": "object"
+}

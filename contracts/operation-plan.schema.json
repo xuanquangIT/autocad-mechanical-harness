@@ -1,0 +1,204 @@
+{
+  "$defs": {
+    "Operation": {
+      "additionalProperties": false,
+      "description": "A single deterministic instruction.\n\n``expected`` carries the measurements the adapter result is checked against\nafter commit. An operation without expectations cannot be post-validated.",
+      "properties": {
+        "expected": {
+          "additionalProperties": true,
+          "title": "Expected",
+          "type": "object"
+        },
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "geometry": {
+          "additionalProperties": true,
+          "title": "Geometry",
+          "type": "object"
+        },
+        "layer": {
+          "title": "Layer",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "target_entity_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Entity Ref"
+        },
+        "type": {
+          "$ref": "#/$defs/OperationType"
+        }
+      },
+      "required": [
+        "operation_id",
+        "feature_id",
+        "type",
+        "layer"
+      ],
+      "title": "Operation",
+      "type": "object"
+    },
+    "OperationType": {
+      "description": "Adapter-agnostic operation vocabulary.\n\nAdding a member requires a mapping (or an explicit capability gap) in every\nadapter, plus a golden case. See the Definition of Done, section 29.",
+      "enum": [
+        "create_line",
+        "create_polyline",
+        "create_closed_polyline",
+        "create_circle",
+        "create_circles",
+        "create_arc",
+        "create_text",
+        "create_centerline",
+        "create_centermark",
+        "create_linear_dimension",
+        "create_aligned_dimension",
+        "create_diameter_dimension",
+        "create_radius_dimension",
+        "update_entity",
+        "delete_entity"
+      ],
+      "title": "OperationType",
+      "type": "string"
+    },
+    "Unit": {
+      "description": "Length units accepted at the boundary. Everything is normalized to mm.",
+      "enum": [
+        "mm",
+        "cm",
+        "m",
+        "in"
+      ],
+      "title": "Unit",
+      "type": "string"
+    },
+    "ValidationExpectation": {
+      "additionalProperties": false,
+      "description": "A measurable claim the validation engine must confirm.",
+      "properties": {
+        "expected": {
+          "additionalProperties": true,
+          "title": "Expected",
+          "type": "object"
+        },
+        "feature_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feature Id"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id"
+      ],
+      "title": "ValidationExpectation",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/operation-plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Compiled, hashable plan. Preview, approval and commit all key off ``plan_hash``.",
+  "properties": {
+    "canonical_units": {
+      "$ref": "#/$defs/Unit",
+      "default": "mm"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "expected_revision": {
+      "title": "Expected Revision",
+      "type": "string"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "operations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Operation"
+      },
+      "title": "Operations",
+      "type": "array"
+    },
+    "plan_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Plan Hash"
+    },
+    "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "profile_ref": {
+      "title": "Profile Ref",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "validation_expectations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ValidationExpectation"
+      },
+      "title": "Validation Expectations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "plan_id",
+    "job_id",
+    "document_id",
+    "expected_revision",
+    "profile_ref"
+  ],
+  "title": "OperationPlan",
+  "type": "object"
+}

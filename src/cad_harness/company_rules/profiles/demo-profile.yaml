@@ -1,0 +1,70 @@
+# DEMO PROFILE - not company approved.
+#
+# Replace with the real company standard before any pilot on production drawings.
+# Until `company_approved: true` is set by an engineer, the harness labels every
+# output as demo and refuses to claim standard compliance.
+
+profile_id: demo-profile
+version: "1.0"
+company_approved: false
+
+canonical_unit: mm
+general_tolerance: ISO 2768-m
+dimension_style: DEMO-ISO-MM
+text_style: DEMO-ISO
+title_block: demo_a3_landscape
+annotation_scale: "1:1"
+
+layers:
+  - name: OBJECT
+    purpose: Visible part outlines
+    color_index: 7
+    lineweight: 50
+  - name: HIDDEN
+    purpose: Hidden edges
+    color_index: 8
+    linetype: HIDDEN
+    lineweight: 25
+  - name: CENTER
+    purpose: Centerlines and centermarks
+    color_index: 1
+    linetype: CENTER
+    lineweight: 18
+  - name: DIM
+    purpose: Dimensions and annotation
+    color_index: 3
+    lineweight: 18
+  - name: TEXT
+    purpose: Notes and labels
+    color_index: 3
+    lineweight: 18
+
+layer_map:
+  outline: OBJECT
+  hole: OBJECT
+  hidden: HIDDEN
+  centerline: CENTER
+  centermark: CENTER
+  dimension: DIM
+  text: TEXT
+
+# Manufacturing minimums used by validation rules. Demo values only.
+minimum_hole_edge_distance_mm: 1.5
+minimum_hole_ligament_mm: 2.0
+
+tolerance_profile_ref: demo-mechanical-mm@1.0
+
+# Only these paths may be defaulted. Everything else must be supplied explicitly.
+allowed_defaults:
+  - path: annotations.dimension_style
+    value: DEMO-ISO-MM
+    reason: Required by the drawing standard
+    impact: Annotation formatting only, no geometric effect
+  - path: annotations.title_block
+    value: demo_a3_landscape
+    reason: Sheet setup is fixed by the template
+    impact: Sheet presentation only
+  - path: drawing.projection
+    value: orthographic
+    reason: 2D fabrication drawings are orthographic in this profile
+    impact: View interpretation

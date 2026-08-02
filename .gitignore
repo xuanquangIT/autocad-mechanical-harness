@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+
+# Runtime data - never commit drawings, previews or job databases
+data/
+*.db
+*.db-journal
+*.log
+
+# CAD artifacts
+*.dwg
+*.dwl
+*.dwl2
+*.bak
+*.sv$
+*.dxf
+!tests/golden_drawings/**/*.dxf
+
+# Local configuration and secrets
+.env
+config/local.yaml
+config/*.local.yaml
+src/cad_harness/company_rules/profiles/company-*.yaml
+
+# .NET
+dotnet/**/bin/
+dotnet/**/obj/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

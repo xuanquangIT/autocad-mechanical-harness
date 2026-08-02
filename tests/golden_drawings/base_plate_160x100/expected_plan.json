@@ -1,0 +1,37 @@
+{
+  "_comment": "Expected operations. plan_id and job_id are excluded from both the hash and this file because they identify an instance, not the change.",
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:base-plate-001:outline",
+      "feature_id": "base-plate-001",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [[0.0, 0.0], [160.0, 0.0], [160.0, 100.0], [0.0, 100.0]]
+      },
+      "expected": {
+        "closed": true,
+        "vertex_count": 4,
+        "width_mm": 160.0,
+        "height_mm": 100.0,
+        "area_mm2": 16000.0
+      }
+    },
+    {
+      "operation_id": "op:base-plate-001-holes:holes",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_circles",
+      "layer": "OBJECT",
+      "geometry": {
+        "centers_mm": [[20.0, 20.0], [140.0, 20.0], [20.0, 80.0], [140.0, 80.0]],
+        "diameter_mm": 14.0
+      },
+      "expected": {
+        "count": 4,
+        "diameter_mm": 14.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "$defs": {
+    "LayerInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "color_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color Index"
+        },
+        "frozen": {
+          "default": false,
+          "title": "Frozen",
+          "type": "boolean"
+        },
+        "linetype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Linetype"
+        },
+        "lineweight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineweight"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "LayerInfo",
+      "type": "object"
+    },
+    "Unit": {
+      "description": "Length units accepted at the boundary. Everything is normalized to mm.",
+      "enum": [
+        "mm",
+        "cm",
+        "m",
+        "in"
+      ],
+      "title": "Unit",
+      "type": "string"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/document-snapshot.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "State of the active document at inspection time.\n\n``revision`` is a fingerprint, not a timestamp. Any commit carries the revision\nit expects, and a mismatch rejects the commit (architecture section 13.2).",
+  "properties": {
+    "active_layout": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Active Layout"
+    },
+    "active_space": {
+      "default": "model",
+      "title": "Active Space",
+      "type": "string"
+    },
+    "dimension_styles": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Dimension Styles",
+      "type": "array"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "entity_count": {
+      "default": 0,
+      "title": "Entity Count",
+      "type": "integer"
+    },
+    "layers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/LayerInfo"
+      },
+      "title": "Layers",
+      "type": "array"
+    },
+    "path_hash": {
+      "title": "Path Hash",
+      "type": "string"
+    },
+    "read_only": {
+      "default": false,
+      "title": "Read Only",
+      "type": "boolean"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "template_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Template Name"
+    },
+    "text_styles": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Text Styles",
+      "type": "array"
+    },
+    "units": {
+      "$ref": "#/$defs/Unit"
+    }
+  },
+  "required": [
+    "document_id",
+    "revision",
+    "path_hash",
+    "display_name",
+    "units"
+  ],
+  "title": "DocumentSnapshot",
+  "type": "object"
+}

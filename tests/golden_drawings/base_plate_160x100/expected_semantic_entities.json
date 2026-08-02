@@ -1,0 +1,59 @@
+{
+  "_comment": "Entities and read-back measurements after commit. Entity refs are adapter-specific and therefore not compared; counts, types, layers and measurements are.",
+  "entity_count": 5,
+  "entities": [
+    {
+      "operation_id": "op:base-plate-001:outline",
+      "feature_id": "base-plate-001",
+      "entity_type": "AcDbPolyline",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 4,
+        "width_mm": 160.0,
+        "height_mm": 100.0,
+        "area_mm2": 16000.0,
+        "perimeter_mm": 520.0
+      }
+    },
+    {
+      "operation_id": "op:base-plate-001-holes:holes",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbCircle",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [20.0, 20.0]
+      }
+    },
+    {
+      "operation_id": "op:base-plate-001-holes:holes",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbCircle",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [140.0, 20.0]
+      }
+    },
+    {
+      "operation_id": "op:base-plate-001-holes:holes",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbCircle",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [20.0, 80.0]
+      }
+    },
+    {
+      "operation_id": "op:base-plate-001-holes:holes",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbCircle",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [140.0, 80.0]
+      }
+    }
+  ]
+}

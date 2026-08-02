@@ -1,0 +1,349 @@
+{
+  "$defs": {
+    "Annotations": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension_style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dimension Style"
+        },
+        "dimensions": {
+          "default": "auto_required",
+          "enum": [
+            "auto_required",
+            "auto_optional",
+            "none"
+          ],
+          "title": "Dimensions",
+          "type": "string"
+        },
+        "general_tolerance": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "General Tolerance"
+        },
+        "title_block": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title Block"
+        }
+      },
+      "title": "Annotations",
+      "type": "object"
+    },
+    "Assumption": {
+      "additionalProperties": false,
+      "description": "An interpretation the system made that a human must confirm.",
+      "properties": {
+        "affects_geometry": {
+          "title": "Affects Geometry",
+          "type": "boolean"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "requires_approval": {
+          "default": true,
+          "title": "Requires Approval",
+          "type": "boolean"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "statement",
+        "affects_geometry"
+      ],
+      "title": "Assumption",
+      "type": "object"
+    },
+    "Datum": {
+      "additionalProperties": false,
+      "description": "Placement origin. Required whenever placement affects geometry.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "point_mm": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Point Mm"
+        },
+        "type": {
+          "enum": [
+            "point",
+            "selected_point",
+            "named_datum"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Datum",
+      "type": "object"
+    },
+    "DefaultRecord": {
+      "additionalProperties": false,
+      "description": "Provenance for an applied default (architecture section 12.2).\n\nA default without a source and version is a silent default, which the\ninvariant principles forbid.",
+      "properties": {
+        "impact": {
+          "title": "Impact",
+          "type": "string"
+        },
+        "override_allowed": {
+          "default": true,
+          "title": "Override Allowed",
+          "type": "boolean"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_version": {
+          "title": "Source Version",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value"
+        }
+      },
+      "required": [
+        "path",
+        "value",
+        "source",
+        "source_version",
+        "reason",
+        "impact"
+      ],
+      "title": "DefaultRecord",
+      "type": "object"
+    },
+    "DrawingIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "datum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Datum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "projection": {
+          "default": "orthographic",
+          "enum": [
+            "orthographic",
+            "isometric"
+          ],
+          "title": "Projection",
+          "type": "string"
+        },
+        "view": {
+          "default": "top",
+          "enum": [
+            "top",
+            "front",
+            "side",
+            "section"
+          ],
+          "title": "View",
+          "type": "string"
+        }
+      },
+      "title": "DrawingIntent",
+      "type": "object"
+    },
+    "FeatureSpec": {
+      "additionalProperties": false,
+      "description": "One mechanical feature with typed parameters and optional child features.",
+      "properties": {
+        "children": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FeatureSpec"
+          },
+          "title": "Children",
+          "type": "array"
+        },
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature_id",
+        "type"
+      ],
+      "title": "FeatureSpec",
+      "type": "object"
+    },
+    "StandardProfileRef": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_id": {
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "version"
+      ],
+      "title": "StandardProfileRef",
+      "type": "object"
+    },
+    "Unit": {
+      "description": "Length units accepted at the boundary. Everything is normalized to mm.",
+      "enum": [
+        "mm",
+        "cm",
+        "m",
+        "in"
+      ],
+      "title": "Unit",
+      "type": "string"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/drawing-spec.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Root normalized requirement submitted through ``cad_spec_submit``.",
+  "properties": {
+    "annotations": {
+      "$ref": "#/$defs/Annotations"
+    },
+    "assumptions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Assumption"
+      },
+      "title": "Assumptions",
+      "type": "array"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "drawing": {
+      "$ref": "#/$defs/DrawingIntent"
+    },
+    "explicit_defaults": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DefaultRecord"
+      },
+      "title": "Explicit Defaults",
+      "type": "array"
+    },
+    "features": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FeatureSpec"
+      },
+      "title": "Features",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "spec_id": {
+      "title": "Spec Id",
+      "type": "string"
+    },
+    "standard_profile": {
+      "$ref": "#/$defs/StandardProfileRef"
+    },
+    "units": {
+      "$ref": "#/$defs/Unit",
+      "default": "mm"
+    }
+  },
+  "required": [
+    "spec_id",
+    "document_id",
+    "standard_profile"
+  ],
+  "title": "DrawingSpec",
+  "type": "object"
+}

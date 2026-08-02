@@ -1,0 +1,144 @@
+{
+  "$defs": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "description": "One of the ErrorCode values in cad_harness.domain.errors.",
+          "type": "string"
+        },
+        "details": {
+          "description": "No stack traces and no absolute paths: this crosses a process boundary and may be logged.",
+          "type": "object"
+        },
+        "message": {
+          "type": "string"
+        },
+        "required_action": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retryable": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "description": "Required for commit. The bridge records it so a retry cannot duplicate entities.",
+          "maxLength": 128,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "job_id": {
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "enum": [
+            "handshake",
+            "status",
+            "inspect_document",
+            "inspect_selection",
+            "preview",
+            "validate_revision",
+            "commit",
+            "rollback",
+            "export"
+          ],
+          "type": "string"
+        },
+        "params": {
+          "type": "object"
+        },
+        "request_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema_version": {
+          "description": "A major version mismatch is rejected, never coerced.",
+          "pattern": "^\\d+\\.\\d+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "method",
+        "request_id",
+        "params"
+      ],
+      "type": "object"
+    },
+    "response": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "description": "Returned by handshake. Python gates behaviour on these rather than assuming what the bridge supports.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "data": {
+          "type": "object"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "request_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema_version": {
+          "pattern": "^\\d+\\.\\d+$",
+          "type": "string"
+        },
+        "status": {
+          "description": "A commit is never 'partial'. An indeterminate outcome is 'failed' with UNKNOWN_COMMIT_STATE and requires reconciliation.",
+          "enum": [
+            "ok",
+            "rejected",
+            "conflict",
+            "failed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/ipc-envelope.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Length-prefixed UTF-8 JSON messages exchanged with the C# AutoCAD bridge over a local Windows named pipe.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ],
+  "title": "Bridge IPC envelope"
+}

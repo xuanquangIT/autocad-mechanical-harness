@@ -1,0 +1,67 @@
+{
+  "$id": "https://cad-harness.local/contracts/approval-record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Who approved what, under which conditions.\n\nScope is the triple (job, plan_hash, expected_revision). Changing any of them\ninvalidates the approval; there is no partial re-use.",
+  "properties": {
+    "approval_id": {
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "approved_at": {
+      "format": "date-time",
+      "title": "Approved At",
+      "type": "string"
+    },
+    "approved_by": {
+      "title": "Approved By",
+      "type": "string"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "expected_revision": {
+      "title": "Expected Revision",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "plan_hash": {
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "warnings_acknowledged": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings Acknowledged",
+      "type": "array"
+    }
+  },
+  "required": [
+    "approval_id",
+    "job_id",
+    "document_id",
+    "expected_revision",
+    "plan_hash",
+    "approved_by",
+    "approved_at",
+    "expires_at"
+  ],
+  "title": "ApprovalRecord",
+  "type": "object"
+}
