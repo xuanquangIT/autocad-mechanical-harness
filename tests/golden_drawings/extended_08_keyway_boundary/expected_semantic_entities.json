@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:keyway-boundary-g08:contour",
+      "feature_id": "keyway-boundary-g08",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 53,
+        "width_mm": 27.896681644338628,
+        "height_mm": 29.295,
+        "area_mm2": 716.122452384843,
+        "perimeter_mm": 101.1558575450958
+      }
+    }
+  ]
+}

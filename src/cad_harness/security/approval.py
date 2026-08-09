@@ -6,7 +6,10 @@ a client cannot replay an approval against a different plan, and cannot forge on
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hmac
+import json
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 
@@ -20,19 +23,51 @@ from cad_harness.domain.models.approval import ApprovalRecord
 from cad_harness.domain.value_objects.identifiers import IdPrefix, new_id
 
 
-def _scope_payload(approval: ApprovalRecord) -> str:
-    """Exactly the fields that define the approval's authority."""
-    return canonical_json(
-        {
-            "approval_id": approval.approval_id,
-            "job_id": approval.job_id,
-            "document_id": approval.document_id,
-            "expected_revision": approval.expected_revision,
-            "plan_hash": approval.plan_hash,
-            "approved_by": approval.approved_by,
-            "expires_at": approval.expires_at.astimezone(UTC).isoformat(),
-        }
-    )
+def _scope_claims(approval: ApprovalRecord) -> dict[str, str]:
+    """Exactly the signed fields that define the approval's authority."""
+    return {
+        "approval_id": approval.approval_id,
+        "job_id": approval.job_id,
+        "document_id": approval.document_id,
+        "expected_revision": approval.expected_revision,
+        "plan_hash": approval.plan_hash,
+        "approved_by": approval.approved_by,
+        "expires_at": approval.expires_at.astimezone(UTC).isoformat(),
+    }
+
+
+def _encode_claims(approval: ApprovalRecord) -> str:
+    payload = canonical_json(_scope_claims(approval)).encode("utf-8")
+    return base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+
+
+def _decode_claims(payload: str) -> dict[str, str]:
+    if not payload or any(character not in _BASE64URL_CHARS for character in payload):
+        raise ValueError("invalid approval claim encoding")
+    padding = "=" * (-len(payload) % 4)
+    decoded = base64.b64decode(payload + padding, altchars=b"-_", validate=True)
+    value = json.loads(decoded)
+    if (
+        not isinstance(value, dict)
+        or set(value) != _CLAIM_FIELDS
+        or not all(isinstance(item, str) for item in value.values())
+    ):
+        raise ValueError("invalid approval claims")
+    return value
+
+
+_CLAIM_FIELDS = frozenset(
+    {
+        "approval_id",
+        "job_id",
+        "document_id",
+        "expected_revision",
+        "plan_hash",
+        "approved_by",
+        "expires_at",
+    }
+)
+_BASE64URL_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
 
 
 def make_approval_token(approval: ApprovalRecord, secret: str) -> str:
@@ -42,10 +77,9 @@ def make_approval_token(approval: ApprovalRecord, secret: str) -> str:
             "No approval signing secret is configured",
             required_action="Set CAD_HARNESS_APPROVAL_SECRET on this workstation",
         )
-    digest = hmac.new(
-        secret.encode("utf-8"), _scope_payload(approval).encode("utf-8"), sha256
-    ).hexdigest()
-    return f"{approval.approval_id}.{digest}"
+    payload = _encode_claims(approval)
+    digest = hmac.new(secret.encode("utf-8"), payload.encode("ascii"), sha256).hexdigest()
+    return f"v2.{payload}.{digest}"
 
 
 def issue_approval(
@@ -90,10 +124,35 @@ def verify_approval_token(
     Order matters: the signature is checked first so scope details are not revealed
     to a caller holding a forged token.
     """
-    expected_token = make_approval_token(approval, secret)
-    if not hmac.compare_digest(token, expected_token):
+    try:
+        version, payload, received_digest = token.split(".", 2)
+        if version != "v2" or len(received_digest) != 64:
+            raise ValueError("invalid approval token shape")
+        expected_digest = hmac.new(
+            secret.encode("utf-8"), payload.encode("ascii"), sha256
+        ).hexdigest()
+    except (UnicodeEncodeError, ValueError):
+        expected_digest = ""
+        payload = ""
+        received_digest = ""
+    if not hmac.compare_digest(received_digest, expected_digest):
         raise ApprovalScopeMismatchError(
             "Approval token signature is invalid",
+            required_action="Request a fresh approval for the current preview",
+        )
+    try:
+        claims = _decode_claims(payload)
+    except (binascii.Error, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+        raise ApprovalScopeMismatchError(
+            "Approval token claims are invalid",
+            required_action="Request a fresh approval for the current preview",
+        ) from exc
+    if not hmac.compare_digest(
+        canonical_json(claims).encode("utf-8"),
+        canonical_json(_scope_claims(approval)).encode("utf-8"),
+    ):
+        raise ApprovalScopeMismatchError(
+            "Approval token does not match the stored approval",
             required_action="Request a fresh approval for the current preview",
         )
     if approval.is_expired(now):

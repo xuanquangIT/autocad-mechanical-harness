@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:l-bracket-boundary-g10:outline",
+      "feature_id": "l-bracket-boundary-g10",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 6,
+        "width_mm": 29.3,
+        "height_mm": 43.95,
+        "area_mm2": 1287.5201628774998,
+        "perimeter_mm": 146.5
+      }
+    }
+  ]
+}

@@ -42,6 +42,9 @@ src/cad_harness/company_rules/profiles/company-*.yaml
 dotnet/**/bin/
 dotnet/**/obj/
 
+# Kiro workspace: specs, plans and steering are local working artifacts
+.kiro/
+
 # Editors
 .vscode/
 .idea/

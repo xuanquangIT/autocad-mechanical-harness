@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from cad_harness.company_rules.loader import CompanyProfile
+from cad_harness.domain.models.drawing_model import DrawingModel
 from cad_harness.domain.models.drawing_spec import (
     Assumption,
     DefaultRecord,
@@ -18,7 +19,7 @@ from cad_harness.domain.models.drawing_spec import (
     MissingInput,
 )
 from cad_harness.domain.models.operation_plan import Operation, ValidationExpectation
-from cad_harness.geometry.primitives import BoundingBox, Point2D
+from cad_harness.geometry.primitives import BoundingBox, Point2D, Polyline2D
 from cad_harness.geometry.tolerance import ToleranceProfile
 
 
@@ -35,17 +36,31 @@ class CompileContext:
     #: resolve edge offsets against the real outline instead of assuming one.
     parent_feature_id: str | None = None
     parent_box: BoundingBox | None = None
+    #: The parent's real closed contour. A bounding box is not enough to decide
+    #: containment for a non-rectangular outline, so a child feature that must stay
+    #: inside its parent needs the outline itself.
+    parent_outline: Polyline2D | None = None
+    #: Trusted source for internal recognition recompilation. Ordinary specs never
+    #: receive this capability and therefore cannot invoke source-bound compilers.
+    source_model: DrawingModel | None = None
 
     def layer_for(self, purpose: str) -> str:
         return self.profile.layer_for(purpose)
 
-    def for_child(self, parent_feature_id: str, parent_box: BoundingBox) -> CompileContext:
+    def for_child(
+        self,
+        parent_feature_id: str,
+        parent_box: BoundingBox,
+        parent_outline: Polyline2D | None = None,
+    ) -> CompileContext:
         return CompileContext(
             profile=self.profile,
             tolerance=self.tolerance,
             datum=self.datum,
             parent_feature_id=parent_feature_id,
             parent_box=parent_box,
+            parent_outline=parent_outline,
+            source_model=self.source_model,
         )
 
 

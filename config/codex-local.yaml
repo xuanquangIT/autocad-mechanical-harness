@@ -1,0 +1,24 @@
+# Local Codex/ChatGPT desktop smoke profile. This file is deliberately pinned to the
+# fake adapter: it can create jobs, previews and validation evidence, but cannot touch
+# AutoCAD. A live deployment must use a separate reviewed config and Engineer Desktop.
+app:
+  environment: development
+  local_only: true
+
+adapter:
+  type: fake
+  launch_autocad_if_missing: false
+
+mcp:
+  transport: stdio
+  server_name: cad-harness
+  client_profiles:
+    default: read_only
+    clients:
+      anonymous:
+        mode: approval_required
+
+observability:
+  log_level: ERROR
+  log_json: true
+  log_prompts: false

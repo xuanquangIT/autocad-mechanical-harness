@@ -9,20 +9,41 @@ from __future__ import annotations
 from pathlib import Path
 
 from cad_harness.adapters.base import BaseAdapter
-from cad_harness.domain.models.operation_plan import OperationPlan
+from cad_harness.domain.models.operation_plan import OperationPlan, OperationType
 from cad_harness.domain.models.result import PreviewArtifact, PreviewResult
 from cad_harness.domain.ports.autocad_adapter import AdapterCapability, AdapterStatus
 from cad_harness.domain.value_objects.identifiers import IdPrefix, new_id
-from cad_harness.preview.dxf_writer import unsupported_operations, write_dxf
+from cad_harness.preview.dxf_writer import write_dxf
 from cad_harness.preview.svg_writer import write_svg
 
 
 class DxfPreviewAdapter(BaseAdapter):
     adapter_type = "dxf_preview"
     capabilities = frozenset({AdapterCapability.PREVIEW})
+    renderable_operations = frozenset(
+        {
+            OperationType.CREATE_CLOSED_POLYLINE,
+            OperationType.CREATE_POLYLINE,
+            OperationType.CREATE_CIRCLE,
+            OperationType.CREATE_CIRCLES,
+            OperationType.CREATE_ARC,
+            OperationType.CREATE_LINE,
+            OperationType.CREATE_TEXT,
+            OperationType.CREATE_CENTERLINE,
+            OperationType.CREATE_CENTERMARK,
+            OperationType.CREATE_LINEAR_DIMENSION,
+            OperationType.CREATE_ALIGNED_DIMENSION,
+            OperationType.CREATE_DIAMETER_DIMENSION,
+            OperationType.CREATE_RADIUS_DIMENSION,
+            OperationType.CREATE_ANGULAR_DIMENSION,
+        }
+    )
+    supported_operations = renderable_operations
+    unrenderable_operations = frozenset(OperationType) - renderable_operations
 
-    def __init__(self, preview_directory: Path) -> None:
+    def __init__(self, preview_directory: Path, *, company_approved: bool = False) -> None:
         self.preview_directory = preview_directory
+        self.company_approved = company_approved
 
     def status(self) -> AdapterStatus:
         return AdapterStatus(
@@ -55,6 +76,7 @@ class DxfPreviewAdapter(BaseAdapter):
                     byte_size=svg_path.stat().st_size,
                 ),
             ),
+            company_approved=self.company_approved,
         )
 
     def validate_revision(self, document_id: str, expected_revision: str) -> bool:
@@ -63,4 +85,10 @@ class DxfPreviewAdapter(BaseAdapter):
 
     def preview_gaps(self, plan: OperationPlan) -> list[str]:
         """Operation types this adapter cannot draw, reported instead of dropped."""
-        return unsupported_operations(plan)
+        return sorted(
+            {
+                operation.type.value
+                for operation in plan.operations
+                if operation.type in self.unrenderable_operations
+            }
+        )

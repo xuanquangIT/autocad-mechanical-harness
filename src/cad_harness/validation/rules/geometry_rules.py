@@ -7,7 +7,8 @@ recorded. No rule trusts a value just because the compiler produced it.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, fields, is_dataclass
 
 from cad_harness.domain.models.operation_plan import Operation, OperationType
 from cad_harness.domain.models.validation import Finding, Severity, ValidationStage
@@ -36,13 +37,13 @@ def _outline_operations(context: RuleContext) -> dict[str, Operation]:
     """Closed outlines keyed by feature id, used as containment references."""
     return {
         op.feature_id: op
-        for op in context.plan.operations
+        for op in context.require_plan().operations
         if op.type is OperationType.CREATE_CLOSED_POLYLINE
     }
 
 
 def _parent_of(context: RuleContext, feature_id: str) -> str | None:
-    for expectation in context.plan.validation_expectations:
+    for expectation in context.require_plan().validation_expectations:
         if expectation.feature_id == feature_id:
             parent = expectation.expected.get("parent_feature_id")
             if isinstance(parent, str):
@@ -52,39 +53,111 @@ def _parent_of(context: RuleContext, feature_id: str) -> str | None:
 
 @dataclass(frozen=True, slots=True)
 class FiniteCoordinatesRule:
-    """NaN or Infinity anywhere in the plan is blocking, never a warning."""
+    """Block every NaN/Infinity in either a plan or a read drawing model."""
 
-    rule_id: str = "GEO-FINITE-COORDS"
-    stages: tuple[ValidationStage, ...] = PRE_STAGES
+    rule_id: str = "FINITE_COORDINATES"
+    stages: tuple[ValidationStage, ...] = (
+        ValidationStage.PLAN,
+        ValidationStage.DRAWING_AUDIT,
+    )
 
     def evaluate(self, context: RuleContext) -> list[Finding]:
+        if context.plan is not None:
+            return self._plan_findings(context)
+        drawing = context.require_drawing_model()
+        entities = getattr(drawing, "entities", ())
+        return [
+            self._finding(
+                context,
+                path,
+                number,
+                entity_ref=getattr(entity, "entity_ref", None),
+            )
+            for entity in entities
+            for path, number in _numeric_paths(getattr(entity, "geometry", entity), "geometry")
+            if not math.isfinite(number)
+        ]
+
+    def _plan_findings(self, context: RuleContext) -> list[Finding]:
         findings: list[Finding] = []
-        for operation in context.plan.operations:
-            for key, value in operation.geometry.items():
-                for number in _flatten_numbers(value):
-                    if not math.isfinite(number):
-                        findings.append(
-                            finding(
-                                self.rule_id,
-                                Severity.BLOCKING,
-                                f"Non-finite coordinate in '{key}'",
-                                feature_id=operation.feature_id,
-                                operation_id=operation.operation_id,
-                                expected="finite number",
-                                actual=repr(number),
-                                suggested_fix="Recompile the spec; the kernel must not emit NaN",
-                            )
+        for operation in context.require_plan().operations:
+            for path, number in _numeric_paths(operation.geometry, "geometry"):
+                if not math.isfinite(number):
+                    findings.append(
+                        self._finding(
+                            context,
+                            path,
+                            number,
+                            feature_id=operation.feature_id,
+                            operation_id=operation.operation_id,
                         )
+                    )
         return findings
 
+    def _finding(
+        self,
+        context: RuleContext,
+        path: str,
+        number: float,
+        *,
+        feature_id: str | None = None,
+        operation_id: str | None = None,
+        entity_ref: str | None = None,
+    ) -> Finding:
+        return finding(
+            self.rule_id,
+            Severity.BLOCKING,
+            f"INVALID_GEOMETRY: non-finite coordinate at '{path}'",
+            feature_id=feature_id,
+            operation_id=operation_id,
+            entity_ref=entity_ref,
+            expected="finite number",
+            actual=repr(number),
+            tolerance=context.tolerance.absolute_length_mm,
+            suggested_fix="Recompile or repair the entity using finite coordinates",
+            measurement={"path": path, "unit": "mm"},
+        )
 
-def _flatten_numbers(value: object) -> list[float]:
-    if isinstance(value, bool):
+
+def _numeric_paths(
+    value: object, path: str = "", seen: set[int] | None = None
+) -> list[tuple[str, float]]:
+    """Walk wire models, dataclasses and ordinary reader records without I/O."""
+    if isinstance(value, bool | str | bytes) or value is None:
         return []
     if isinstance(value, int | float):
-        return [float(value)]
-    if isinstance(value, list | tuple):
-        return [n for item in value for n in _flatten_numbers(item)]
+        return [(path or "$", float(value))]
+    visited = seen if seen is not None else set()
+    identity = id(value)
+    if identity in visited:
+        return []
+    visited.add(identity)
+    if isinstance(value, Mapping):
+        return [
+            pair
+            for key, item in value.items()
+            for pair in _numeric_paths(item, f"{path}.{key}" if path else str(key), visited)
+        ]
+    if isinstance(value, Sequence):
+        return [
+            pair
+            for index, item in enumerate(value)
+            for pair in _numeric_paths(item, f"{path}[{index}]", visited)
+        ]
+    if is_dataclass(value) and not isinstance(value, type):
+        return [
+            pair
+            for field in fields(value)
+            for pair in _numeric_paths(
+                getattr(value, field.name), f"{path}.{field.name}" if path else field.name, visited
+            )
+        ]
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return _numeric_paths(model_dump(mode="python"), path, visited)
+    attributes = getattr(value, "__dict__", None)
+    if isinstance(attributes, dict):
+        return _numeric_paths(attributes, path, visited)
     return []
 
 
@@ -98,7 +171,7 @@ class ClosedOutlineRule:
     def evaluate(self, context: RuleContext) -> list[Finding]:
         findings: list[Finding] = []
         tolerance = context.tolerance
-        for operation in context.plan.operations:
+        for operation in context.require_plan().operations:
             if operation.type is not OperationType.CREATE_CLOSED_POLYLINE:
                 continue
             vertices = _points(operation, "vertices_mm")
@@ -194,7 +267,7 @@ class HolePlacementRule:
         outlines = _outline_operations(context)
         minimum_edge = context.profile.minimum_hole_edge_distance_mm
 
-        for operation in context.plan.operations:
+        for operation in context.require_plan().operations:
             if operation.type is not OperationType.CREATE_CIRCLES:
                 continue
             centers = _points(operation, "centers_mm")
@@ -263,7 +336,7 @@ class HoleSpacingRule:
         findings: list[Finding] = []
         ligament = context.profile.minimum_hole_ligament_mm or 0.0
 
-        for operation in context.plan.operations:
+        for operation in context.require_plan().operations:
             if operation.type is not OperationType.CREATE_CIRCLES:
                 continue
             centers = _points(operation, "centers_mm")
@@ -300,9 +373,10 @@ class PatternIntegrityRule:
     def evaluate(self, context: RuleContext) -> list[Finding]:
         findings: list[Finding] = []
         tolerance = context.tolerance
-        operations = {op.operation_id: op for op in context.plan.operations}
+        plan = context.require_plan()
+        operations = {op.operation_id: op for op in plan.operations}
 
-        for expectation in context.plan.validation_expectations:
+        for expectation in plan.validation_expectations:
             operation = operations.get(expectation.operation_id or "")
             if operation is None or operation.type is not OperationType.CREATE_CIRCLES:
                 continue

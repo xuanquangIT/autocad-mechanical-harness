@@ -1,0 +1,67 @@
+{
+  "entity_count": 4,
+  "entities": [
+    {
+      "operation_id": "op:slot-normal:top-flank",
+      "feature_id": "slot-normal",
+      "entity_type": "AcDbLine",
+      "layer": "OBJECT",
+      "measurements": {
+        "start_mm": [
+          2.6794919243112254,
+          38.66025403784439
+        ],
+        "end_mm": [
+          37.32050807568878,
+          58.66025403784438
+        ]
+      }
+    },
+    {
+      "operation_id": "op:slot-normal:right-arc",
+      "feature_id": "slot-normal",
+      "entity_type": "AcDbArc",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          42.32050807568878,
+          50.0
+        ],
+        "radius_mm": 10.0,
+        "start_angle_deg": 120.00000000000001,
+        "end_angle_deg": -59.999999999999986
+      }
+    },
+    {
+      "operation_id": "op:slot-normal:bottom-flank",
+      "feature_id": "slot-normal",
+      "entity_type": "AcDbLine",
+      "layer": "OBJECT",
+      "measurements": {
+        "start_mm": [
+          47.32050807568878,
+          41.33974596215561
+        ],
+        "end_mm": [
+          12.679491924311225,
+          21.339745962155614
+        ]
+      }
+    },
+    {
+      "operation_id": "op:slot-normal:left-arc",
+      "feature_id": "slot-normal",
+      "entity_type": "AcDbArc",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          7.679491924311225,
+          30.0
+        ],
+        "radius_mm": 10.0,
+        "start_angle_deg": -59.99999999999999,
+        "end_angle_deg": -240.0
+      }
+    }
+  ]
+}

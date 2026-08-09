@@ -1,0 +1,58 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:plate-linear-boundary:outline",
+      "feature_id": "plate-linear-boundary",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            100.0,
+            0.0
+          ],
+          [
+            100.0,
+            80.0
+          ],
+          [
+            0.0,
+            80.0
+          ]
+        ]
+      },
+      "expected": {
+        "closed": true,
+        "vertex_count": 4,
+        "width_mm": 100.0,
+        "height_mm": 80.0,
+        "area_mm2": 8000.0
+      }
+    },
+    {
+      "operation_id": "op:linear-boundary:holes",
+      "feature_id": "linear-boundary",
+      "type": "create_circles",
+      "layer": "OBJECT",
+      "geometry": {
+        "centers_mm": [
+          [
+            2.5,
+            2.5
+          ]
+        ],
+        "diameter_mm": 2.0
+      },
+      "expected": {
+        "count": 1,
+        "diameter_mm": 2.0
+      }
+    }
+  ]
+}

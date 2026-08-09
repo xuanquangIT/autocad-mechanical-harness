@@ -1,0 +1,10 @@
+# Client permission profiles. Pass this file via --config/CAD_HARNESS_CONFIG,
+# or copy this section into the deployment's merged local configuration.
+mcp:
+  client_profiles:
+    default: read_only
+    clients:
+      example-read-only-client:
+        mode: read_only
+      example-engineering-client:
+        mode: approval_required

@@ -28,7 +28,13 @@ def get_compiler(feature_type: str) -> FeatureCompiler:
 
 
 def supported_types() -> list[str]:
-    return sorted(_REGISTRY)
+    """Public feature types advertised to clients; internal recompilers stay hidden."""
+
+    return sorted(
+        name
+        for name, compiler in _REGISTRY.items()
+        if not getattr(compiler, "internal_only", False)
+    )
 
 
 def describe_all() -> list[dict[str, object]]:
@@ -42,6 +48,7 @@ def describe_all() -> list[dict[str, object]]:
             "optional_parameters": list(compiler.optional_parameters),
         }
         for _, compiler in sorted(_REGISTRY.items())
+        if not getattr(compiler, "internal_only", False)
     ]
 
 

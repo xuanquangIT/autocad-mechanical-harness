@@ -86,7 +86,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },

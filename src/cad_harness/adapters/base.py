@@ -25,6 +25,7 @@ from cad_harness.domain.ports.autocad_adapter import (
     RollbackRequest,
     SelectionRequest,
 )
+from cad_harness.domain.ports.repositories import JobStore
 
 #: Entity type each operation is expected to produce, for post-commit checks.
 ENTITY_TYPE_BY_OPERATION: dict[OperationType, str] = {
@@ -41,6 +42,9 @@ ENTITY_TYPE_BY_OPERATION: dict[OperationType, str] = {
     OperationType.CREATE_ALIGNED_DIMENSION: "AcDbAlignedDimension",
     OperationType.CREATE_DIAMETER_DIMENSION: "AcDbDiametricDimension",
     OperationType.CREATE_RADIUS_DIMENSION: "AcDbRadialDimension",
+    #: Two-line form is the one an angular dimension between edges produces.
+    OperationType.CREATE_ANGULAR_DIMENSION: "AcDb2LineAngularDimension",
+    OperationType.CREATE_HATCH: "AcDbHatch",
 }
 
 
@@ -49,9 +53,20 @@ class BaseAdapter:
 
     adapter_type: str = "base"
     capabilities: frozenset[AdapterCapability] = frozenset()
+    supported_operations: frozenset[OperationType] = frozenset()
+    job_store: JobStore | None = None
+
+    def bind_job_store(self, store: JobStore) -> None:
+        """Bind persistence needed by operations that target previously mapped entities."""
+        self.job_store = store
 
     def supports(self, capability: AdapterCapability) -> bool:
         return capability in self.capabilities
+
+    def unsupported_operations(self, plan: OperationPlan) -> tuple[OperationType, ...]:
+        """Return plan operation types this adapter cannot map, without raising."""
+        present = {operation.type for operation in plan.operations}
+        return tuple(sorted(present - self.supported_operations, key=lambda item: item.value))
 
     def require(self, capability: AdapterCapability) -> None:
         """Fail fast and explicitly rather than half-performing an operation."""

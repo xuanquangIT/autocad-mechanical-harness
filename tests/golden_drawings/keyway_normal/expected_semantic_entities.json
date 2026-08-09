@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:keyway-normal:contour",
+      "feature_id": "keyway-normal",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 67,
+        "width_mm": 19.993770345887242,
+        "height_mm": 23.0,
+        "area_mm2": 332.70036549343195,
+        "perimeter_mm": 69.64063756726902
+      }
+    }
+  ]
+}

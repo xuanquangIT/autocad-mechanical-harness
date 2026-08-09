@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "MaterialEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "density_kg_per_m3": {
+          "title": "Density Kg Per M3",
+          "type": "number"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "material_code": {
+          "title": "Material Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "material_code",
+        "description",
+        "density_kg_per_m3"
+      ],
+      "title": "MaterialEntry",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/material-table.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "company_approved": {
+      "default": false,
+      "title": "Company Approved",
+      "type": "boolean"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/MaterialEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "profile_id": {
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile_id",
+    "version",
+    "entries"
+  ],
+  "title": "MaterialTable",
+  "type": "object"
+}

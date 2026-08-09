@@ -1,0 +1,16 @@
+{
+  "_comment": "Invalid flange: OD equals the required PCD + hole diameter + two ligaments.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "flange-invalid",
+    "type": "flange",
+    "parameters": {
+      "outer_diameter_mm": 138.0,
+      "bore_diameter_mm": 50.0,
+      "bolt_hole_count": 4,
+      "bolt_hole_diameter_mm": 14.0,
+      "pcd_mm": 120.0,
+      "datum": [0.0, 0.0]
+    }
+  }]
+}

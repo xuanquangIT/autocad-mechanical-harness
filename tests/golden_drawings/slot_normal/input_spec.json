@@ -1,0 +1,14 @@
+{
+  "_comment": "Normal 60 x 20 mm obround slot rotated 30 degrees.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "slot-normal",
+    "type": "slot",
+    "parameters": {
+      "length_mm": 60.0,
+      "width_mm": 20.0,
+      "center_mm": [25.0, 40.0],
+      "angle_deg": 30.0
+    }
+  }]
+}

@@ -1,0 +1,1 @@
+{"_comment":"Edge cutout exceeds its edge.","units":"mm","features":[{"feature_id":"plate-edge-invalid","type":"rectangular_plate","parameters":{"width_mm":100.0,"height_mm":80.0,"thickness_mm":10.0,"origin_mm":[0.0,0.0]},"children":[{"feature_id":"edge-cutout-invalid","type":"edge_cutout","parameters":{"edge_index":0,"offset_mm":90.0,"width_mm":20.0,"depth_mm":5.0}}]}]}

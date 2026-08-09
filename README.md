@@ -16,25 +16,29 @@ every coordinate.
 
 ## Status
 
-Scaffold. Phase 1 of the roadmap in section 27 of the architecture document.
+Active production-roadmap implementation. Offline gates pass and the R26 bridge has passed
+disposable-drawing read, atomic commit, metadata readback and session undo acceptance;
+a signed release bundle, company drawings and pilot evidence remain open.
 
 | Area | State |
 |---|---|
 | Contracts, domain models, job state machine | Implemented |
 | Geometry kernel (primitives, tolerance, patterns) | Implemented |
-| Feature catalog | `rectangular_plate`, `rectangular_hole_pattern`, `bolt_circle_pattern` |
-| Feature catalog | `flange`, `slot`, `l_bracket` declared, not implemented |
-| Validation engine + 11 rules | Implemented |
+| Feature catalog | 10 deterministic mechanical features implemented |
+| Drawing comprehension | DXF/bridge read, seven-type recognition, takeoff, audit, remediation, 12 measurements and calibrated raster tracing |
+| Validation engine + drawing auditor | Implemented |
 | DXF/SVG preview, semantic diff | Implemented |
 | Fake adapter | Implemented (atomic, revision-tracked) |
-| COM adapter | Skeleton: inspect, commit for outlines and holes, export |
-| C# bridge | Contract only (Phase 5) |
-| MCP server | 13 tools wired to the application facade |
-| SQLite persistence | Tables defined; in-memory store used at runtime |
+| COM adapter | Summary/selection reader passed isolated PID-fenced R26 non-mutation acceptance; detailed geometry remains bridge/DXF-only |
+| C# bridge | R26 plugin/IPC/bounded inspection/atomic executor and durable commit replay implemented; live scratch commit and session-bound undo rollback passed; durable DWG checkpoint replacement remains unavailable |
+| MCP server | 22 typed, permission-guarded tools wired to production services |
+| Engineer desktop | PySide6 review/approval/commit and separately approved rollback surface with stale-scope polling and memory-only tokens |
+| Pilot metrics | Run-scoped baseline/effort/operation evidence, finite failure classification and acceptance report |
+| SQLite persistence | Runtime job, audit, lease, takeoff, drawing-audit and pilot-metrics stores |
 
 ## Quick start
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.12–3.13 and [uv](https://docs.astral.sh/uv/).
 
 ```powershell
 uv sync                      # install locked dependencies
@@ -65,29 +69,42 @@ Register it with an MCP client (paths must be absolute):
 }
 ```
 
+For a local Codex/ChatGPT desktop smoke run, point `CAD_HARNESS_CONFIG` at
+`config/codex-local.yaml`. That profile explicitly grants the identity-less STDIO client
+planning/preview permissions while pinning the adapter to `fake`; it cannot touch AutoCAD.
+
 Switch `CAD_HARNESS_ADAPTER` to `com` only on a Windows machine with AutoCAD open on
 the target drawing, and install the COM extra: `uv sync --extra com`.
 
 ## Tool surface
 
-Thirteen high-level tools. No `draw_line`, no `trim`, no `offset` — primitive tools
+Twenty-two high-level tools. No `draw_line`, no `trim`, no `offset` — primitive tools
 would let the model assemble geometry itself, which is exactly what this design avoids.
 
-| Tool | Side effect | Approval |
+| Tool | Side effect | Permission set |
 |---|---|---|
-| `cad_status` | none | no |
-| `cad_document_inspect` | none | no |
-| `cad_selection_inspect` | none | no |
-| `cad_feature_catalog_search` | none | no |
-| `cad_job_create` | internal DB | no |
-| `cad_spec_submit` | internal DB | no |
-| `cad_change_submit` | internal DB | no |
-| `cad_preview` | temp files | no |
-| `cad_validate` | none | no |
-| `cad_diff_get` | none | no |
-| `cad_commit` | modifies DWG | **required** |
-| `cad_rollback` | destructive | **required** |
-| `cad_export` | writes files | per policy |
+| `cad_status` | none | read-only |
+| `cad_document_inspect` | none | read-only |
+| `cad_selection_inspect` | none | read-only |
+| `cad_feature_catalog_search` | none | read-only |
+| `cad_drawing_read` | audit record | read-only |
+| `cad_feature_recognize` | none | read-only |
+| `cad_takeoff` | persisted report + audit | read-only |
+| `cad_audit` | persisted evidence + audit | read-only |
+| `cad_measure` | none | read-only |
+| `cad_image_inspect` | local review overlay | read-only |
+| `cad_image_trace` | local calibrated review overlay | read-only |
+| `cad_image_draft` | returns a sealed draft spec; no job/DWG write | read-only |
+| `cad_validate` | validation record | read-only |
+| `cad_diff_get` | none | read-only |
+| `cad_job_create` | internal DB | approval-required client |
+| `cad_spec_submit` | internal DB | approval-required client |
+| `cad_change_submit` | internal DB | approval-required client |
+| `cad_preview` | temporary files | approval-required client |
+| `cad_takeoff_export` | allowlisted file | approval-required client |
+| `cad_export` | allowlisted file | approval-required client |
+| `cad_commit` | modifies DWG | approval token + client permission |
+| `cad_rollback` | modifies DWG | separate Engineer Desktop `rb1` token bound to exact checkpoint/current revision + client permission |
 
 ## Layering
 
@@ -114,6 +131,29 @@ These are enforced in code, not just documented:
 4. A stale revision rejects the commit.
 5. The same idempotency key never creates duplicate entities.
 6. Committed entities are read back and re-measured; a mismatch fails the commit.
+
+## Calibrated image-to-drawing
+
+`cad_image_inspect` and `cad_image_trace` accept bounded base64 for a local PNG, JPEG
+or TIFF. A trace is only a review report: it never infers dimensions, tolerance,
+material, layer or design intent. Calibrated millimetre geometry requires two distinct
+pixel points and their real distance.
+
+An engineer reviews the opaque local SVG overlay and issues a short-lived acceptance
+outside MCP:
+
+```powershell
+uv run cad-harness raster-accept .\trace-report.json `
+  --candidate raster-candidate-... `
+  --accepted-by engineer_17 `
+  --layer TRACE_REVIEWED `
+  --confirm-reviewed-overlay
+```
+
+Pass that acceptance to `cad_image_draft`. The returned `DrawingSpec` still must go
+through `cad_spec_submit`, preview, validation, Engineer Desktop approval, commit and
+post-commit readback. Image-derived geometry is never treated as production evidence by
+itself.
 
 ## Before a pilot
 

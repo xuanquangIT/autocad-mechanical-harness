@@ -1,0 +1,20 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "flange-boundary-g06",
+      "type": "flange",
+      "parameters": {
+        "outer_diameter_mm": 182.86325,
+        "bore_diameter_mm": 66.25,
+        "bolt_hole_count": 4,
+        "bolt_hole_diameter_mm": 18.55,
+        "pcd_mm": 159.0,
+        "datum": [
+          10.0,
+          10.0
+        ]
+      }
+    }
+  ]
+}

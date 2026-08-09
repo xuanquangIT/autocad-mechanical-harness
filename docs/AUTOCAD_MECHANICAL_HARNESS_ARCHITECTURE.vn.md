@@ -1651,7 +1651,7 @@ storage:
 
 security:
   require_commit_approval: true
-  require_rollback_approval: true
+  # Approval rollback là bắt buộc và không thể tắt bằng cấu hình.
   allow_arbitrary_export_path: false
   redact_document_paths: true
 

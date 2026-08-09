@@ -12,12 +12,22 @@ from cad_harness.feature_catalog.base import (
     InputReport,
 )
 from cad_harness.feature_catalog.bracket import LBracketCompiler
+from cad_harness.feature_catalog.corner_notch import CornerNotchCompiler
+from cad_harness.feature_catalog.edge_cutout import EdgeCutoutCompiler
 from cad_harness.feature_catalog.flange import FlangeCompiler
 from cad_harness.feature_catalog.hole_pattern import (
     BoltCirclePatternCompiler,
     RectangularHolePatternCompiler,
 )
+from cad_harness.feature_catalog.keyway import KeywayCompiler
+from cad_harness.feature_catalog.linear_hole_pattern import LinearHolePatternCompiler
 from cad_harness.feature_catalog.plate import RectangularPlateCompiler
+from cad_harness.feature_catalog.recognized import (
+    RecognizedChamferCornerCompiler,
+    RecognizedCircularHoleCompiler,
+    RecognizedFilletCornerCompiler,
+    RecognizedPartOutlineCompiler,
+)
 from cad_harness.feature_catalog.registry import (
     describe_all,
     get_compiler,
@@ -31,19 +41,35 @@ from cad_harness.feature_catalog.slot import SlotCompiler
 register(RectangularPlateCompiler())
 register(RectangularHolePatternCompiler())
 register(BoltCirclePatternCompiler())
+register(FlangeCompiler())
+register(SlotCompiler())
+register(LBracketCompiler())
+register(CornerNotchCompiler())
+register(EdgeCutoutCompiler())
+register(KeywayCompiler())
+register(LinearHolePatternCompiler())
+register(RecognizedPartOutlineCompiler())
+register(RecognizedCircularHoleCompiler())
+register(RecognizedFilletCornerCompiler())
+register(RecognizedChamferCornerCompiler())
 
-#: Declared but not registered. Compiling one raises UNSUPPORTED_FEATURE.
-PLANNED_FEATURES: tuple[type, ...] = (FlangeCompiler, SlotCompiler, LBracketCompiler)
+#: Feature classes declared for future delivery. An empty tuple means every currently
+#: declared feature meets the catalog Definition of Done.
+PLANNED_FEATURES: tuple[type, ...] = ()
 
 __all__ = [
     "PLANNED_FEATURES",
     "BoltCirclePatternCompiler",
     "CompileContext",
     "CompiledFeature",
+    "CornerNotchCompiler",
+    "EdgeCutoutCompiler",
     "FeatureCompiler",
     "FlangeCompiler",
     "InputReport",
+    "KeywayCompiler",
     "LBracketCompiler",
+    "LinearHolePatternCompiler",
     "RectangularHolePatternCompiler",
     "RectangularPlateCompiler",
     "SlotCompiler",

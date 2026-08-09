@@ -1,0 +1,64 @@
+{
+  "entity_count": 4,
+  "entities": [
+    {
+      "operation_id": "op:plate-linear-normal-g13:outline",
+      "feature_id": "plate-linear-normal-g13",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 4,
+        "width_mm": 157.0,
+        "height_mm": 125.6,
+        "area_mm2": 19719.2,
+        "perimeter_mm": 565.2
+      }
+    },
+    {
+      "operation_id": "op:linear-normal-g13:holes",
+      "feature_id": "linear-normal-g13",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 3,
+        "diameter_mm": 7.85,
+        "center_mm": [
+          20.0,
+          20.0
+        ],
+        "area_mm2": 48.39819832395925
+      }
+    },
+    {
+      "operation_id": "op:linear-normal-g13:holes",
+      "feature_id": "linear-normal-g13",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 3,
+        "diameter_mm": 7.85,
+        "center_mm": [
+          51.4,
+          20.0
+        ],
+        "area_mm2": 48.39819832395925
+      }
+    },
+    {
+      "operation_id": "op:linear-normal-g13:holes",
+      "feature_id": "linear-normal-g13",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 3,
+        "diameter_mm": 7.85,
+        "center_mm": [
+          82.8,
+          20.0
+        ],
+        "area_mm2": 48.39819832395925
+      }
+    }
+  ]
+}

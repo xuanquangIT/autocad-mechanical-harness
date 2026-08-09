@@ -1,0 +1,93 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:flange-normal:outer",
+      "feature_id": "flange-normal",
+      "type": "create_circle",
+      "layer": "OBJECT",
+      "geometry": {
+        "center_mm": [
+          0.0,
+          0.0
+        ],
+        "diameter_mm": 160.0
+      },
+      "expected": {
+        "diameter_mm": 160.0,
+        "center_mm": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bore",
+      "feature_id": "flange-normal",
+      "type": "create_circle",
+      "layer": "OBJECT",
+      "geometry": {
+        "center_mm": [
+          0.0,
+          0.0
+        ],
+        "diameter_mm": 60.0
+      },
+      "expected": {
+        "diameter_mm": 60.0,
+        "center_mm": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "type": "create_circles",
+      "layer": "OBJECT",
+      "geometry": {
+        "centers_mm": [
+          [
+            60.0,
+            0.0
+          ],
+          [
+            42.42640687119285,
+            42.42640687119285
+          ],
+          [
+            3.67394039744206e-15,
+            60.0
+          ],
+          [
+            -42.426406871192846,
+            42.42640687119285
+          ],
+          [
+            -60.0,
+            7.34788079488412e-15
+          ],
+          [
+            -42.42640687119286,
+            -42.426406871192846
+          ],
+          [
+            -1.1021821192326178e-14,
+            -60.0
+          ],
+          [
+            42.42640687119284,
+            -42.42640687119286
+          ]
+        ],
+        "diameter_mm": 14.0
+      },
+      "expected": {
+        "count": 8,
+        "diameter_mm": 14.0
+      }
+    }
+  ]
+}

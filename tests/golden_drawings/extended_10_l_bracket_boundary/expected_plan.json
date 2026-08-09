@@ -1,0 +1,47 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:l-bracket-boundary-g10:outline",
+      "feature_id": "l-bracket-boundary-g10",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [
+          [
+            7.325,
+            7.325
+          ],
+          [
+            36.625,
+            7.325
+          ],
+          [
+            36.625,
+            36.610350000000004
+          ],
+          [
+            36.610350000000004,
+            36.610350000000004
+          ],
+          [
+            36.610350000000004,
+            51.275000000000006
+          ],
+          [
+            7.325,
+            51.275000000000006
+          ]
+        ]
+      },
+      "expected": {
+        "closed": true,
+        "leg_a_mm": 29.3,
+        "leg_b_mm": 43.95,
+        "thickness_mm": 29.28535,
+        "area_mm2": 1287.5201628774998
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="494.0" height="326.0" viewBox="0 0 494.0 326.0" role="img" aria-label="Preview of operation plan golden:extended_01_base_plate_160x100">
+<title>Operation plan preview golden:extended_01_base_plate_160x100</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<g fill="none" stroke="#2e7d32" stroke-width="0.70" stroke-linejoin="round">
+<polygon points="56.00,270.00 424.00,270.00 424.00,40.00 56.00,40.00"/>
+<circle cx="102.00" cy="224.00" r="16.10"/>
+<circle cx="378.00" cy="224.00" r="16.10"/>
+<circle cx="102.00" cy="86.00" r="16.10"/>
+<circle cx="378.00" cy="86.00" r="16.10"/>
+<line x1="56.00" y1="270.00" x2="424.00" y2="270.00"/>
+<line x1="56.00" y1="270.00" x2="56.00" y2="40.00"/>
+<text x="102.00" y="224.00" fill="#2e7d32" stroke="none">4 × Ø16.1</text>
+<line x1="56.00" y1="270.00" x2="102.00" y2="270.00"/>
+<line x1="56.00" y1="270.00" x2="56.00" y2="224.00"/>
+<line x1="56.00" y1="270.00" x2="102.00" y2="270.00"/>
+<line x1="56.00" y1="270.00" x2="56.00" y2="86.00"/>
+<line x1="56.00" y1="270.00" x2="378.00" y2="270.00"/>
+<line x1="56.00" y1="270.00" x2="56.00" y2="224.00"/>
+<line x1="56.00" y1="270.00" x2="378.00" y2="270.00"/>
+<line x1="56.00" y1="270.00" x2="56.00" y2="86.00"/>
+<line x1="102.00" y1="224.00" x2="102.00" y2="86.00"/>
+<line x1="102.00" y1="224.00" x2="378.00" y2="224.00"/>
+<line x1="102.00" y1="86.00" x2="378.00" y2="86.00"/>
+<line x1="378.00" y1="224.00" x2="378.00" y2="86.00"/>
+<text x="454.00" y="40.00" fill="#2e7d32" stroke="none">A | 4 | Ø16.1</text>
+</g></svg>

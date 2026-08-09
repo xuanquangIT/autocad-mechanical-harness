@@ -1,0 +1,18 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "keyway-boundary-g08",
+      "type": "keyway",
+      "parameters": {
+        "bore_diameter_mm": 27.9,
+        "key_width_mm": 26.505,
+        "key_depth_mm": 1.395,
+        "center_mm": [
+          69.75,
+          55.8
+        ]
+      }
+    }
+  ]
+}

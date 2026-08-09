@@ -40,6 +40,9 @@ class ErrorCode(StrEnum):
     EXPORT_PATH_NOT_ALLOWED = "EXPORT_PATH_NOT_ALLOWED"
     ROLLBACK_NOT_AVAILABLE = "ROLLBACK_NOT_AVAILABLE"
     INVALID_JOB_TRANSITION = "INVALID_JOB_TRANSITION"
+    TOOL_NOT_ALLOWED = "TOOL_NOT_ALLOWED"
+    UNSUPPORTED_INPUT_FORMAT = "UNSUPPORTED_INPUT_FORMAT"
+    READ_SCOPE_TOO_LARGE = "READ_SCOPE_TOO_LARGE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -52,6 +55,9 @@ class HarnessError(Exception):
 
     code: ErrorCode = ErrorCode.INTERNAL_ERROR
     retryable: bool = False
+    #: Action a subclass always wants reported when the caller supplies none. Set it
+    #: where the way forward does not depend on the call site.
+    default_required_action: str | None = None
 
     def __init__(
         self,
@@ -62,7 +68,7 @@ class HarnessError(Exception):
     ) -> None:
         super().__init__(message)
         self.message = message
-        self.required_action = required_action
+        self.required_action = required_action or self.default_required_action
         self.details: dict[str, Any] = details or {}
 
     def to_payload(self) -> dict[str, Any]:
@@ -145,6 +151,16 @@ class AdapterCapabilityMissingError(HarnessError):
     code = ErrorCode.ADAPTER_CAPABILITY_MISSING
 
 
+class IpcTimeoutError(HarnessError):
+    """A cooperative or transport deadline expired and the result was discarded."""
+
+    code = ErrorCode.IPC_TIMEOUT
+    retryable = True
+    default_required_action = (
+        "Reduce the operation scope or increase its configured timeout, then retry safely"
+    )
+
+
 class ComCallFailedError(HarnessError):
     code = ErrorCode.COM_CALL_FAILED
 
@@ -169,3 +185,30 @@ class RollbackNotAvailableError(HarnessError):
 
 class InvalidJobTransitionError(HarnessError):
     code = ErrorCode.INVALID_JOB_TRANSITION
+
+
+class ToolNotAllowedError(HarnessError):
+    """A client called a tool outside its permission profile's allowlist."""
+
+    code = ErrorCode.TOOL_NOT_ALLOWED
+    default_required_action = (
+        "Call a tool from the allowed list, or raise the client's permission mode"
+    )
+
+
+class UnsupportedInputFormatError(HarnessError):
+    """Raster, PDF or any format the reader cannot turn into exact geometry."""
+
+    code = ErrorCode.UNSUPPORTED_INPUT_FORMAT
+    default_required_action = "Supply the drawing in one of the supported formats"
+
+
+class ReadScopeTooLargeError(HarnessError):
+    """The requested read exceeds the configured entity budget.
+
+    Never retryable as-is: retrying the same scope hits the same limit. The caller
+    must narrow the scope instead.
+    """
+
+    code = ErrorCode.READ_SCOPE_TOO_LARGE
+    default_required_action = "Narrow the read scope by layer, space or window and try again"

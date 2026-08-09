@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "MeasurementKind": {
+      "description": "The twelve analytic measurements supported by the read path.",
+      "enum": [
+        "point_to_point",
+        "point_to_entity",
+        "entity_to_entity",
+        "angle_between_lines",
+        "arc_length",
+        "contour_perimeter",
+        "contour_area",
+        "diameter",
+        "radius",
+        "bounding_box",
+        "hole_to_edge",
+        "hole_center_to_center"
+      ],
+      "title": "MeasurementKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/measurement-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One measured quantity together with its source revision and basis.",
+  "properties": {
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "entity_refs": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Entity Refs",
+      "type": "array"
+    },
+    "kind": {
+      "$ref": "#/$defs/MeasurementKind"
+    },
+    "measurement_basis": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Measurement Basis",
+      "type": "array"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "tolerance_used": {
+      "title": "Tolerance Used",
+      "type": "number"
+    },
+    "unit": {
+      "enum": [
+        "mm",
+        "mm2",
+        "deg"
+      ],
+      "title": "Unit",
+      "type": "string"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        }
+      ],
+      "title": "Value"
+    }
+  },
+  "required": [
+    "kind",
+    "value",
+    "unit",
+    "tolerance_used",
+    "document_id",
+    "revision",
+    "measurement_basis"
+  ],
+  "title": "MeasurementResult",
+  "type": "object"
+}

@@ -26,12 +26,19 @@ class AuditEventType(StrEnum):
     VALIDATION_COMPLETED = "VALIDATION_COMPLETED"
     APPROVAL_GRANTED = "APPROVAL_GRANTED"
     APPROVAL_REVOKED = "APPROVAL_REVOKED"
+    ROLLBACK_APPROVAL_GRANTED = "ROLLBACK_APPROVAL_GRANTED"
     COMMIT_STARTED = "COMMIT_STARTED"
     COMMIT_SUCCEEDED = "COMMIT_SUCCEEDED"
     COMMIT_FAILED = "COMMIT_FAILED"
     ROLLBACK_STARTED = "ROLLBACK_STARTED"
     ROLLBACK_SUCCEEDED = "ROLLBACK_SUCCEEDED"
     EXPORT_CREATED = "EXPORT_CREATED"
+    #: A tool call refused by the client permission profile. Recorded because a
+    #: rejected call is exactly what an audit reader wants to see.
+    TOOL_CALL_REJECTED = "TOOL_CALL_REJECTED"
+    DRAWING_READ = "DRAWING_READ"
+    TAKEOFF_REPORT_CREATED = "TAKEOFF_REPORT_CREATED"
+    DRAWING_AUDITED = "DRAWING_AUDITED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,3 +108,12 @@ class InMemoryAuditSink:
                 return False
             expected_previous = event.event_hash
         return True
+
+    def events_for_job(self, job_id: str) -> tuple[AuditEvent, ...]:
+        """Return one case timeline without assuming adjacent global-chain links."""
+        return tuple(
+            sorted(
+                (event for event in self.events if event.job_id == job_id),
+                key=lambda event: (event.created_at, event.event_id),
+            )
+        )

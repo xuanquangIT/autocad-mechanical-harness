@@ -25,6 +25,7 @@ METHODS: tuple[str, ...] = (
     "inspect_selection",
     "preview",
     "validate_revision",
+    "cancel",
     "commit",
     "rollback",
     "export",

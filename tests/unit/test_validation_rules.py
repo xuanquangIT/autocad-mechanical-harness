@@ -242,7 +242,14 @@ class TestEngineWiring:
     def test_all_rules_are_registered_once(self) -> None:
         engine = default_engine()
         assert len(engine.rule_ids()) == len(set(engine.rule_ids()))
-        assert len(engine.rule_ids()) == 11
+        assert len(engine.rule_ids()) == 39
+        assert {
+            "LAYER_SET_MATCHES_PROFILE",
+            "ENTITY_ON_EXPECTED_LAYER",
+            "DIMSTYLE_IN_PROFILE",
+            "TEXTSTYLE_IN_PROFILE",
+            "DOCUMENT_UNITS_MATCH_PROFILE",
+        } <= set(engine.rule_ids())
 
     def test_post_commit_rules_do_not_run_pre_commit(self, context_factory) -> None:
         plan = build_plan((outline(PLATE),))

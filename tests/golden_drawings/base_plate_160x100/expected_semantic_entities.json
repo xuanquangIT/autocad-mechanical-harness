@@ -1,11 +1,12 @@
 {
   "_comment": "Entities and read-back measurements after commit. Entity refs are adapter-specific and therefore not compared; counts, types, layers and measurements are.",
-  "entity_count": 5,
+  "entity_count": 25,
   "entities": [
     {
       "operation_id": "op:base-plate-001:outline",
       "feature_id": "base-plate-001",
       "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
       "measurements": {
         "closed": true,
         "vertex_count": 4,
@@ -19,40 +20,587 @@
       "operation_id": "op:base-plate-001-holes:holes",
       "feature_id": "base-plate-001-holes",
       "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
       "measurements": {
         "count": 4,
         "diameter_mm": 14.0,
-        "center_mm": [20.0, 20.0]
+        "center_mm": [
+          20.0,
+          20.0
+        ],
+        "area_mm2": 153.93804002589985
       }
     },
     {
       "operation_id": "op:base-plate-001-holes:holes",
       "feature_id": "base-plate-001-holes",
       "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
       "measurements": {
         "count": 4,
         "diameter_mm": 14.0,
-        "center_mm": [140.0, 20.0]
+        "center_mm": [
+          140.0,
+          20.0
+        ],
+        "area_mm2": 153.93804002589985
       }
     },
     {
       "operation_id": "op:base-plate-001-holes:holes",
       "feature_id": "base-plate-001-holes",
       "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
       "measurements": {
         "count": 4,
         "diameter_mm": 14.0,
-        "center_mm": [20.0, 80.0]
+        "center_mm": [
+          20.0,
+          80.0
+        ],
+        "area_mm2": 153.93804002589985
       }
     },
     {
       "operation_id": "op:base-plate-001-holes:holes",
       "feature_id": "base-plate-001-holes",
       "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
       "measurements": {
         "count": 4,
         "diameter_mm": 14.0,
-        "center_mm": [140.0, 80.0]
+        "center_mm": [
+          140.0,
+          80.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:annotation:overall-width",
+      "feature_id": "annotation:overall",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          160.0,
+          0.0
+        ],
+        "text_position_mm": [
+          0.0,
+          -8.0
+        ],
+        "measurement_mm": 160.0,
+        "text_value": "160",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          0.0,
+          -8.0,
+          4.5,
+          -5.5
+        ],
+        "annotation_kind": "linear_dimension"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:overall-height",
+      "feature_id": "annotation:overall",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          100.0
+        ],
+        "text_position_mm": [
+          -8.0,
+          0.0
+        ],
+        "measurement_mm": 100.0,
+        "text_value": "100",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          -8.0,
+          0.0,
+          -3.5,
+          2.5
+        ],
+        "annotation_kind": "linear_dimension"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-callout-0",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbText",
+      "layer": "DIM",
+      "measurements": {
+        "position_mm": [
+          20.0,
+          20.0
+        ],
+        "text": "4 × Ø14",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          20.0,
+          30.5,
+          22.5
+        ],
+        "annotation_kind": "hole_callout",
+        "diameter_mm": 14.0,
+        "count": 4
+      },
+      "style": {
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-0-x",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          20.0,
+          0.0
+        ],
+        "text_position_mm": [
+          20.0,
+          25.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          25.0,
+          23.0,
+          27.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-0-y",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          20.0
+        ],
+        "text_position_mm": [
+          15.0,
+          20.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          15.0,
+          20.0,
+          18.0,
+          22.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-1-x",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          20.0,
+          0.0
+        ],
+        "text_position_mm": [
+          20.0,
+          80.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          80.0,
+          23.0,
+          82.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-1-y",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          80.0
+        ],
+        "text_position_mm": [
+          20.0,
+          85.0
+        ],
+        "measurement_mm": 80.0,
+        "text_value": "80",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          85.0,
+          23.0,
+          87.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-2-x",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          140.0,
+          0.0
+        ],
+        "text_position_mm": [
+          140.0,
+          20.0
+        ],
+        "measurement_mm": 140.0,
+        "text_value": "140",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          20.0,
+          144.5,
+          22.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-2-y",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          20.0
+        ],
+        "text_position_mm": [
+          140.0,
+          25.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          25.0,
+          143.0,
+          27.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-3-x",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          140.0,
+          0.0
+        ],
+        "text_position_mm": [
+          140.0,
+          80.0
+        ],
+        "measurement_mm": 140.0,
+        "text_value": "140",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          80.0,
+          144.5,
+          82.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-3-y",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbRotatedDimension",
+      "layer": "DIM",
+      "measurements": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          80.0
+        ],
+        "text_position_mm": [
+          140.0,
+          85.0
+        ],
+        "measurement_mm": 80.0,
+        "text_value": "80",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          85.0,
+          143.0,
+          87.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "style": {
+        "dimension_style": "DEMO-ISO-MM",
+        "text_style": "DEMO-ISO"
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-0",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbPoint",
+      "layer": "CENTER",
+      "measurements": {
+        "center_mm": [
+          20.0,
+          20.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-1",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbPoint",
+      "layer": "CENTER",
+      "measurements": {
+        "center_mm": [
+          20.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-2",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbPoint",
+      "layer": "CENTER",
+      "measurements": {
+        "center_mm": [
+          140.0,
+          20.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-3",
+      "feature_id": "base-plate-001-holes",
+      "entity_type": "AcDbPoint",
+      "layer": "CENTER",
+      "measurements": {
+        "center_mm": [
+          140.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-0",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "entity_type": "AcDbLine",
+      "layer": "CENTER",
+      "measurements": {
+        "start_mm": [
+          20.0,
+          20.0
+        ],
+        "end_mm": [
+          20.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-1",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "entity_type": "AcDbLine",
+      "layer": "CENTER",
+      "measurements": {
+        "start_mm": [
+          20.0,
+          20.0
+        ],
+        "end_mm": [
+          140.0,
+          20.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-2",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "entity_type": "AcDbLine",
+      "layer": "CENTER",
+      "measurements": {
+        "start_mm": [
+          20.0,
+          80.0
+        ],
+        "end_mm": [
+          140.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-3",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "entity_type": "AcDbLine",
+      "layer": "CENTER",
+      "measurements": {
+        "start_mm": [
+          140.0,
+          20.0
+        ],
+        "end_mm": [
+          140.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-table-0",
+      "feature_id": "annotation:hole-table",
+      "entity_type": "AcDbText",
+      "layer": "TEXT",
+      "measurements": {
+        "position_mm": [
+          175.0,
+          100.0
+        ],
+        "text": "A | 4 | Ø14",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          175.0,
+          100.0,
+          191.5,
+          102.5
+        ],
+        "annotation_kind": "hole_table_row",
+        "symbol": "A",
+        "count": 4,
+        "diameter_mm": 14.0
+      },
+      "style": {
+        "text_style": "DEMO-ISO"
       }
     }
   ]

@@ -1,0 +1,17 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "slot-boundary-g14",
+      "type": "slot",
+      "parameters": {
+        "length_mm": 32.11605,
+        "width_mm": 32.1,
+        "center_mm": [
+          0.0,
+          0.0
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "$id": "https://cad-harness.local/contracts/rollback-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checkpoint_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Checkpoint Id"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "method": {
+      "enum": [
+        "undo_group",
+        "checkpoint_restore"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "restored_revision": {
+      "title": "Restored Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "restored_revision",
+    "method"
+  ],
+  "title": "RollbackResult",
+  "type": "object"
+}

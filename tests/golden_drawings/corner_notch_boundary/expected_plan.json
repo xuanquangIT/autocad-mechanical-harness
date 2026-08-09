@@ -1,0 +1,47 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:plate-corner-boundary:outline",
+      "feature_id": "plate-corner-boundary",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            50.0,
+            0.0
+          ],
+          [
+            50.0,
+            40.0
+          ],
+          [
+            100.0,
+            40.0
+          ],
+          [
+            100.0,
+            80.0
+          ],
+          [
+            0.0,
+            80.0
+          ]
+        ]
+      },
+      "expected": {
+        "closed": true,
+        "vertex_count": 6,
+        "width_mm": 100.0,
+        "height_mm": 80.0,
+        "area_mm2": 6000.0
+      }
+    }
+  ]
+}

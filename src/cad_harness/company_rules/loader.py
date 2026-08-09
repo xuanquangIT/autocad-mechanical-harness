@@ -28,6 +28,36 @@ class LayerRule(ContractModel):
     lineweight: int | None = None
 
 
+class AnnotationRules(ContractModel):
+    """Annotation policy owned by the company, not by the compiler."""
+
+    hole_callout_min_count: int | None = None
+    hole_table: bool | None = None
+    text_height_mm: float | None = None
+    maximum_text_overlap_ratio: float | None = None
+    placement_offsets_mm: tuple[tuple[float, float], ...] = ()
+
+
+class TitleBlockField(ContractModel):
+    """One title block attribute the profile expects on a released drawing."""
+
+    name: str
+    required: bool = True
+    #: Profile-supplied value. ``None`` means the spec must carry it; a required
+    #: field with no value from either side is a missing input, never a blank.
+    value: str | None = None
+
+
+class LayoutRules(ContractModel):
+    """Layout, viewport, print and multi-view geometry policy."""
+
+    layout_name: str | None = None
+    viewport_scale: str | None = None
+    print_scale: str | None = None
+    #: Spacing between views of a multi-view drawing.
+    view_spacing_mm: float | None = None
+
+
 class AllowedDefault(ContractModel):
     """An explicitly permitted default, with the provenance the audit trail needs."""
 
@@ -47,25 +77,52 @@ class CompanyProfile(ContractModel):
     general_tolerance: str | None = None
     dimension_style: str | None = None
     text_style: str | None = None
+    #: Allowed styles when auditing an existing drawing. Singular fields above remain
+    #: the creation defaults; the collections are the complete audit allowlists.
+    dimension_styles: tuple[str, ...] = ()
+    text_styles: tuple[str, ...] = ()
     title_block: str | None = None
     annotation_scale: str | None = None
     layers: tuple[LayerRule, ...] = ()
     #: Feature purpose -> layer name, e.g. ``{"outline": "OBJECT"}``.
     layer_map: dict[str, str] = Field(default_factory=dict)
+    #: Existing entity type -> required layer, e.g. ``AcDbDimension: DIM``.
+    entity_layer_map: dict[str, str] = Field(default_factory=dict)
     minimum_hole_edge_distance_mm: float | None = None
     minimum_hole_ligament_mm: float | None = None
     tolerance_profile_ref: str = "demo-mechanical-mm@1.0"
     allowed_defaults: tuple[AllowedDefault, ...] = ()
+    #: Nested rule blocks default to empty instances so callers can read
+    #: ``profile.annotation_rules.hole_callout_min_count`` without a None check and
+    #: still get ``None`` for anything the profile did not declare.
+    annotation_rules: AnnotationRules = Field(default_factory=AnnotationRules)
+    layout_rules: LayoutRules = Field(default_factory=LayoutRules)
+    title_block_fields: tuple[TitleBlockField, ...] = ()
+    #: Drawing template and drawing standards files the company publishes.
+    dwt_ref: str | None = None
+    dws_ref: str | None = None
+    #: ``profile_id@version`` of the material table used for take-off mass.
+    material_profile_ref: str | None = None
 
     def as_ref(self) -> str:
         return f"{self.profile_id}@{self.version}"
 
     def layer_for(self, purpose: str) -> str:
-        """Resolve a layer by purpose. Unmapped purposes fall back to ``0``.
-
-        A validation rule reports the fallback, so it never silently ships.
-        """
-        return self.layer_map.get(purpose, "0")
+        """Resolve a declared layer by purpose; annotation never falls back to layer 0."""
+        layer = self.layer_map.get(purpose)
+        if layer is None:
+            raise StandardProfileNotFoundError(
+                f"Standard profile does not declare layer purpose '{purpose}'",
+                required_action="Add the missing layer_map key to the company profile",
+                details={"missing_config_key": f"layer_map.{purpose}"},
+            )
+        if layer not in self.layer_names():
+            raise StandardProfileNotFoundError(
+                f"Layer '{layer}' is mapped but not declared by the standard profile",
+                required_action="Declare the mapped layer in the company profile",
+                details={"missing_config_key": f"layers.{layer}"},
+            )
+        return layer
 
     def layer_names(self) -> frozenset[str]:
         return frozenset(layer.name for layer in self.layers)

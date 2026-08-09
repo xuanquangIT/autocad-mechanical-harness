@@ -22,6 +22,10 @@ class ToleranceProfile:
     angular_deg: float = 1.0e-4
     coincidence_mm: float = 1.0e-3
     area_mm2: float = 1.0e-2
+    #: Maximum chord deviation allowed when a curve is approximated by segments.
+    #: Coarser than the comparison tolerances on purpose: it bounds a deliberate
+    #: approximation, not the agreement between two computed values.
+    arc_chord_tolerance_mm: float = 0.01
 
     def as_ref(self) -> str:
         return f"{self.id}@{self.version}"

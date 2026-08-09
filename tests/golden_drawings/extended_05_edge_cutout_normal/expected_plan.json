@@ -1,0 +1,55 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:plate-edge-normal-g05:outline",
+      "feature_id": "plate-edge-normal-g05",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            25.8,
+            0.0
+          ],
+          [
+            25.8,
+            6.45
+          ],
+          [
+            45.150000000000006,
+            6.45
+          ],
+          [
+            45.150000000000006,
+            0.0
+          ],
+          [
+            129.0,
+            0.0
+          ],
+          [
+            129.0,
+            103.2
+          ],
+          [
+            0.0,
+            103.2
+          ]
+        ]
+      },
+      "expected": {
+        "closed": true,
+        "vertex_count": 8,
+        "width_mm": 129.0,
+        "height_mm": 103.2,
+        "area_mm2": 13187.9925
+      }
+    }
+  ]
+}

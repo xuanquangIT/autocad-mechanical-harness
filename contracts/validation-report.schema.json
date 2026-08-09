@@ -116,7 +116,9 @@
         "preview_geometry",
         "company_standard",
         "pre_commit",
-        "post_commit"
+        "post_commit",
+        "drawing_audit",
+        "drawing_standard"
       ],
       "title": "ValidationStage",
       "type": "string"
@@ -126,6 +128,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "blocking_count": {
+      "default": 0,
+      "title": "Blocking Count",
+      "type": "integer"
+    },
+    "company_approved": {
+      "default": false,
+      "title": "Company Approved",
+      "type": "boolean"
+    },
+    "entities_examined": {
+      "default": 0,
+      "title": "Entities Examined",
+      "type": "integer"
+    },
+    "error_count": {
+      "default": 0,
+      "title": "Error Count",
+      "type": "integer"
+    },
     "findings": {
       "default": [],
       "items": {
@@ -133,6 +155,11 @@
       },
       "title": "Findings",
       "type": "array"
+    },
+    "info_count": {
+      "default": 0,
+      "title": "Info Count",
+      "type": "integer"
     },
     "job_id": {
       "title": "Job Id",
@@ -150,8 +177,20 @@
       "default": null,
       "title": "Plan Hash"
     },
+    "profile_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Profile Ref"
+    },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },
@@ -161,6 +200,11 @@
     "validation_id": {
       "title": "Validation Id",
       "type": "string"
+    },
+    "warning_count": {
+      "default": 0,
+      "title": "Warning Count",
+      "type": "integer"
     }
   },
   "required": [

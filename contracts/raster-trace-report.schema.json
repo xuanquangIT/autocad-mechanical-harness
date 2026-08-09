@@ -1,0 +1,480 @@
+{
+  "$defs": {
+    "ArcGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "center_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center Mm",
+          "type": "array"
+        },
+        "end_angle_deg": {
+          "title": "End Angle Deg",
+          "type": "number"
+        },
+        "kind": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius_mm": {
+          "title": "Radius Mm",
+          "type": "number"
+        },
+        "start_angle_deg": {
+          "title": "Start Angle Deg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "center_mm",
+        "radius_mm",
+        "start_angle_deg",
+        "end_angle_deg"
+      ],
+      "title": "ArcGeometry",
+      "type": "object"
+    },
+    "CircleGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "center_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "circle",
+          "default": "circle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius_mm": {
+          "title": "Radius Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "center_mm",
+        "radius_mm"
+      ],
+      "title": "CircleGeometry",
+      "type": "object"
+    },
+    "LineGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "end_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start Mm",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_mm",
+        "end_mm"
+      ],
+      "title": "LineGeometry",
+      "type": "object"
+    },
+    "PixelPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "PixelPoint",
+      "type": "object"
+    },
+    "PolylineGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "closed": {
+          "title": "Closed",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "polyline",
+          "default": "polyline",
+          "title": "Kind",
+          "type": "string"
+        },
+        "vertices": {
+          "items": {
+            "$ref": "#/$defs/PolylineVertex"
+          },
+          "title": "Vertices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "vertices",
+        "closed"
+      ],
+      "title": "PolylineGeometry",
+      "type": "object"
+    },
+    "PolylineVertex": {
+      "additionalProperties": false,
+      "properties": {
+        "bulge": {
+          "default": 0.0,
+          "title": "Bulge",
+          "type": "number"
+        },
+        "point_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Point Mm",
+          "type": "array"
+        }
+      },
+      "required": [
+        "point_mm"
+      ],
+      "title": "PolylineVertex",
+      "type": "object"
+    },
+    "RasterCalibration": {
+      "additionalProperties": false,
+      "description": "Similarity transform: pixel_a maps to origin_mm and A->B defines +X.",
+      "properties": {
+        "origin_mm": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Origin Mm",
+          "type": "array"
+        },
+        "pixel_a": {
+          "$ref": "#/$defs/PixelPoint"
+        },
+        "pixel_b": {
+          "$ref": "#/$defs/PixelPoint"
+        },
+        "reference_distance_mm": {
+          "exclusiveMinimum": 0.0,
+          "title": "Reference Distance Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "pixel_a",
+        "pixel_b",
+        "reference_distance_mm"
+      ],
+      "title": "RasterCalibration",
+      "type": "object"
+    },
+    "RasterCandidateStatus": {
+      "enum": [
+        "proposed",
+        "ambiguous",
+        "rejected"
+      ],
+      "title": "RasterCandidateStatus",
+      "type": "string"
+    },
+    "RasterFormat": {
+      "enum": [
+        "png",
+        "jpeg",
+        "tiff"
+      ],
+      "title": "RasterFormat",
+      "type": "string"
+    },
+    "RasterSource": {
+      "additionalProperties": false,
+      "properties": {
+        "byte_size": {
+          "exclusiveMinimum": 0,
+          "title": "Byte Size",
+          "type": "integer"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "format": {
+          "$ref": "#/$defs/RasterFormat"
+        },
+        "height_px": {
+          "exclusiveMinimum": 0,
+          "title": "Height Px",
+          "type": "integer"
+        },
+        "source_sha256": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "width_px": {
+          "exclusiveMinimum": 0,
+          "title": "Width Px",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_sha256",
+        "format",
+        "byte_size",
+        "width_px",
+        "height_px",
+        "display_name"
+      ],
+      "title": "RasterSource",
+      "type": "object"
+    },
+    "RasterVectorCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence_bbox_px": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Evidence Bbox Px",
+          "type": "array"
+        },
+        "fit_error_px": {
+          "minimum": 0.0,
+          "title": "Fit Error Px",
+          "type": "number"
+        },
+        "geometry": {
+          "discriminator": {
+            "mapping": {
+              "arc": "#/$defs/ArcGeometry",
+              "circle": "#/$defs/CircleGeometry",
+              "line": "#/$defs/LineGeometry",
+              "polyline": "#/$defs/PolylineGeometry"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LineGeometry"
+            },
+            {
+              "$ref": "#/$defs/CircleGeometry"
+            },
+            {
+              "$ref": "#/$defs/ArcGeometry"
+            },
+            {
+              "$ref": "#/$defs/PolylineGeometry"
+            }
+          ],
+          "title": "Geometry"
+        },
+        "status": {
+          "$ref": "#/$defs/RasterCandidateStatus",
+          "default": "proposed"
+        },
+        "support_pixels": {
+          "minimum": 1,
+          "title": "Support Pixels",
+          "type": "integer"
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "geometry",
+        "confidence",
+        "fit_error_px",
+        "support_pixels",
+        "evidence_bbox_px"
+      ],
+      "title": "RasterVectorCandidate",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/raster-trace-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "calibration": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RasterCalibration"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RasterVectorCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "confidence_threshold": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence Threshold",
+      "type": "number"
+    },
+    "overlay_artifact_ref": {
+      "title": "Overlay Artifact Ref",
+      "type": "string"
+    },
+    "production_ready": {
+      "const": false,
+      "default": false,
+      "title": "Production Ready",
+      "type": "boolean"
+    },
+    "requires_engineer_review": {
+      "const": true,
+      "default": true,
+      "title": "Requires Engineer Review",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/RasterSource"
+    },
+    "trace_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Trace Digest",
+      "type": "string"
+    },
+    "trace_id": {
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "trace_id",
+    "source",
+    "calibration",
+    "overlay_artifact_ref",
+    "trace_digest",
+    "confidence_threshold"
+  ],
+  "title": "RasterTraceReport",
+  "type": "object"
+}

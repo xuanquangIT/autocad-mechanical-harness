@@ -33,7 +33,7 @@ class EveryOperationProducedEntityRule:
 
         produced = {entity.operation_id for entity in result.entity_results}
         findings: list[Finding] = []
-        for operation in context.plan.operations:
+        for operation in context.require_plan().operations:
             if operation.operation_id not in produced:
                 findings.append(
                     finding(
@@ -63,7 +63,7 @@ class MeasurementMatchesExpectationRule:
             return []
 
         tolerance = context.tolerance
-        operations = {op.operation_id: op for op in context.plan.operations}
+        operations = {op.operation_id: op for op in context.require_plan().operations}
         findings: list[Finding] = []
 
         for entity in result.entity_results:

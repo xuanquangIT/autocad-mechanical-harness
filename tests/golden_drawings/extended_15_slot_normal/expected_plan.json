@@ -1,0 +1,82 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:slot-normal-g15:top-flank",
+      "feature_id": "slot-normal-g15",
+      "type": "create_line",
+      "layer": "OBJECT",
+      "geometry": {
+        "start_mm": [
+          4.394366755870408,
+          63.40281662206479
+        ],
+        "end_mm": [
+          61.205633244129594,
+          96.20281662206479
+        ]
+      },
+      "expected": {
+        "length_mm": 65.60000000000001
+      }
+    },
+    {
+      "operation_id": "op:slot-normal-g15:right-arc",
+      "feature_id": "slot-normal-g15",
+      "type": "create_arc",
+      "layer": "OBJECT",
+      "geometry": {
+        "center_mm": [
+          69.40563324412959,
+          82.0
+        ],
+        "radius_mm": 16.4,
+        "start_angle_deg": 119.99999999999999,
+        "end_angle_deg": -60.000000000000014
+      },
+      "expected": {
+        "radius_mm": 16.4,
+        "sweep_deg": 180.0
+      }
+    },
+    {
+      "operation_id": "op:slot-normal-g15:bottom-flank",
+      "feature_id": "slot-normal-g15",
+      "type": "create_line",
+      "layer": "OBJECT",
+      "geometry": {
+        "start_mm": [
+          77.60563324412959,
+          67.7971833779352
+        ],
+        "end_mm": [
+          20.794366755870406,
+          34.9971833779352
+        ]
+      },
+      "expected": {
+        "length_mm": 65.60000000000001
+      }
+    },
+    {
+      "operation_id": "op:slot-normal-g15:left-arc",
+      "feature_id": "slot-normal-g15",
+      "type": "create_arc",
+      "layer": "OBJECT",
+      "geometry": {
+        "center_mm": [
+          12.594366755870407,
+          49.199999999999996
+        ],
+        "radius_mm": 16.4,
+        "start_angle_deg": -60.00000000000001,
+        "end_angle_deg": -240.0
+      },
+      "expected": {
+        "radius_mm": 16.4,
+        "sweep_deg": 180.0
+      }
+    }
+  ]
+}

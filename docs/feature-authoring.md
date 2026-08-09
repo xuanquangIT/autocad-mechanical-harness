@@ -126,3 +126,39 @@ improvising.
 - [ ] Adapter mapping or a declared capability gap
 - [ ] Example spec in the docs
 - [ ] Security and data-exposure review
+
+## Complex outline and child-feature example
+
+Modifiers contain dimensions and vertex indices only; intermediate points are always derived by `geometry/`. Boundary cutouts and hole patterns are children so containment can be checked against the real `parent_outline`.
+
+```json
+{
+  "feature_id": "mounting-plate",
+  "type": "rectangular_plate",
+  "parameters": {
+    "width_mm": 160,
+    "height_mm": 100,
+    "thickness_mm": 12,
+    "origin_mm": [0, 0]
+  },
+  "modifiers": [{
+    "type": "corner_fillet",
+    "parameters": {"radius_mm": 6, "vertex_indices": [0, 1]}
+  }],
+  "children": [{
+    "feature_id": "mounting-row",
+    "type": "linear_hole_pattern",
+    "parameters": {
+      "start_point": [20, 20],
+      "direction": [1, 0],
+      "pitch_mm": 40,
+      "count": 4,
+      "hole_diameter_mm": 10
+    }
+  }]
+}
+```
+
+`corner_notch` and `edge_cutout` are also child features because they replace the parent boundary. `keyway` accepts a bore diameter, key width, key depth, and an explicit center or resolved datum. All four features use existing polyline/circle operations, so preview and every current writer adapter declare support without a new operation mapping.
+
+Security review: these inputs contain local engineering dimensions only. They add no I/O, path, prompt, network, COM, approval bypass, or logging surface. As with all drawing specs, callers should still avoid placing customer identifiers in feature IDs.

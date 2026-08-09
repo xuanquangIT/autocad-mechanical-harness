@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement AutoCAD Harness"
+  short_description: "Build safe deterministic AutoCAD features"
+  default_prompt: "Use $implement-autocad-harness to implement and verify the next AutoCAD harness feature."

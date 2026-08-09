@@ -85,7 +85,7 @@
   "$id": "https://cad-harness.local/contracts/tool-response.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Uniform envelope returned by all 13 tools.",
+  "description": "Uniform envelope returned by every public MCP tool.",
   "properties": {
     "audit_event_id": {
       "anyOf": [
@@ -148,7 +148,7 @@
       "title": "Request Id"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },

@@ -12,10 +12,17 @@ canonical_unit: mm
 general_tolerance: ISO 2768-m
 dimension_style: DEMO-ISO-MM
 text_style: DEMO-ISO
+dimension_styles: [DEMO-ISO-MM]
+text_styles: [DEMO-ISO]
 title_block: demo_a3_landscape
 annotation_scale: "1:1"
 
 layers:
+  - name: "0"
+    purpose: AutoCAD reserved base layer
+    color_index: 7
+    linetype: Continuous
+    lineweight: -3
   - name: OBJECT
     purpose: Visible part outlines
     color_index: 7
@@ -48,11 +55,43 @@ layer_map:
   dimension: DIM
   text: TEXT
 
+entity_layer_map:
+  AcDbLine: OBJECT
+  AcDb2dPolyline: OBJECT
+  AcDbPolyline: OBJECT
+  AcDbCircle: OBJECT
+  AcDbArc: OBJECT
+  AcDbEllipse: OBJECT
+  AcDbText: TEXT
+  AcDbMText: TEXT
+  AcDbDimension: DIM
+  AcDbHatch: OBJECT
+  AcDbBlockReference: OBJECT
+
+annotation_rules:
+  hole_callout_min_count: 4
+  hole_table: true
+  text_height_mm: 2.5
+  maximum_text_overlap_ratio: 0.10
+  placement_offsets_mm:
+    - [0.0, 0.0]
+    - [0.0, 5.0]
+    - [5.0, 0.0]
+    - [-5.0, 0.0]
+    - [0.0, -5.0]
+
+layout_rules:
+  layout_name: Layout1
+  viewport_scale: "1:1"
+  print_scale: "1:1"
+  view_spacing_mm: 200.0
+
 # Manufacturing minimums used by validation rules. Demo values only.
 minimum_hole_edge_distance_mm: 1.5
 minimum_hole_ligament_mm: 2.0
 
 tolerance_profile_ref: demo-mechanical-mm@1.0
+material_profile_ref: demo-materials@1.0
 
 # Only these paths may be defaulted. Everything else must be supplied explicitly.
 allowed_defaults:

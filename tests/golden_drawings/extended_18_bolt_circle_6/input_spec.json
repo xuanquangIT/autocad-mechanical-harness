@@ -1,0 +1,49 @@
+{
+  "units": "mm",
+  "drawing": {
+    "projection": "orthographic",
+    "view": "top",
+    "datum": {
+      "type": "point",
+      "point_mm": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "features": [
+    {
+      "feature_id": "special-plate-3",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 160.0,
+        "height_mm": 100.0,
+        "thickness_mm": 12.0,
+        "material": "SS400",
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "bolt-circle-6",
+          "type": "bolt_circle_pattern",
+          "parameters": {
+            "hole_diameter_mm": 10.0,
+            "pcd_mm": 70.0,
+            "count": 6,
+            "center_mm": [
+              80.0,
+              50.0
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "general_tolerance": "ISO 2768-m",
+    "dimensions": "auto_required"
+  }
+}

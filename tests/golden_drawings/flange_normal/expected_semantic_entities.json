@@ -1,0 +1,151 @@
+{
+  "entity_count": 10,
+  "entities": [
+    {
+      "operation_id": "op:flange-normal:outer",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          0.0,
+          0.0
+        ],
+        "diameter_mm": 160.0
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bore",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          0.0,
+          0.0
+        ],
+        "diameter_mm": 60.0
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          60.0,
+          0.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          42.42640687119285,
+          42.42640687119285
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          3.67394039744206e-15,
+          60.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          -42.426406871192846,
+          42.42640687119285
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          -60.0,
+          7.34788079488412e-15
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          -42.42640687119286,
+          -42.426406871192846
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          -1.1021821192326178e-14,
+          -60.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-normal:bolt-holes",
+      "feature_id": "flange-normal",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 8,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          42.42640687119284,
+          -42.42640687119286
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    }
+  ]
+}

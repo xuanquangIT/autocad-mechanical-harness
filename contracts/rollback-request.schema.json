@@ -1,0 +1,48 @@
+{
+  "$id": "https://cad-harness.local/contracts/rollback-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "checkpoint_id": {
+      "title": "Checkpoint Id",
+      "type": "string"
+    },
+    "current_revision": {
+      "title": "Current Revision",
+      "type": "string"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "rollback_approval_token": {
+      "title": "Rollback Approval Token",
+      "type": "string"
+    },
+    "undo_group": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Undo Group"
+    }
+  },
+  "required": [
+    "job_id",
+    "document_id",
+    "checkpoint_id",
+    "current_revision",
+    "rollback_approval_token"
+  ],
+  "title": "RollbackRequest",
+  "type": "object"
+}

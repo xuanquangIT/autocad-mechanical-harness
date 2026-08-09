@@ -11,7 +11,7 @@ from typing import Protocol, runtime_checkable
 
 from cad_harness.domain.models.base import ContractModel
 from cad_harness.domain.models.document import DocumentSnapshot, SelectionSnapshot
-from cad_harness.domain.models.operation_plan import OperationPlan
+from cad_harness.domain.models.operation_plan import OperationPlan, OperationType
 from cad_harness.domain.models.result import (
     CommitResult,
     ExportResult,
@@ -38,6 +38,10 @@ class AdapterCapability(StrEnum):
     UNDO_GROUP = "undo_group"
     #: Feature ids persisted in drawing metadata (XData / extension dictionary).
     STABLE_METADATA = "stable_metadata"
+    #: Reverts the immediately preceding harness write through a verified,
+    #: session-bound AutoCAD undo group.  This is deliberately distinct from
+    #: restoring a persisted DWG checkpoint.
+    ROLLBACK_UNDO_GROUP = "rollback_undo_group"
     CHECKPOINT_RESTORE = "checkpoint_restore"
     IN_VIEWPORT_PREVIEW = "in_viewport_preview"
 
@@ -48,6 +52,10 @@ class AdapterStatus(ContractModel):
     capabilities: tuple[AdapterCapability, ...] = ()
     cad_application: str | None = None
     cad_version: str | None = None
+    #: Whether ``cad_version`` sits inside the published compatibility matrix.
+    #: ``None`` means the check has not been made - an adapter that never talked to
+    #: CAD must not claim a version is supported (Requirement 28.2).
+    version_supported: bool | None = None
     active_document_id: str | None = None
     message: str | None = None
 
@@ -76,7 +84,9 @@ class CommitRequest(ContractModel):
 class RollbackRequest(ContractModel):
     job_id: str
     document_id: str
-    checkpoint_id: str | None = None
+    checkpoint_id: str
+    current_revision: str
+    rollback_approval_token: str
     undo_group: str | None = None
 
 
@@ -91,6 +101,10 @@ class ExportRequest(ContractModel):
 @runtime_checkable
 class AutoCADAdapter(Protocol):
     """Execution port. Implementations contain no business rules."""
+
+    supported_operations: frozenset[OperationType]
+
+    def unsupported_operations(self, plan: OperationPlan) -> tuple[OperationType, ...]: ...
 
     def status(self) -> AdapterStatus: ...
 

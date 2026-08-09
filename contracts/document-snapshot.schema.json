@@ -52,6 +52,11 @@
         "name": {
           "title": "Name",
           "type": "string"
+        },
+        "off": {
+          "default": false,
+          "title": "Off",
+          "type": "boolean"
         }
       },
       "required": [
@@ -137,7 +142,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },
@@ -162,7 +167,16 @@
       "type": "array"
     },
     "units": {
-      "$ref": "#/$defs/Unit"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Unit"
+        },
+        {
+          "const": "unknown",
+          "type": "string"
+        }
+      ],
+      "title": "Units"
     }
   },
   "required": [

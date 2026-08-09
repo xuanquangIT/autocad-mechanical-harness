@@ -1,0 +1,13 @@
+{
+  "_comment": "Boundary slot with length only 0.01 mm greater than width.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "slot-boundary",
+    "type": "slot",
+    "parameters": {
+      "length_mm": 20.01,
+      "width_mm": 20.0,
+      "center_mm": [0.0, 0.0]
+    }
+  }]
+}

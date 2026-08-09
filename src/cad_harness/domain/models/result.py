@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -26,6 +26,20 @@ class EntityResult(ContractModel):
     entity_ref: str
     entity_type: str
     measurements: dict[str, Any] = Field(default_factory=dict)
+
+
+class EntityMappingRecord(ContractModel):
+    """Traceability from a committed entity back to the operation that created it.
+
+    ``last_revision`` is the document revision the mapping was observed at, so a stale
+    mapping can be detected instead of silently trusted.
+    """
+
+    document_id: str
+    feature_id: str
+    operation_id: str
+    entity_ref: str
+    last_revision: str
 
 
 class Checkpoint(ContractModel):
@@ -61,6 +75,8 @@ class PreviewResult(ContractModel):
     job_id: str
     plan_hash: str
     artifacts: tuple[PreviewArtifact, ...] = ()
+    #: Provenance label shown on every preview. False is the fail-safe default.
+    company_approved: bool = False
 
 
 class ExportResult(ContractModel):
@@ -77,4 +93,6 @@ class RollbackResult(ContractModel):
     job_id: str
     restored_revision: str
     checkpoint_id: str | None = None
-    method: str  # undo_group | checkpoint_restore
+    #: ``undo_group`` is session-bound; ``checkpoint_restore`` requires a durable
+    #: document-replacement backend and must never be inferred from a checkpoint id.
+    method: Literal["undo_group", "checkpoint_restore"]

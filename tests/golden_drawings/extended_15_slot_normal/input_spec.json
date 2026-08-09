@@ -1,0 +1,18 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "slot-normal-g15",
+      "type": "slot",
+      "parameters": {
+        "length_mm": 98.4,
+        "width_mm": 32.8,
+        "center_mm": [
+          41.0,
+          65.6
+        ],
+        "angle_deg": 30.0
+      }
+    }
+  ]
+}

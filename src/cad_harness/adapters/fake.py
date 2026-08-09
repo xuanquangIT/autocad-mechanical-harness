@@ -8,13 +8,19 @@ compared in the contract suite.
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
 from cad_harness.adapters.base import BaseAdapter
 from cad_harness.domain.canonical import sha256_of
-from cad_harness.domain.errors import StaleDocumentRevisionError
-from cad_harness.domain.models.document import DocumentSnapshot, LayerInfo, SelectionSnapshot
+from cad_harness.domain.errors import ComCallFailedError, StaleDocumentRevisionError
+from cad_harness.domain.models.document import (
+    DocumentSnapshot,
+    EntitySummary,
+    LayerInfo,
+    SelectionSnapshot,
+)
 from cad_harness.domain.models.operation_plan import Operation, OperationPlan, OperationType
 from cad_harness.domain.models.result import (
     CommitResult,
@@ -68,6 +74,7 @@ class FakeAutoCADAdapter(BaseAdapter):
     """Deterministic, dependency-free CAD backend."""
 
     adapter_type = "fake"
+    supported_operations = frozenset(OperationType)
     capabilities = frozenset(
         {
             AdapterCapability.INSPECT_DOCUMENT,
@@ -132,11 +139,26 @@ class FakeAutoCADAdapter(BaseAdapter):
 
     def inspect_selection(self, request: SelectionRequest) -> SelectionSnapshot:
         self.require(AdapterCapability.INSPECT_SELECTION)
+        entities = tuple(self.document.entities.values())
+        selected = entities[: request.max_entities]
         return SelectionSnapshot(
             document_id=self.document.document_id,
             revision=self.current_revision(),
-            entities=(),
-            truncated=False,
+            entities=tuple(
+                EntitySummary(
+                    entity_ref=entity.entity_ref,
+                    entity_type=entity.entity_type,
+                    layer=entity.layer,
+                    feature_id=entity.feature_id,
+                    measurements={
+                        key: value
+                        for key, value in entity.measurements.items()
+                        if isinstance(value, bool | float | int | str)
+                    },
+                )
+                for entity in selected
+            ),
+            truncated=len(selected) < len(entities),
         )
 
     def validate_revision(self, document_id: str, expected_revision: str) -> bool:
@@ -183,27 +205,34 @@ class FakeAutoCADAdapter(BaseAdapter):
         checkpoint_id = None
         if request.create_checkpoint:
             checkpoint_id = new_id(IdPrefix.CHECKPOINT)
-            self.document.snapshots[checkpoint_id] = dict(self.document.entities)
+            self.document.snapshots[checkpoint_id] = deepcopy(self.document.entities)
 
-        # Staged then applied in one step: a failing operation leaves nothing behind.
-        staged: list[tuple[FakeEntity, EntityResult]] = []
+        # Stage against a private document copy.  Commit reconciles retained entities
+        # in place, so update preserves the identity of its target FakeEntity.
+        working_entities = deepcopy(self.document.entities)
+        results: list[EntityResult] = []
+        original_counter = self._entity_counter
         try:
             for operation in request.plan.operations:
-                staged.extend(self._build_entities(operation))
+                built = self._execute_operation(operation, working_entities)
+                for entity, entity_result in built:
+                    if operation.type is not OperationType.DELETE_ENTITY:
+                        working_entities[entity.entity_ref] = entity
+                    results.append(entity_result)
         except Exception:
+            self._entity_counter = original_counter
             if checkpoint_id:
                 self.document.snapshots.pop(checkpoint_id, None)
             raise
 
-        for entity, _ in staged:
-            self.document.entities[entity.entity_ref] = entity
+        self._apply_entities(working_entities)
         self.document.write_counter += 1
 
         result = CommitResult(
             job_id=request.plan.job_id,
             plan_hash=request.plan.plan_hash or request.plan.compute_hash(),
             status=CommitStatus.COMMITTED,
-            entity_results=tuple(entity_result for _, entity_result in staged),
+            entity_results=tuple(results),
             previous_revision=current,
             new_revision=self.current_revision(),
             checkpoint_id=checkpoint_id,
@@ -214,8 +243,16 @@ class FakeAutoCADAdapter(BaseAdapter):
 
     def rollback(self, request: RollbackRequest) -> RollbackResult:
         self.require(AdapterCapability.CHECKPOINT_RESTORE)
+        if not self.validate_revision(request.document_id, request.current_revision):
+            from cad_harness.domain.errors import StaleDocumentRevisionError
+
+            raise StaleDocumentRevisionError(
+                "Document changed after rollback approval",
+                required_action="Review and approve rollback for the current revision",
+                details={"approved_revision": request.current_revision},
+            )
         if request.checkpoint_id and request.checkpoint_id in self.document.snapshots:
-            self.document.entities = dict(self.document.snapshots[request.checkpoint_id])
+            self.document.entities = deepcopy(self.document.snapshots[request.checkpoint_id])
             self.document.write_counter += 1
             return RollbackResult(
                 job_id=request.job_id,
@@ -247,6 +284,84 @@ class FakeAutoCADAdapter(BaseAdapter):
     def _next_ref(self) -> str:
         self._entity_counter += 1
         return f"fake:handle:{self._entity_counter:X}"
+
+    def _execute_operation(
+        self, operation: Operation, entities: dict[str, FakeEntity]
+    ) -> list[tuple[FakeEntity, EntityResult]]:
+        if operation.type is OperationType.UPDATE_ENTITY:
+            entity = self._target_entity(operation, entities)
+            properties = operation.geometry.get("properties", {})
+            if not isinstance(properties, dict):
+                raise ComCallFailedError(
+                    "Update properties must be an object",
+                    required_action="Recreate the remediation plan with valid properties",
+                    details={"operation_id": operation.operation_id},
+                )
+            entity.layer = operation.layer
+            existing = entity.geometry.get("properties", {})
+            entity.geometry["properties"] = {
+                **(existing if isinstance(existing, dict) else {}),
+                **properties,
+            }
+            return [
+                (
+                    entity,
+                    EntityResult(
+                        operation_id=operation.operation_id,
+                        feature_id=operation.feature_id,
+                        entity_ref=entity.entity_ref,
+                        entity_type=entity.entity_type,
+                        measurements={"layer": entity.layer},
+                    ),
+                )
+            ]
+        if operation.type is OperationType.DELETE_ENTITY:
+            entity = self._target_entity(operation, entities)
+            del entities[entity.entity_ref]
+            return [
+                (
+                    entity,
+                    EntityResult(
+                        operation_id=operation.operation_id,
+                        feature_id=operation.feature_id,
+                        entity_ref=entity.entity_ref,
+                        entity_type=entity.entity_type,
+                        measurements={"deleted": True},
+                    ),
+                )
+            ]
+        return self._build_entities(operation)
+
+    def _target_entity(self, operation: Operation, entities: dict[str, FakeEntity]) -> FakeEntity:
+        entity_ref = operation.target_entity_ref
+        entity = entities.get(entity_ref) if entity_ref else None
+        if entity is None:
+            raise ComCallFailedError(
+                "The operation references an entity that is not present in the fake document",
+                required_action="Re-inspect the drawing and recreate the remediation plan",
+                details={
+                    "reason": "entity_reference_not_found",
+                    "entity_ref": entity_ref,
+                    "document_id": self.document.document_id,
+                },
+            )
+        return entity
+
+    def _apply_entities(self, working_entities: dict[str, FakeEntity]) -> None:
+        """Apply a staged document without replacing retained entity objects."""
+        for entity_ref in set(self.document.entities) - set(working_entities):
+            del self.document.entities[entity_ref]
+        for entity_ref, staged in working_entities.items():
+            existing = self.document.entities.get(entity_ref)
+            if existing is None:
+                self.document.entities[entity_ref] = staged
+                continue
+            existing.entity_type = staged.entity_type
+            existing.layer = staged.layer
+            existing.feature_id = staged.feature_id
+            existing.operation_id = staged.operation_id
+            existing.geometry = staged.geometry
+            existing.measurements = staged.measurements
 
     def _build_entities(self, operation: Operation) -> list[tuple[FakeEntity, EntityResult]]:
         entity_type = self.entity_type_for(operation)

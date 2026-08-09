@@ -1,0 +1,22 @@
+{
+  "$id": "https://cad-harness.local/contracts/modifier-spec.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Ordered outline transformation containing engineering inputs only.",
+  "properties": {
+    "parameters": {
+      "additionalProperties": true,
+      "title": "Parameters",
+      "type": "object"
+    },
+    "type": {
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "title": "ModifierSpec",
+  "type": "object"
+}

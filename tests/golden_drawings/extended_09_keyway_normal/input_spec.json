@@ -1,0 +1,18 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "keyway-normal-g09",
+      "type": "keyway",
+      "parameters": {
+        "bore_diameter_mm": 28.6,
+        "key_width_mm": 8.58,
+        "key_depth_mm": 4.29,
+        "center_mm": [
+          71.5,
+          57.2
+        ]
+      }
+    }
+  ]
+}

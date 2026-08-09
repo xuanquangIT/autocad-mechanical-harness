@@ -10,13 +10,24 @@ compare operations, measurements, layers and validation outcomes instead
 ```
 <case-name>/
 ├── input_spec.json                  # the DrawingSpec submitted
+├── company_profile.yaml             # exact profile ref and approval status
 ├── expected_plan.json               # operations, expectations, plan_hash
 ├── expected_semantic_entities.json  # entities and measurements after commit
-└── expected_validation.json         # findings by rule and severity
+├── expected_validation.json         # findings by rule and severity
+└── preview_reference.svg            # stable human visual reference
 ```
 
-`preview_reference.svg` may be added for visual review. It is never used to decide
-pass/fail: that comes from measurements and rules.
+The SVG must exist and parse, but pixels never decide engineering pass/fail. The semantic
+comparator matches entity multisets, layers, styles and exact measurement key sets within the
+profile tolerance while ignoring handles and timestamps.
+
+Five or more take-off cases additionally contain `input_drawing.dxf`, `takeoff_request.json`
+and `expected_takeoff.json`. Their reports are compared semantically. Compilation and validation
+negative cases live under `_negative/` and do not count toward the 30 complete production cases.
+
+The `extended_*` fixtures are deterministic synthetic coverage. Before a release is labelled
+production-ready, a mechanical engineer must replace or supplement them with independently selected
+shop drawings and independently calculated take-off expectations.
 
 ## Adding a case
 

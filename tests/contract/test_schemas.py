@@ -11,6 +11,7 @@ from cad_harness.domain.errors import ErrorCode, StaleDocumentRevisionError
 from cad_harness.domain.models.base import SCHEMA_VERSION
 from cad_harness.domain.models.drawing_spec import DrawingSpec, MissingInput
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
+from cad_harness.domain.models.metrics import PilotReport
 from cad_harness.domain.models.operation_plan import Operation, OperationPlan, OperationType
 from cad_harness.domain.models.validation import (
     Finding,
@@ -38,7 +39,7 @@ class TestStrictness:
     def test_models_are_frozen(self) -> None:
         spec = DrawingSpec.model_validate(_minimal_spec_payload())
         with pytest.raises(ValidationError):
-            spec.spec_id = "spec_2"  # type: ignore[misc]
+            spec.spec_id = "spec_2"
 
     def test_schema_version_defaults_to_current(self) -> None:
         assert DrawingSpec.model_validate(_minimal_spec_payload()).schema_version == SCHEMA_VERSION
@@ -49,7 +50,9 @@ class TestStrictness:
 
 
 class TestJsonSchemaGeneration:
-    @pytest.mark.parametrize("model", [DrawingSpec, OperationPlan, ValidationReport, ToolResponse])
+    @pytest.mark.parametrize(
+        "model", [DrawingSpec, OperationPlan, PilotReport, ValidationReport, ToolResponse]
+    )
     def test_schema_can_be_generated(self, model: type) -> None:
         schema = model.model_json_schema()  # type: ignore[attr-defined]
         assert schema["type"] == "object"
@@ -90,6 +93,30 @@ class TestPlanHashing:
 
     def test_hash_detects_geometry_change(self) -> None:
         assert self._plan(14.0).compute_hash() != self._plan(14.5).compute_hash()
+
+    def test_wire_nulls_match_the_csharp_plan_hash_contract(self) -> None:
+        plan = OperationPlan(
+            plan_id="plan_1",
+            job_id="job_1",
+            document_id="doc_1",
+            expected_revision="sha256:revision",
+            profile_ref="demo@1.0",
+            operations=(
+                Operation(
+                    operation_id="op_1",
+                    feature_id="feat_" + chr(0x03B1),
+                    type=OperationType.CREATE_LINE,
+                    layer="CUT",
+                    geometry={"end_mm": [1.2345678916, 2.0], "start_mm": [0.0, -0.0]},
+                    expected={"length_mm": 2.352},
+                ),
+            ),
+        )
+
+        assert (
+            plan.compute_hash()
+            == "sha256:88ddfd92cc6743f8d8bcbcd9e42d31e94204d32a1ed1ce1467367de5163068c6"
+        )
 
     def test_verify_hash(self) -> None:
         plan = self._plan().with_hash()

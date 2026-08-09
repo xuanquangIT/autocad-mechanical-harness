@@ -162,3 +162,89 @@ class AuditEventRow(Base):
     previous_event_hash: Mapped[str | None] = mapped_column(String(80))
     event_hash: Mapped[str] = mapped_column(String(80), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class WriterLeaseRow(Base):
+    __tablename__ = "writer_leases"
+    __table_args__ = (UniqueConstraint("document_id", name="uq_writer_lease_document"),)
+
+    lease_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    owner_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TakeoffReportRow(Base):
+    __tablename__ = "takeoff_reports"
+
+    report_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    revision: Mapped[str] = mapped_column(String(80), nullable=False)
+    report_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    total_mass_kg: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class DrawingAuditRow(Base):
+    __tablename__ = "drawing_audits"
+
+    audit_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    revision: Mapped[str] = mapped_column(String(80), nullable=False)
+    report_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    blocking_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    warning_count: Mapped[int] = mapped_column(Integer, default=0)
+    info_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class EffortRecordRow(Base):
+    __tablename__ = "effort_records"
+    __table_args__ = (UniqueConstraint("pilot_run_id", "case_id", name="uq_effort_run_case"),)
+
+    record_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    pilot_run_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    case_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    job_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("jobs.job_id"), nullable=False, index=True
+    )
+    harness_minutes: Mapped[float] = mapped_column(Float, nullable=False)
+    idle_minutes_excluded: Mapped[float] = mapped_column(Float, nullable=False)
+    manual_fixup_minutes: Mapped[float] = mapped_column(Float, nullable=False)
+    spec_change_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    entities_created: Mapped[int] = mapped_column(Integer, nullable=False)
+    entities_manually_edited: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_preview_clean: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    failure_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class BaselineCaseRow(Base):
+    __tablename__ = "baseline_cases"
+    __table_args__ = (UniqueConstraint("pilot_run_id", "case_id", name="uq_baseline_run_case"),)
+
+    baseline_record_id: Mapped[str] = mapped_column(String(260), primary_key=True)
+    case_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    pilot_run_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    capability_group: Mapped[str] = mapped_column(String(1), nullable=False)
+    work_label: Mapped[str] = mapped_column(String(32), nullable=False)
+    manual_minutes: Mapped[float] = mapped_column(Float, nullable=False)
+    manual_measured_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    manual_measurement_biased: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    manual_measured_in_single_session: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class OperationMetricRow(Base):
+    __tablename__ = "operation_metrics"
+
+    metric_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    pilot_run_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    operation_name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    entity_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

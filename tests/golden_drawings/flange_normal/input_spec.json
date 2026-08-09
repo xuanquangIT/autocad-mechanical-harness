@@ -1,0 +1,16 @@
+{
+  "_comment": "Normal flange: OD160, bore60, 8 x diameter14 on PCD120.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "flange-normal",
+    "type": "flange",
+    "parameters": {
+      "outer_diameter_mm": 160.0,
+      "bore_diameter_mm": 60.0,
+      "bolt_hole_count": 8,
+      "bolt_hole_diameter_mm": 14.0,
+      "pcd_mm": 120.0,
+      "datum": [0.0, 0.0]
+    }
+  }]
+}

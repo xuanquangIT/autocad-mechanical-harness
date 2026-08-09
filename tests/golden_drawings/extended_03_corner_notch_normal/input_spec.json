@@ -1,0 +1,29 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "plate-corner-normal-g03",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 122.0,
+        "height_mm": 97.6,
+        "thickness_mm": 12.2,
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "corner-notch-normal-g03",
+          "type": "corner_notch",
+          "parameters": {
+            "corner_index": 1,
+            "width_mm": 12.2,
+            "height_mm": 9.76
+          }
+        }
+      ]
+    }
+  ]
+}

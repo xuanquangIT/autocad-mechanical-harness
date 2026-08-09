@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:plate-edge-boundary-g04:outline",
+      "feature_id": "plate-edge-boundary-g04",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 8,
+        "width_mm": 125.5,
+        "height_mm": 100.4,
+        "area_mm2": 9765.155,
+        "perimeter_mm": 502.0
+      }
+    }
+  ]
+}

@@ -3,6 +3,14 @@
     "Annotations": {
       "additionalProperties": false,
       "properties": {
+        "datum_symbols": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DatumFeatureSymbol"
+          },
+          "title": "Datum Symbols",
+          "type": "array"
+        },
         "dimension_style": {
           "anyOf": [
             {
@@ -16,7 +24,7 @@
           "title": "Dimension Style"
         },
         "dimensions": {
-          "default": "auto_required",
+          "default": "none",
           "enum": [
             "auto_required",
             "auto_optional",
@@ -24,6 +32,14 @@
           ],
           "title": "Dimensions",
           "type": "string"
+        },
+        "feature_control_frames": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FeatureControlFrame"
+          },
+          "title": "Feature Control Frames",
+          "type": "array"
         },
         "general_tolerance": {
           "anyOf": [
@@ -48,6 +64,13 @@
           ],
           "default": null,
           "title": "Title Block"
+        },
+        "title_block_values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Title Block Values",
+          "type": "object"
         }
       },
       "title": "Annotations",
@@ -137,6 +160,41 @@
       "title": "Datum",
       "type": "object"
     },
+    "DatumFeatureSymbol": {
+      "additionalProperties": false,
+      "description": "An explicitly declared GD&T datum symbol; never inferred.",
+      "properties": {
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "identifier": {
+          "title": "Identifier",
+          "type": "string"
+        },
+        "position_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position Mm",
+          "type": "array"
+        }
+      },
+      "required": [
+        "identifier",
+        "feature_id",
+        "position_mm"
+      ],
+      "title": "DatumFeatureSymbol",
+      "type": "object"
+    },
     "DefaultRecord": {
       "additionalProperties": false,
       "description": "Provenance for an applied default (architecture section 12.2).\n\nA default without a source and version is a silent default, which the\ninvariant principles forbid.",
@@ -214,9 +272,70 @@
           ],
           "title": "View",
           "type": "string"
+        },
+        "views": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ViewSpec"
+          },
+          "title": "Views",
+          "type": "array"
         }
       },
       "title": "DrawingIntent",
+      "type": "object"
+    },
+    "FeatureControlFrame": {
+      "additionalProperties": false,
+      "description": "An explicitly declared note-level feature control frame.",
+      "properties": {
+        "characteristic": {
+          "title": "Characteristic",
+          "type": "string"
+        },
+        "datum_references": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Datum References",
+          "type": "array"
+        },
+        "feature_id": {
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "frame_id": {
+          "title": "Frame Id",
+          "type": "string"
+        },
+        "position_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position Mm",
+          "type": "array"
+        },
+        "tolerance_text": {
+          "title": "Tolerance Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "frame_id",
+        "feature_id",
+        "characteristic",
+        "tolerance_text",
+        "position_mm"
+      ],
+      "title": "FeatureControlFrame",
       "type": "object"
     },
     "FeatureSpec": {
@@ -235,6 +354,14 @@
           "title": "Feature Id",
           "type": "string"
         },
+        "modifiers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ModifierSpec"
+          },
+          "title": "Modifiers",
+          "type": "array"
+        },
         "parameters": {
           "additionalProperties": true,
           "title": "Parameters",
@@ -250,6 +377,26 @@
         "type"
       ],
       "title": "FeatureSpec",
+      "type": "object"
+    },
+    "ModifierSpec": {
+      "additionalProperties": false,
+      "description": "Ordered outline transformation containing engineering inputs only.",
+      "properties": {
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ModifierSpec",
       "type": "object"
     },
     "StandardProfileRef": {
@@ -281,6 +428,33 @@
       ],
       "title": "Unit",
       "type": "string"
+    },
+    "ViewSpec": {
+      "additionalProperties": false,
+      "description": "One requested view; supported values are validated by the view compiler.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ViewSpec",
+      "type": "object"
     }
   },
   "$id": "https://cad-harness.local/contracts/drawing-spec.schema.json",
@@ -323,7 +497,7 @@
       "type": "array"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },

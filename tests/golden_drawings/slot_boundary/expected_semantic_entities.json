@@ -1,0 +1,67 @@
+{
+  "entity_count": 4,
+  "entities": [
+    {
+      "operation_id": "op:slot-boundary:top-flank",
+      "feature_id": "slot-boundary",
+      "entity_type": "AcDbLine",
+      "layer": "OBJECT",
+      "measurements": {
+        "start_mm": [
+          -0.005000000000000782,
+          10.0
+        ],
+        "end_mm": [
+          0.005000000000000782,
+          10.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:slot-boundary:right-arc",
+      "feature_id": "slot-boundary",
+      "entity_type": "AcDbArc",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          0.005000000000000782,
+          0.0
+        ],
+        "radius_mm": 10.0,
+        "start_angle_deg": 90.0,
+        "end_angle_deg": -90.0
+      }
+    },
+    {
+      "operation_id": "op:slot-boundary:bottom-flank",
+      "feature_id": "slot-boundary",
+      "entity_type": "AcDbLine",
+      "layer": "OBJECT",
+      "measurements": {
+        "start_mm": [
+          0.005000000000000782,
+          -10.0
+        ],
+        "end_mm": [
+          -0.005000000000000782,
+          -10.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:slot-boundary:left-arc",
+      "feature_id": "slot-boundary",
+      "entity_type": "AcDbArc",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          -0.005000000000000782,
+          0.0
+        ],
+        "radius_mm": 10.0,
+        "start_angle_deg": -90.0,
+        "end_angle_deg": -270.0
+      }
+    }
+  ]
+}

@@ -24,7 +24,8 @@ def build_engine(sqlite_path: Path, *, echo: bool = False) -> Engine:
         cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.execute("PRAGMA busy_timeout=5000")
+        # Keep each driver-level wait below the retry policy's total two-second budget.
+        cursor.execute("PRAGMA busy_timeout=250")
         cursor.close()
 
     return engine

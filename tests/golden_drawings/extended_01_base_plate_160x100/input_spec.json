@@ -1,0 +1,47 @@
+{
+  "units": "mm",
+  "drawing": {
+    "projection": "orthographic",
+    "view": "top",
+    "datum": {
+      "type": "point",
+      "point_mm": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "features": [
+    {
+      "feature_id": "base-plate-001-g01",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 184.0,
+        "height_mm": 115.0,
+        "thickness_mm": 13.8,
+        "material": "SS400",
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "base-plate-001-holes-g01",
+          "type": "rectangular_hole_pattern",
+          "parameters": {
+            "hole_diameter_mm": 16.1,
+            "edge_offset_x_mm": 23.0,
+            "edge_offset_y_mm": 23.0,
+            "count_x": 2,
+            "count_y": 2
+          }
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "general_tolerance": "ISO 2768-m",
+    "dimensions": "auto_required"
+  }
+}

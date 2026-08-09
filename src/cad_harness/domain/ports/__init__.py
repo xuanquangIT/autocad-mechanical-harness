@@ -10,7 +10,22 @@ from cad_harness.domain.ports.autocad_adapter import (
     RollbackRequest,
     SelectionRequest,
 )
-from cad_harness.domain.ports.repositories import ApprovalStore, AuditSink, JobStore
+from cad_harness.domain.ports.drawing_source import (
+    DrawingReadRequest,
+    DrawingSourcePort,
+    DrawingSourceRef,
+    ReadScope,
+)
+from cad_harness.domain.ports.lease_store import LeaseStore
+from cad_harness.domain.ports.material_table import MaterialTablePort
+from cad_harness.domain.ports.repositories import (
+    ApprovalStore,
+    AuditSink,
+    DrawingAuditStore,
+    JobStore,
+    TakeoffPersistencePort,
+    TakeoffReportStore,
+)
 
 __all__ = [
     "AdapterCapability",
@@ -19,9 +34,18 @@ __all__ = [
     "AuditSink",
     "AutoCADAdapter",
     "CommitRequest",
+    "DrawingAuditStore",
+    "DrawingReadRequest",
+    "DrawingSourcePort",
+    "DrawingSourceRef",
     "ExportRequest",
     "InspectRequest",
     "JobStore",
+    "LeaseStore",
+    "MaterialTablePort",
+    "ReadScope",
     "RollbackRequest",
     "SelectionRequest",
+    "TakeoffPersistencePort",
+    "TakeoffReportStore",
 ]

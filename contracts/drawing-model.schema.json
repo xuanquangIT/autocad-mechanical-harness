@@ -1,0 +1,846 @@
+{
+  "$defs": {
+    "ArcGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "center_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center Mm",
+          "type": "array"
+        },
+        "end_angle_deg": {
+          "title": "End Angle Deg",
+          "type": "number"
+        },
+        "kind": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius_mm": {
+          "title": "Radius Mm",
+          "type": "number"
+        },
+        "start_angle_deg": {
+          "title": "Start Angle Deg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "center_mm",
+        "radius_mm",
+        "start_angle_deg",
+        "end_angle_deg"
+      ],
+      "title": "ArcGeometry",
+      "type": "object"
+    },
+    "BlockReferenceGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "block_name": {
+          "title": "Block Name",
+          "type": "string"
+        },
+        "child_entities": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EntityRecord"
+          },
+          "title": "Child Entities",
+          "type": "array"
+        },
+        "children_beyond_depth": {
+          "default": 0,
+          "title": "Children Beyond Depth",
+          "type": "integer"
+        },
+        "insertion_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Insertion Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "block_reference",
+          "default": "block_reference",
+          "title": "Kind",
+          "type": "string"
+        },
+        "nested_depth_read": {
+          "default": 0,
+          "title": "Nested Depth Read",
+          "type": "integer"
+        },
+        "non_uniform_scale": {
+          "default": false,
+          "title": "Non Uniform Scale",
+          "type": "boolean"
+        },
+        "rotation_deg": {
+          "title": "Rotation Deg",
+          "type": "number"
+        },
+        "scale": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Scale",
+          "type": "array"
+        }
+      },
+      "required": [
+        "block_name",
+        "insertion_mm",
+        "scale",
+        "rotation_deg"
+      ],
+      "title": "BlockReferenceGeometry",
+      "type": "object"
+    },
+    "CircleGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "center_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "circle",
+          "default": "circle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius_mm": {
+          "title": "Radius Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "center_mm",
+        "radius_mm"
+      ],
+      "title": "CircleGeometry",
+      "type": "object"
+    },
+    "DimensionGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "dimension_style": {
+          "title": "Dimension Style",
+          "type": "string"
+        },
+        "dimension_type": {
+          "title": "Dimension Type",
+          "type": "string"
+        },
+        "kind": {
+          "const": "dimension",
+          "default": "dimension",
+          "title": "Kind",
+          "type": "string"
+        },
+        "measured_entity_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Measured Entity Refs",
+          "type": "array"
+        },
+        "measurement_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Measurement Mm"
+        },
+        "text_override": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Text Override"
+        }
+      },
+      "required": [
+        "dimension_type",
+        "dimension_style",
+        "measurement_mm",
+        "text_override"
+      ],
+      "title": "DimensionGeometry",
+      "type": "object"
+    },
+    "EllipseGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "center_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "ellipse",
+          "default": "ellipse",
+          "title": "Kind",
+          "type": "string"
+        },
+        "major_axis_mm": {
+          "title": "Major Axis Mm",
+          "type": "number"
+        },
+        "minor_axis_mm": {
+          "title": "Minor Axis Mm",
+          "type": "number"
+        },
+        "rotation_deg": {
+          "title": "Rotation Deg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "center_mm",
+        "major_axis_mm",
+        "minor_axis_mm",
+        "rotation_deg"
+      ],
+      "title": "EllipseGeometry",
+      "type": "object"
+    },
+    "EntityRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "bounding_box_mm": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bounding Box Mm",
+          "type": "array"
+        },
+        "entity_ref": {
+          "title": "Entity Ref",
+          "type": "string"
+        },
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "feature_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feature Id"
+        },
+        "geometry": {
+          "discriminator": {
+            "mapping": {
+              "arc": "#/$defs/ArcGeometry",
+              "block_reference": "#/$defs/BlockReferenceGeometry",
+              "circle": "#/$defs/CircleGeometry",
+              "dimension": "#/$defs/DimensionGeometry",
+              "ellipse": "#/$defs/EllipseGeometry",
+              "hatch": "#/$defs/HatchGeometry",
+              "line": "#/$defs/LineGeometry",
+              "point": "#/$defs/PointGeometry",
+              "polyline": "#/$defs/PolylineGeometry",
+              "text": "#/$defs/TextGeometry"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PointGeometry"
+            },
+            {
+              "$ref": "#/$defs/LineGeometry"
+            },
+            {
+              "$ref": "#/$defs/ArcGeometry"
+            },
+            {
+              "$ref": "#/$defs/CircleGeometry"
+            },
+            {
+              "$ref": "#/$defs/EllipseGeometry"
+            },
+            {
+              "$ref": "#/$defs/PolylineGeometry"
+            },
+            {
+              "$ref": "#/$defs/TextGeometry"
+            },
+            {
+              "$ref": "#/$defs/DimensionGeometry"
+            },
+            {
+              "$ref": "#/$defs/HatchGeometry"
+            },
+            {
+              "$ref": "#/$defs/BlockReferenceGeometry"
+            }
+          ],
+          "title": "Geometry"
+        },
+        "layer": {
+          "title": "Layer",
+          "type": "string"
+        },
+        "non_uniform_scale": {
+          "default": false,
+          "title": "Non Uniform Scale",
+          "type": "boolean"
+        },
+        "space": {
+          "title": "Space",
+          "type": "string"
+        },
+        "visible": {
+          "title": "Visible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entity_ref",
+        "entity_type",
+        "layer",
+        "visible",
+        "space",
+        "geometry",
+        "bounding_box_mm"
+      ],
+      "title": "EntityRecord",
+      "type": "object"
+    },
+    "HatchGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "area_mm2": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Area Mm2"
+        },
+        "boundary_entity_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Boundary Entity Refs",
+          "type": "array"
+        },
+        "kind": {
+          "const": "hatch",
+          "default": "hatch",
+          "title": "Kind",
+          "type": "string"
+        },
+        "pattern_name": {
+          "title": "Pattern Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern_name",
+        "area_mm2"
+      ],
+      "title": "HatchGeometry",
+      "type": "object"
+    },
+    "LayerInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "color_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color Index"
+        },
+        "frozen": {
+          "default": false,
+          "title": "Frozen",
+          "type": "boolean"
+        },
+        "linetype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Linetype"
+        },
+        "lineweight": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineweight"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "off": {
+          "default": false,
+          "title": "Off",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "LayerInfo",
+      "type": "object"
+    },
+    "LineGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "end_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start Mm",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start_mm",
+        "end_mm"
+      ],
+      "title": "LineGeometry",
+      "type": "object"
+    },
+    "PointGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "point",
+          "default": "point",
+          "title": "Kind",
+          "type": "string"
+        },
+        "position_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Position Mm",
+          "type": "array"
+        }
+      },
+      "required": [
+        "position_mm"
+      ],
+      "title": "PointGeometry",
+      "type": "object"
+    },
+    "PolylineGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "closed": {
+          "title": "Closed",
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "polyline",
+          "default": "polyline",
+          "title": "Kind",
+          "type": "string"
+        },
+        "vertices": {
+          "items": {
+            "$ref": "#/$defs/PolylineVertex"
+          },
+          "title": "Vertices",
+          "type": "array"
+        }
+      },
+      "required": [
+        "vertices",
+        "closed"
+      ],
+      "title": "PolylineGeometry",
+      "type": "object"
+    },
+    "PolylineVertex": {
+      "additionalProperties": false,
+      "properties": {
+        "bulge": {
+          "default": 0.0,
+          "title": "Bulge",
+          "type": "number"
+        },
+        "point_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Point Mm",
+          "type": "array"
+        }
+      },
+      "required": [
+        "point_mm"
+      ],
+      "title": "PolylineVertex",
+      "type": "object"
+    },
+    "ReadScope": {
+      "additionalProperties": false,
+      "description": "Explicit bounded region of a drawing; absence means summary-only.",
+      "properties": {
+        "entity_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Entity Refs",
+          "type": "array"
+        },
+        "kind": {
+          "default": "model_space",
+          "enum": [
+            "model_space",
+            "selection",
+            "layer",
+            "layout"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "layer_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layer Name"
+        },
+        "layout_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layout Name"
+        }
+      },
+      "title": "ReadScope",
+      "type": "object"
+    },
+    "TextGeometry": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "height_mm": {
+          "title": "Height Mm",
+          "type": "number"
+        },
+        "insertion_mm": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Insertion Mm",
+          "type": "array"
+        },
+        "kind": {
+          "const": "text",
+          "default": "text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text_style": {
+          "title": "Text Style",
+          "type": "string"
+        }
+      },
+      "required": [
+        "insertion_mm",
+        "height_mm",
+        "text_style",
+        "content"
+      ],
+      "title": "TextGeometry",
+      "type": "object"
+    },
+    "UnsupportedEntityCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_type",
+        "count"
+      ],
+      "title": "UnsupportedEntityCount",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/drawing-model.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "arc_chord_tolerance_mm": {
+      "exclusiveMinimum": 0.0,
+      "title": "Arc Chord Tolerance Mm",
+      "type": "number"
+    },
+    "coverage_complete": {
+      "default": true,
+      "title": "Coverage Complete",
+      "type": "boolean"
+    },
+    "dimension_styles": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Dimension Styles",
+      "type": "array"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "entities": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EntityRecord"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "geometry_normalized": {
+      "title": "Geometry Normalized",
+      "type": "boolean"
+    },
+    "layers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/LayerInfo"
+      },
+      "title": "Layers",
+      "type": "array"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/ReadScope"
+    },
+    "source_unit_code": {
+      "title": "Source Unit Code",
+      "type": "string"
+    },
+    "text_styles": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Text Styles",
+      "type": "array"
+    },
+    "to_mm_factor": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "To Mm Factor"
+    },
+    "unsupported": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/UnsupportedEntityCount"
+      },
+      "title": "Unsupported",
+      "type": "array"
+    }
+  },
+  "required": [
+    "document_id",
+    "revision",
+    "display_name",
+    "source_unit_code",
+    "to_mm_factor",
+    "geometry_normalized",
+    "scope",
+    "arc_chord_tolerance_mm"
+  ],
+  "title": "DrawingModel",
+  "type": "object"
+}

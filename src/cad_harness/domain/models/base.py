@@ -6,8 +6,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-#: Current contract major.minor. Minor bumps add optional fields only.
-SCHEMA_VERSION = "1.0"
+#: Current contract major.minor. Minor bumps add contracts or tighten pre-production
+#: security surfaces; established model fields otherwise remain backward compatible.
+#: 1.7 - measured pilot report contract (see ADR-014).
+#: 1.8 - explicit terminal cancellation for bridge IPC (see ADR-015).
+#: 1.9 - calibrated raster intake, observed unknown units and point geometry (ADR-016).
+#: 1.10 - separate rollback approval and exact destructive restore request (ADR-017).
+SCHEMA_VERSION = "1.10"
 
 
 class ContractModel(BaseModel):

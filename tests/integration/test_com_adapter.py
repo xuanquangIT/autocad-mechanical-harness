@@ -9,6 +9,7 @@ These tests write to the active drawing. Open a scratch document, never a real o
 
 from __future__ import annotations
 
+import os
 import sys
 
 import pytest
@@ -22,6 +23,11 @@ def _adapter():
     ``launch_if_missing`` stays False on purpose: a test suite must not start AutoCAD
     and take over the developer's session.
     """
+    if os.getenv("CAD_HARNESS_LIVE_COM_WRITE_ACCEPTANCE") != "1":
+        pytest.skip(
+            "active-document COM write acceptance is disabled; use an explicit disposable "
+            "drawing and CAD_HARNESS_LIVE_COM_WRITE_ACCEPTANCE=1"
+        )
     if sys.platform != "win32":
         pytest.skip("COM adapter requires Windows")
     try:
@@ -42,6 +48,20 @@ def _adapter():
 @pytest.fixture
 def com_adapter():
     adapter = _adapter()
+
+    # The COM adapter maps an already-resolved plan; it must never invent or select
+    # layers. This scratch-drawing fixture therefore provisions the profile contract
+    # before any write, just as a production DWT/DWS setup would.
+    from cad_harness.company_rules.loader import load_profile
+
+    profile = load_profile("demo-profile@1.0")
+    document = adapter._require_document()
+    existing = {str(document.Layers.Item(index).Name) for index in range(document.Layers.Count)}
+    for layer in profile.layers:
+        if layer.name not in existing:
+            document.Layers.Add(layer.name)
+            existing.add(layer.name)
+
     yield adapter
     adapter.disconnect()
 

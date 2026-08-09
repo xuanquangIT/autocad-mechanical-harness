@@ -1,0 +1,27 @@
+{
+  "adapter": "com",
+  "autocad_version": "26.0",
+  "schema_version": "1.10",
+  "isolated_process_identity_verified": true,
+  "owned_process": {
+    "pid": 39216,
+    "image_name": "acad.exe",
+    "image_path_sha256": "d513906d17e9836dabb5c9db34c149239b30b401a9e0fc7b2aa50b9f439046fa",
+    "creation_time_100ns": 134307071431589280
+  },
+  "preexisting_pids": [25644],
+  "postexisting_pids": [25644],
+  "preexisting_process_preserved": true,
+  "document_opened_read_only": true,
+  "entity_count": 3,
+  "selection_count": 3,
+  "revision_unchanged": true,
+  "model_space_unchanged": true,
+  "layer_table_unchanged": true,
+  "selection_unchanged": true,
+  "system_variables_unchanged": true,
+  "detailed_geometry_fail_closed": "semantic_geometry_read",
+  "scratch_sha256_before": "a79251721f39baa00e8117aef242b5e5824058a9ee3a073068a25ee1fbcd8d1f",
+  "scratch_sha256_after": "a79251721f39baa00e8117aef242b5e5824058a9ee3a073068a25ee1fbcd8d1f",
+  "scratch_file_unchanged": true
+}

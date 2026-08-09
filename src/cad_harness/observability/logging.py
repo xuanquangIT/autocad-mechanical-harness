@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import MutableMapping
 from typing import Any
 
 import structlog
+
+from cad_harness.security.redaction import redact_payload
 
 #: Fields every log line should carry when available (architecture section 21.1).
 STANDARD_FIELDS = (
@@ -25,6 +28,15 @@ STANDARD_FIELDS = (
     "outcome",
     "error_code",
 )
+
+
+def _redact_event(
+    _logger: Any, _method_name: str, event_dict: MutableMapping[str, Any]
+) -> dict[str, Any]:
+    """Apply the same bounded redaction policy used by audit and metrics."""
+    redacted = redact_payload(event_dict)
+    assert isinstance(redacted, dict)
+    return redacted
 
 
 def configure_logging(*, level: str = "INFO", json_output: bool = True) -> None:
@@ -47,6 +59,7 @@ def configure_logging(*, level: str = "INFO", json_output: bool = True) -> None:
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
+            _redact_event,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),

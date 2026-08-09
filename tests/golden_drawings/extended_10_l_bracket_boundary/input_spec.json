@@ -1,0 +1,18 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "l-bracket-boundary-g10",
+      "type": "l_bracket",
+      "parameters": {
+        "leg_a_mm": 29.3,
+        "leg_b_mm": 43.95,
+        "thickness_mm": 29.28535,
+        "origin_mm": [
+          7.325,
+          7.325
+        ]
+      }
+    }
+  ]
+}

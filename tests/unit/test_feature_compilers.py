@@ -38,8 +38,15 @@ class TestRegistry:
     def test_implemented_features_are_registered(self) -> None:
         assert registry.supported_types() == [
             "bolt_circle_pattern",
+            "corner_notch",
+            "edge_cutout",
+            "flange",
+            "keyway",
+            "l_bracket",
+            "linear_hole_pattern",
             "rectangular_hole_pattern",
             "rectangular_plate",
+            "slot",
         ]
 
     def test_unknown_feature_reports_supported_alternatives(self) -> None:
@@ -47,10 +54,12 @@ class TestRegistry:
             registry.get_compiler("gear")
         assert "rectangular_plate" in info.value.details["supported"]
 
-    def test_planned_features_are_not_registered(self) -> None:
-        """Declaring a feature is not the same as supporting it."""
-        for planned in ("flange", "slot", "l_bracket"):
-            assert planned not in registry.supported_types()
+    def test_completed_features_are_not_planned(self) -> None:
+        from cad_harness.feature_catalog import PLANNED_FEATURES
+
+        assert PLANNED_FEATURES == ()
+        for completed in ("flange", "slot", "l_bracket"):
+            assert completed in registry.supported_types()
 
     def test_search_matches_description(self) -> None:
         assert any(e["type"] == "bolt_circle_pattern" for e in registry.search("pitch circle"))

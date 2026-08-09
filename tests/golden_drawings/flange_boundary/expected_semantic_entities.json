@@ -1,0 +1,91 @@
+{
+  "entity_count": 6,
+  "entities": [
+    {
+      "operation_id": "op:flange-boundary:outer",
+      "feature_id": "flange-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          10.0,
+          10.0
+        ],
+        "diameter_mm": 138.01
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bore",
+      "feature_id": "flange-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          10.0,
+          10.0
+        ],
+        "diameter_mm": 50.0
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bolt-holes",
+      "feature_id": "flange-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          70.0,
+          10.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bolt-holes",
+      "feature_id": "flange-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          10.000000000000004,
+          70.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bolt-holes",
+      "feature_id": "flange-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          -50.0,
+          10.000000000000007
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bolt-holes",
+      "feature_id": "flange-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 14.0,
+        "center_mm": [
+          9.99999999999999,
+          -50.0
+        ],
+        "area_mm2": 153.93804002589985
+      }
+    }
+  ]
+}

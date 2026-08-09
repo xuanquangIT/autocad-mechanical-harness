@@ -1,0 +1,47 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:plate-corner-normal-g03:outline",
+      "feature_id": "plate-corner-normal-g03",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            109.8,
+            0.0
+          ],
+          [
+            109.8,
+            9.76
+          ],
+          [
+            122.0,
+            9.76
+          ],
+          [
+            122.0,
+            97.6
+          ],
+          [
+            0.0,
+            97.6
+          ]
+        ]
+      },
+      "expected": {
+        "closed": true,
+        "vertex_count": 6,
+        "width_mm": 122.0,
+        "height_mm": 97.6,
+        "area_mm2": 11788.127999999999
+      }
+    }
+  ]
+}

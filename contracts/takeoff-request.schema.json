@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "PartInput": {
+      "additionalProperties": false,
+      "description": "User-supplied part data; the engine validates required ranges explicitly.",
+      "properties": {
+        "material_code": {
+          "title": "Material Code",
+          "type": "string"
+        },
+        "outline_entity_ref": {
+          "title": "Outline Entity Ref",
+          "type": "string"
+        },
+        "part_code": {
+          "title": "Part Code",
+          "type": "string"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "integer"
+        },
+        "stock_allowance_mm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stock Allowance Mm"
+        },
+        "thickness_mm": {
+          "title": "Thickness Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "part_code",
+        "outline_entity_ref",
+        "thickness_mm",
+        "material_code",
+        "quantity"
+      ],
+      "title": "PartInput",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/takeoff-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "material_profile_ref": {
+      "title": "Material Profile Ref",
+      "type": "string"
+    },
+    "parts": {
+      "items": {
+        "$ref": "#/$defs/PartInput"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "weld_edges": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Weld Edges",
+      "type": "array"
+    }
+  },
+  "required": [
+    "document_id",
+    "parts",
+    "material_profile_ref"
+  ],
+  "title": "TakeoffRequest",
+  "type": "object"
+}

@@ -1,0 +1,4 @@
+{
+  "_comment": "A non-obround slot is rejected before any operation is emitted.",
+  "error_code": "INVALID_FEATURE_PARAMETERS"
+}

@@ -1,0 +1,37 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "plate-linear-normal-g13",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 157.0,
+        "height_mm": 125.6,
+        "thickness_mm": 15.7,
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "linear-normal-g13",
+          "type": "linear_hole_pattern",
+          "parameters": {
+            "start_point": [
+              20.0,
+              20.0
+            ],
+            "direction": [
+              1.0,
+              0.0
+            ],
+            "pitch_mm": 31.4,
+            "count": 3,
+            "hole_diameter_mm": 7.85
+          }
+        }
+      ]
+    }
+  ]
+}

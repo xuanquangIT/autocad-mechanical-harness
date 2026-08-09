@@ -148,7 +148,7 @@ class TestPreviewAdapter:
                 ),
             ),
         )
-        assert adapter.preview_gaps(plan) == ["create_linear_dimension"]
+        assert adapter.preview_gaps(plan) == []
 
     def test_preview_adapter_cannot_confirm_a_revision(self, tmp_path: Path) -> None:
         adapter = DxfPreviewAdapter(tmp_path / "previews")

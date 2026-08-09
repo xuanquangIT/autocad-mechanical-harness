@@ -1,0 +1,16 @@
+{
+  "_comment": "Boundary-valid flange: OD exceeds the profile ligament threshold by 0.01 mm.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "flange-boundary",
+    "type": "flange",
+    "parameters": {
+      "outer_diameter_mm": 138.01,
+      "bore_diameter_mm": 50.0,
+      "bolt_hole_count": 4,
+      "bolt_hole_diameter_mm": 14.0,
+      "pcd_mm": 120.0,
+      "datum": [10.0, 10.0]
+    }
+  }]
+}

@@ -1,0 +1,13 @@
+{
+  "_comment": "Invalid slot: length equals width and should be specified as a circular hole.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "slot-invalid",
+    "type": "slot",
+    "parameters": {
+      "length_mm": 20.0,
+      "width_mm": 20.0,
+      "center_mm": [0.0, 0.0]
+    }
+  }]
+}

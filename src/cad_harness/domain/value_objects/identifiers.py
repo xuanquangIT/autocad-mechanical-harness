@@ -23,6 +23,8 @@ class IdPrefix(StrEnum):
     CHECKPOINT = "checkpoint"
     AUDIT_EVENT = "evt"
     PREVIEW = "preview"
+    TAKEOFF_REPORT = "takeoff"
+    DRAWING_AUDIT = "audit"
 
 
 _BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

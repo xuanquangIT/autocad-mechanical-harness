@@ -1,0 +1,1 @@
+{"_comment":"Boundary-sized valid corner notch.","units":"mm","features":[{"feature_id":"plate-corner-boundary","type":"rectangular_plate","parameters":{"width_mm":100.0,"height_mm":80.0,"thickness_mm":10.0,"origin_mm":[0.0,0.0]},"children":[{"feature_id":"corner-notch-boundary","type":"corner_notch","parameters":{"corner_index":1,"width_mm":50.0,"height_mm":40.0}}]}]}

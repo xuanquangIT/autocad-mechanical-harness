@@ -13,6 +13,11 @@ mcp:
   # Baseline the server is verified against. Newer protocol revisions are opt-in.
   protocol_compatibility_baseline: "2025-11-25"
   enable_newer_protocol_by_feature_flag: true
+  client_profiles:
+    # Fail closed: a client without an entry below gets read_only.
+    default: read_only
+    # Per-client entries belong in config/clients.yaml.
+    clients: {}
 
 adapter:
   # fake | dxf_preview | com | dotnet_bridge
@@ -31,14 +36,17 @@ storage:
   checkpoint_directory: ./data/checkpoints
   export_directory: ./data/exports
   preview_retention_days: 14
+  preview_max_total_bytes: 1073741824
+  checkpoint_retention_days: 30
+  checkpoint_max_total_bytes: 10737418240
 
 security:
   require_commit_approval: true
-  require_rollback_approval: true
   require_export_approval: true
   allow_arbitrary_export_path: false
   redact_document_paths: true
   approval_ttl_minutes: 15
+  rollback_approval_ttl_minutes: 15
   export_path_allowlist:
     - ./data/exports
 
@@ -54,3 +62,47 @@ observability:
   log_level: INFO
   log_json: true
   log_prompts: false
+
+read:
+  # Valid 1..200000. A wider scope is rejected, never read partially.
+  max_entities: 20000
+  # Valid 1..10. Children deeper than this are counted, not read.
+  max_block_nesting_depth: 3
+  read_timeout_seconds: 20
+
+takeoff:
+  timeout_seconds: 10
+  # NOT company approved. Replace with a real material table before any pilot.
+  material_profile: demo-materials@1.0
+
+measure:
+  timeout_seconds: 1
+
+raster:
+  # Raw pixels stay local. These limits are checked before OpenCV allocation.
+  max_bytes: 16777216
+  max_pixels: 20000000
+  max_dimension_px: 20000
+  confidence_threshold: 0.72
+  # Acceptance authorizes only one exact trace/candidate set and expires quickly.
+  acceptance_ttl_minutes: 15
+
+lease:
+  # heartbeat_interval < minimum_remaining < ttl, enforced at startup.
+  ttl_seconds: 30
+  heartbeat_interval_seconds: 5
+  minimum_remaining_seconds: 15
+
+bridge:
+  # Must keep the {user_sid} placeholder so the pipe ACL stays per account.
+  pipe_name_template: "cadharness.{user_sid}"
+  max_request_bytes: 1048576
+  max_request_depth: 32
+  ipc_timeout_seconds: 30
+
+compatibility:
+  matrix_path: ./config/compatibility.yaml
+
+pilot:
+  thresholds_path: pilot.yaml
+  run_id: development

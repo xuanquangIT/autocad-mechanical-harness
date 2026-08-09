@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from cad_harness.domain.models.base import SCHEMA_VERSION, ContractModel
@@ -14,6 +16,7 @@ class LayerInfo(ContractModel):
     linetype: str | None = None
     lineweight: int | None = None
     frozen: bool = False
+    off: bool = False
     locked: bool = False
 
 
@@ -30,7 +33,7 @@ class DocumentSnapshot(ContractModel):
     #: Hash of the normalized path. The raw path is redacted by default.
     path_hash: str
     display_name: str
-    units: Unit
+    units: Unit | Literal["unknown"]
     active_space: str = "model"
     active_layout: str | None = None
     layers: tuple[LayerInfo, ...] = ()

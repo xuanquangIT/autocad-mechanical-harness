@@ -1,0 +1,24 @@
+schema_version: "1.0"
+bridge_bundle_version: "0.1.0"
+source_url: "https://help.autodesk.com/cloudhelp/2027/ENU/AutoCAD-Customization/files/GUID-A6C680F2-DE2E-418A-A182-E4884073338A.htm"
+targets:
+  - autocad_release: 2024
+    com_version_prefix: "24.3"
+    dotnet_runtime: "4.8"
+    policy: provisional
+    verification_status: provisional
+  - autocad_release: 2025
+    com_version_prefix: "25.0"
+    dotnet_runtime: "8.0"
+    policy: target
+    verification_status: provisional
+  - autocad_release: 2026
+    com_version_prefix: "25.1"
+    dotnet_runtime: "8.0 through Update 1.1; 10.0 from Update 1.2"
+    policy: provisional
+    verification_status: provisional
+  - autocad_release: 2027
+    com_version_prefix: "26.0"
+    dotnet_runtime: "10.0"
+    policy: target
+    verification_status: verified

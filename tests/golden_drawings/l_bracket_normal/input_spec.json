@@ -1,0 +1,15 @@
+{
+  "_comment": "Normal 100 x 80 x 10 mm L-bracket with a 4 mm inner fillet.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "l-bracket-normal",
+    "type": "l_bracket",
+    "parameters": {
+      "leg_a_mm": 100.0,
+      "leg_b_mm": 80.0,
+      "thickness_mm": 10.0,
+      "origin_mm": [0.0, 0.0],
+      "inner_fillet_radius_mm": 4.0
+    }
+  }]
+}

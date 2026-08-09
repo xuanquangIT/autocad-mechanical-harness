@@ -17,7 +17,7 @@ from cad_harness.feature_catalog.base import (
     InputReport,
     operation_id,
 )
-from cad_harness.geometry.primitives import BoundingBox, Point2D
+from cad_harness.geometry.primitives import BoundingBox, Point2D, Polyline2D
 
 
 def _positive(parameters: dict[str, Any], key: str) -> float | None:
@@ -93,6 +93,22 @@ class RectangularPlateCompiler:
             Point2D(origin.x, origin.y + height),
         )
         box = BoundingBox.from_points(list(vertices))
+        outline = Polyline2D(vertices, closed=True)
+        modifier_expectations: list[ValidationExpectation] = []
+        if feature.modifiers:
+            from cad_harness.feature_catalog.modifiers import get_modifier
+
+            modifier_context = context.for_child(feature.feature_id, box, outline)
+            for index, modifier_spec in enumerate(feature.modifiers):
+                modified = get_modifier(modifier_spec.type).apply(
+                    modifier_spec,
+                    outline,
+                    modifier_context,
+                    modifier_index=index,
+                )
+                outline = modified.outline
+                modifier_expectations.extend(modified.expectations)
+                modifier_context = context.for_child(feature.feature_id, box, outline)
         layer = context.layer_for("outline")
 
         compiled = CompiledFeature(
@@ -103,13 +119,13 @@ class RectangularPlateCompiler:
                     feature_id=feature.feature_id,
                     type=OperationType.CREATE_CLOSED_POLYLINE,
                     layer=layer,
-                    geometry={"vertices_mm": [list(v.as_tuple()) for v in vertices]},
+                    geometry={"vertices_mm": [list(v.as_tuple()) for v in outline.vertices]},
                     expected={
                         "closed": True,
-                        "vertex_count": 4,
+                        "vertex_count": len(outline.vertices),
                         "width_mm": width,
                         "height_mm": height,
-                        "area_mm2": width * height,
+                        "area_mm2": outline.area(),
                     },
                 )
             ],
@@ -122,9 +138,10 @@ class RectangularPlateCompiler:
                         "orthogonal_rectangle": True,
                         "width_mm": width,
                         "height_mm": height,
-                        "area_mm2": width * height,
+                        "area_mm2": outline.area(),
                     },
-                )
+                ),
+                *modifier_expectations,
             ],
             defaults_applied=list(report.defaults_applied),
             assumptions=list(report.assumptions),
@@ -133,9 +150,35 @@ class RectangularPlateCompiler:
         # Children are compiled against the real outline, never an assumed one.
         from cad_harness.feature_catalog.registry import get_compiler
 
-        child_context = context.for_child(feature.feature_id, box)
+        child_context = context.for_child(feature.feature_id, box, outline)
         for child in feature.children:
-            compiled.merge(get_compiler(child.type).compile(child, child_context))
+            child_compiled = get_compiler(child.type).compile(child, child_context)
+            if child.type in {"corner_notch", "edge_cutout"}:
+                modified_operation = child_compiled.operations[0]
+                outline = Polyline2D(
+                    tuple(
+                        Point2D(float(item[0]), float(item[1]))
+                        for item in modified_operation.geometry["vertices_mm"]
+                    ),
+                    closed=True,
+                )
+                parent_operation = compiled.operations[0]
+                compiled.operations[0] = parent_operation.model_copy(
+                    update={
+                        "geometry": {
+                            "vertices_mm": [list(item.as_tuple()) for item in outline.vertices]
+                        },
+                        "expected": {
+                            **parent_operation.expected,
+                            "vertex_count": len(outline.vertices),
+                            "area_mm2": outline.area(),
+                        },
+                    }
+                )
+                compiled.expectations.extend(child_compiled.expectations)
+                child_context = context.for_child(feature.feature_id, box, outline)
+                continue
+            compiled.merge(child_compiled)
 
         return compiled
 

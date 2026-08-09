@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:plate-corner-normal:outline",
+      "feature_id": "plate-corner-normal",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 6,
+        "width_mm": 100.0,
+        "height_mm": 80.0,
+        "area_mm2": 7920.0,
+        "perimeter_mm": 360.0
+      }
+    }
+  ]
+}

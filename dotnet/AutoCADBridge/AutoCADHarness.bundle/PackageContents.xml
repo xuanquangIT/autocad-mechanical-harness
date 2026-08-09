@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AppVersion="0.1.0.0"
+  Author="AutoCAD Mechanical Harness Team"
+  Name="AutoCAD Mechanical Harness Bridge"
+  Description="Local per-user Named Pipe bridge for atomic mechanical drawing jobs."
+  ProductCode="{246FD1B2-83D8-4AAB-9EA4-C86AB9ECCDF2}"
+  UpgradeCode="{FA1366B0-8CAB-42B6-B5A2-66D3EF37F0A5}">
+  <CompanyDetails
+    Name="AutoCAD Mechanical Harness Team"
+    Email="maintainers@cad-harness.local" />
+  <Components>
+    <RuntimeRequirements
+      OS="Win64"
+      Platform="AutoCAD*"
+      SeriesMin="R25.0"
+      SeriesMax="R25.0" />
+    <ComponentEntry
+      AppName="AutoCADHarnessBridge"
+      AppDescription="Atomic local bridge for the AutoCAD Mechanical Harness"
+      AppType=".Net"
+      ModuleName="./Contents/Windows/AutoCADHarness.dll"
+      PerDocument="False"
+      LoadReasons="LoadOnAutoCADStartup">
+      <Commands GroupName="CADHARNESS">
+        <Command Global="CADHARNESSSTATUS" Local="CADHARNESSSTATUS" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

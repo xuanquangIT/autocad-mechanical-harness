@@ -46,7 +46,7 @@ class ErrorPayload(ContractModel):
 
 
 class ToolResponse(ContractModel):
-    """Uniform envelope returned by all 13 tools."""
+    """Uniform envelope returned by every public MCP tool."""
 
     status: ToolStatus
     schema_version: str = SCHEMA_VERSION

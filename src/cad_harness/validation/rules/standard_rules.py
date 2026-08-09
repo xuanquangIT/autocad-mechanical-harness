@@ -24,7 +24,8 @@ class CanonicalUnitsRule:
     stages: tuple[ValidationStage, ...] = STANDARD_STAGES
 
     def evaluate(self, context: RuleContext) -> list[Finding]:
-        if context.plan.canonical_units is CANONICAL_UNIT:
+        plan = context.require_plan()
+        if plan.canonical_units is CANONICAL_UNIT:
             return []
         return [
             finding(
@@ -32,7 +33,7 @@ class CanonicalUnitsRule:
                 Severity.BLOCKING,
                 "Operation plan is not in canonical units",
                 expected=CANONICAL_UNIT.value,
-                actual=context.plan.canonical_units.value,
+                actual=plan.canonical_units.value,
                 suggested_fix="Normalize the spec to millimetres before compiling",
             )
         ]
@@ -48,7 +49,7 @@ class LayerDeclaredRule:
     def evaluate(self, context: RuleContext) -> list[Finding]:
         findings: list[Finding] = []
         declared = context.profile.layer_names()
-        for operation in context.plan.operations:
+        for operation in context.require_plan().operations:
             if operation.layer == "0":
                 findings.append(
                     finding(
@@ -85,6 +86,7 @@ class ProfileProvenanceRule:
     stages: tuple[ValidationStage, ...] = STANDARD_STAGES
 
     def evaluate(self, context: RuleContext) -> list[Finding]:
+        plan = context.require_plan()
         findings: list[Finding] = []
         if not context.profile.company_approved:
             findings.append(
@@ -97,13 +99,13 @@ class ProfileProvenanceRule:
                     suggested_fix="Install and select the reviewed company profile before release",
                 )
             )
-        if context.plan.profile_ref != context.profile.as_ref():
+        if plan.profile_ref != context.profile.as_ref():
             findings.append(
                 finding(
                     self.rule_id,
                     Severity.BLOCKING,
                     "Plan was compiled against a different profile version than the one loaded",
-                    expected=context.plan.profile_ref,
+                    expected=plan.profile_ref,
                     actual=context.profile.as_ref(),
                     suggested_fix="Recompile the plan; a profile change invalidates the plan hash",
                 )

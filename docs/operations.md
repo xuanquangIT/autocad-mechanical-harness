@@ -27,6 +27,7 @@ The settings that matter most:
 | `standards.company_profile` | `demo-profile` is not company approved and must not be presented as such. |
 | `security.export_path_allowlist` | Every export target is resolved against this. |
 | `observability.log_prompts` | Keep `false`. Prompts can contain customer data. |
+| `raster.*` | Local image byte/pixel limits, confidence threshold and 15-minute maximum acceptance TTL. |
 
 ## Adapter selection
 
@@ -40,13 +41,31 @@ The settings that matter most:
 Before switching to `com`: AutoCAD running, the target drawing open, same Windows user
 session, and a scratch drawing rather than a live one for the first run.
 
+### Published compatibility targets
+
+`config/compatibility.yaml` is the executable writer allowlist. These targets follow
+Autodesk's [Managed .NET compatibility table](https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-Customization/files/GUID-A6C680F2-DE2E-418A-A182-E4884073338A.htm):
+
+| AutoCAD | COM release prefix | .NET runtime | Bridge bundle | Verification |
+|---|---:|---:|---:|---|
+| 2024 | 24.3 | 4.8 | separate bundle required | provisional; writer disabled |
+| 2025 | 25.0 | 8.0 | 0.1.0 | provisional; live acceptance pending |
+| 2026 through Update 1.1 | 25.1 | 8.0 | separate verified build required | provisional; live acceptance pending |
+| 2026 Update 1.2+ | 25.1 | 10.0 | separate verified build required | not packaged by the current net8 bundle |
+
+An unlisted or unparseable version is visible in `cad_status` with
+`version_supported=false` and is denied at the writer boundary. “Provisional” means the
+runtime/API pairing is a declared build target, not evidence that this harness passed a
+real-AutoCAD test on that release.
+
 ## Daily commands
 
 ```powershell
 uv run cad-harness status                 # adapter, profile, capabilities
 uv run cad-harness features               # what the catalog supports
 uv run cad-harness demo                   # reference case, preview only
-uv run cad-harness demo --commit          # full path including approval
+uv run cad-harness demo --commit          # fake adapter only; never self-approves live CAD
+uv run cad-harness raster-accept --help   # human acceptance for calibrated image candidates
 uv run cad-harness-mcp                    # MCP server on stdio
 ```
 
@@ -102,7 +121,36 @@ Generate a fresh key; do not strip the key to work around it.
 
 ## Retention
 
-- Previews: short TTL (`storage.preview_retention_days`, default 14).
-- Checkpoints: allowlisted directories only. They are full drawing copies, so treat them
-  as customer IP and apply quota and encryption policy.
+- Previews: short TTL (`storage.preview_retention_days`, default 14) and a deterministic
+  oldest-first quota (`storage.preview_max_total_bytes`, default 1 GiB).
+- Checkpoints: allowlisted directories only, default 30-day TTL and 10 GiB quota through
+  `storage.checkpoint_retention_days` / `storage.checkpoint_max_total_bytes`. They are full
+  drawing copies, so treat them as customer IP and encrypt the storage volume.
 - Audit: longer retention, append-only, never edited in place.
+
+## Required manual gates for real AutoCAD
+
+The live workflow must display each instruction and wait for confirmation of that exact
+step before running its next action. The ordered steps are:
+
+1. Open AutoCAD with a disposable copy of the target DWG and verify it is active.
+2. Load the controlled company DWT and DWS files.
+3. Install the signed C# Bridge `.bundle` matching the target release.
+4. Grant the current Windows user access to the per-user Named Pipe ACL.
+5. Confirm the detected AutoCAD version is accepted by `config/compatibility.yaml`.
+6. Review the exact preview, findings, plan hash and revision in Engineer Desktop, then
+   approve commit.
+
+Engineer Desktop collects the first five confirmations interactively before constructing
+the live adapter. A non-interactive MCP host must receive equivalent explicit startup
+evidence through `CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS`, containing the exact first five
+step ids in the order above, comma-separated. Missing, reordered, unknown, or extra ids
+fail before COM/Named Pipe construction. This evidence never confirms step 6; commit still
+requires the human approval UI, bound token, plan hash, and revision.
+
+For an integration test, begin with the disposable DWG closed everywhere except the one
+declared AutoCAD session, no active command, the expected revision recorded, and a backup
+copy outside the test directory. After the test, roll back through the recorded checkpoint
+or close without saving, verify the original hash/revision, remove only test-created preview
+and checkpoint files, and keep the audit/job records as evidence. Never run the suite against
+the sole copy of a production drawing.

@@ -9,6 +9,7 @@ import pytest
 from cad_harness.application.services.harness_service import HarnessService
 from cad_harness.domain.errors import ApprovalRequiredError, PlanHashMismatchError
 from cad_harness.domain.models.job import JobState
+from cad_harness.domain.models.operation_plan import OperationType
 from cad_harness.domain.models.validation import Severity, ValidationStage
 
 
@@ -32,12 +33,15 @@ class TestHappyPath:
 
         submitted = service.submit_spec(job.job_id, base_plate_spec)
         assert submitted["status"] == "ok"
-        assert submitted["operation_count"] == 2
+        plan = service.store.get_plan(job.job_id)
+        assert plan is not None
+        assert submitted["operation_count"] == len(plan.operations)
+        assert len(plan.operations) > 2  # Geometry plus phase-two annotations.
         plan_hash = str(submitted["plan_hash"])
 
         preview = service.preview(job.job_id)
         assert {a["kind"] for a in preview["artifacts"]} == {"dxf", "svg"}
-        assert preview["semantic_diff"]["summary"]["added"] == 2
+        assert preview["semantic_diff"]["summary"]["added"] == len(plan.operations)
 
         report = service.validate(job.job_id, ValidationStage.PRE_COMMIT)
         assert report.blocking_count == 0
@@ -45,8 +49,13 @@ class TestHappyPath:
         assert report.gate_allows_commit()
 
         result = _approve_and_commit(service, job.job_id, plan_hash, job.expected_revision)
-        # One polyline plus four circles.
-        assert len(result.entity_results) == 5
+        expected_entity_count = sum(
+            len(operation.geometry["centers_mm"])
+            if operation.type is OperationType.CREATE_CIRCLES
+            else 1
+            for operation in plan.operations
+        )
+        assert len(result.entity_results) == expected_entity_count
         assert result.new_revision != result.previous_revision
         assert service.store.get_job(job.job_id).state is JobState.COMMITTED  # type: ignore[union-attr]
 
@@ -165,6 +174,33 @@ class TestSpecChangeInvalidatesApproval:
 
         assert service.store.get_approval(approval_id) is None
         assert service.store.get_job(job.job_id).approval_id is None  # type: ignore[union-attr]
+
+
+class TestWarningAcknowledgement:
+    def test_service_refuses_unacknowledged_warning_rules(
+        self, service: HarnessService, base_plate_spec: dict[str, Any]
+    ) -> None:
+        job = service.create_job()
+        service.submit_spec(job.job_id, base_plate_spec)
+        service.preview(job.job_id)
+        report = service.validate(job.job_id, ValidationStage.PRE_COMMIT)
+        warning_rule_ids = {
+            finding.rule_id for finding in report.findings if finding.severity is Severity.WARNING
+        }
+        assert warning_rule_ids == {"STD-PROFILE-PROVENANCE"}
+
+        with pytest.raises(ApprovalRequiredError) as caught:
+            service.approve(job.job_id, "engineer-1")
+        assert caught.value.details == {"missing_warning_rule_ids": ["STD-PROFILE-PROVENANCE"]}
+
+        approval_id, token = service.approve(
+            job.job_id,
+            "engineer-1",
+            tuple(warning_rule_ids),
+        )
+        assert approval_id.startswith("approval_")
+        assert token.startswith("v2.")
+        assert len(token.split(".")) == 3
 
 
 class TestAudit:

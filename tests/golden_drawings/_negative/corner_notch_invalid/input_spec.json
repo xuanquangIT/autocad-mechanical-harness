@@ -1,0 +1,1 @@
+{"_comment":"Corner notch exceeds its adjacent edge.","units":"mm","features":[{"feature_id":"plate-corner-invalid","type":"rectangular_plate","parameters":{"width_mm":100.0,"height_mm":80.0,"thickness_mm":10.0,"origin_mm":[0.0,0.0]},"children":[{"feature_id":"corner-notch-invalid","type":"corner_notch","parameters":{"corner_index":1,"width_mm":101.0,"height_mm":8.0}}]}]}

@@ -1,0 +1,1 @@
+{"_comment":"Valid key width close to bore diameter.","units":"mm","features":[{"feature_id":"keyway-boundary","type":"keyway","parameters":{"bore_diameter_mm":20.0,"key_width_mm":19.0,"key_depth_mm":1.0,"center_mm":[50.0,40.0]}}]}

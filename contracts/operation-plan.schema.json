@@ -67,6 +67,8 @@
         "create_aligned_dimension",
         "create_diameter_dimension",
         "create_radius_dimension",
+        "create_angular_dimension",
+        "create_hatch",
         "update_entity",
         "delete_entity"
       ],
@@ -179,7 +181,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },

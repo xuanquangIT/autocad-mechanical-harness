@@ -8,12 +8,14 @@ a wiring change only.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from cad_harness.domain.models.approval import ApprovalRecord
 from cad_harness.domain.models.drawing_spec import DrawingSpec
 from cad_harness.domain.models.job import CadJob
 from cad_harness.domain.models.operation_plan import OperationPlan
+from cad_harness.domain.models.result import Checkpoint, EntityMappingRecord
 from cad_harness.domain.models.validation import ValidationReport
 
 
@@ -26,7 +28,9 @@ class InMemoryJobStore:
     approvals: dict[str, ApprovalRecord] = field(default_factory=dict)
     #: (job_id, idempotency_key) -> (request_digest, result)
     executions: dict[tuple[str, str], tuple[str, dict[str, Any]]] = field(default_factory=dict)
-    entity_mappings: list[dict[str, str]] = field(default_factory=list)
+    #: Append-only; insertion order is the commit order and is semantic.
+    entity_mappings: list[EntityMappingRecord] = field(default_factory=list)
+    checkpoints: dict[str, Checkpoint] = field(default_factory=dict)
 
     # ----------------------------- jobs ----------------------------- #
 
@@ -99,11 +103,60 @@ class InMemoryJobStore:
         revision: str,
     ) -> None:
         self.entity_mappings.append(
-            {
-                "document_id": document_id,
-                "feature_id": feature_id,
-                "operation_id": operation_id,
-                "entity_ref": entity_ref,
-                "last_revision": revision,
-            }
+            EntityMappingRecord(
+                document_id=document_id,
+                feature_id=feature_id,
+                operation_id=operation_id,
+                entity_ref=entity_ref,
+                last_revision=revision,
+            )
         )
+
+    def entity_mappings_for(self, document_id: str) -> tuple[EntityMappingRecord, ...]:
+        return tuple(m for m in self.entity_mappings if m.document_id == document_id)
+
+    # -------------------------- checkpoints ------------------------- #
+
+    def save_checkpoint(self, checkpoint: Checkpoint) -> None:
+        self.checkpoints[checkpoint.checkpoint_id] = checkpoint
+
+    # ---------------------- commit finalization --------------------- #
+
+    def finalize_job(
+        self,
+        job: CadJob,
+        *,
+        lease_id: str,
+        now: datetime,
+        mappings: tuple[EntityMappingRecord, ...] = (),
+    ) -> bool:
+        del lease_id, now
+        self.save_job(job)
+        for mapping in mappings:
+            self.entity_mappings.append(mapping)
+        # A separate in-memory lease store has no shared transaction. Returning False
+        # lets LeaseService release in its context-manager cleanup.
+        return False
+
+    def finalize_commit(
+        self,
+        job: CadJob,
+        *,
+        lease_id: str,
+        now: datetime,
+        mappings: tuple[EntityMappingRecord, ...],
+        idempotency_key: str,
+        request_digest: str,
+        result: dict[str, Any],
+        checkpoint: Checkpoint | None = None,
+    ) -> bool:
+        self.finalize_job(job, lease_id=lease_id, now=now, mappings=mappings)
+        if checkpoint is not None:
+            self.save_checkpoint(checkpoint)
+        self.record_execution(
+            job_id=job.job_id,
+            idempotency_key=idempotency_key,
+            request_digest=request_digest,
+            result=result,
+        )
+        return False

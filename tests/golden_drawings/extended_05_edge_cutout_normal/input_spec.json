@@ -1,0 +1,30 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "plate-edge-normal-g05",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 129.0,
+        "height_mm": 103.2,
+        "thickness_mm": 12.9,
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "edge-cutout-normal-g05",
+          "type": "edge_cutout",
+          "parameters": {
+            "edge_index": 0,
+            "offset_mm": 25.8,
+            "width_mm": 19.35,
+            "depth_mm": 6.45
+          }
+        }
+      ]
+    }
+  ]
+}

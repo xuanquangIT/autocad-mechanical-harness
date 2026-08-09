@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.10",
+  "document_id": "doc_9C511E5324D04F8FE5CD963F36",
+  "revision": "sha256:2f9f387ca96a3b800da6771d8bc0b2498ba596e078ef3433d44b0817e3374bf8",
+  "profile_id": "demo-materials",
+  "material_profile_id": "demo-materials",
+  "material_profile_version": "1.0",
+  "company_approved": false,
+  "parts": [
+    {
+      "part_code": "GOLDEN-04",
+      "material_code": "SS400",
+      "density_kg_per_m3": 7850.0,
+      "thickness_mm": 11.0,
+      "quantity": 4,
+      "net_area_mm2": 14273.805328941535,
+      "unit_mass_kg": 1.233,
+      "unit_mass_kg_raw": 1.2325430901541015,
+      "unit_mass_kg_raw_text": "1.23254309015410154725",
+      "total_mass_kg": 4.93,
+      "total_mass_kg_raw": 4.930172360616406,
+      "total_mass_kg_raw_text": "4.93017236061640618900",
+      "cut_length_mm": 565.398223686155,
+      "outer_cut_length_mm": 490.0,
+      "inner_cut_length_mm": 75.39822368615503,
+      "pierce_count": 3,
+      "hole_groups": [
+        {
+          "diameter_mm": 12.0,
+          "count": 2,
+          "entity_refs": [
+            "32",
+            "33"
+          ]
+        }
+      ],
+      "weld_length_mm": 0.0,
+      "evidence": {
+        "density_kg_per_m3": [
+          "31"
+        ],
+        "thickness_mm": [
+          "31"
+        ],
+        "quantity": [
+          "31"
+        ],
+        "net_area_mm2": [
+          "32",
+          "33",
+          "31"
+        ],
+        "gross_area_mm2": [
+          "31"
+        ],
+        "unit_mass_kg": [
+          "32",
+          "33",
+          "31"
+        ],
+        "unit_mass_kg_raw": [
+          "32",
+          "33",
+          "31"
+        ],
+        "unit_mass_kg_raw_text": [
+          "32",
+          "33",
+          "31"
+        ],
+        "total_mass_kg": [
+          "32",
+          "33",
+          "31"
+        ],
+        "total_mass_kg_raw": [
+          "32",
+          "33",
+          "31"
+        ],
+        "total_mass_kg_raw_text": [
+          "32",
+          "33",
+          "31"
+        ],
+        "cut_length_mm": [
+          "32",
+          "33",
+          "31"
+        ],
+        "outer_cut_length_mm": [
+          "31"
+        ],
+        "inner_cut_length_mm": [
+          "32",
+          "33"
+        ],
+        "pierce_count": [
+          "32",
+          "33",
+          "31"
+        ],
+        "hole_groups": [
+          "32",
+          "33"
+        ],
+        "weld_length_mm": [
+          "31"
+        ]
+      }
+    }
+  ],
+  "excluded_contours": [],
+  "units": {
+    "density_kg_per_m3": "kg/m3",
+    "thickness_mm": "mm",
+    "quantity": "count",
+    "net_area_mm2": "mm2",
+    "gross_area_mm2": "mm2",
+    "unit_mass_kg": "kg",
+    "unit_mass_kg_raw": "kg",
+    "unit_mass_kg_raw_text": "kg",
+    "total_mass_kg": "kg",
+    "total_mass_kg_raw": "kg",
+    "total_mass_kg_raw_text": "kg",
+    "cut_length_mm": "mm",
+    "outer_cut_length_mm": "mm",
+    "inner_cut_length_mm": "mm",
+    "pierce_count": "count",
+    "hole_groups.diameter_mm": "mm",
+    "hole_groups.count": "count",
+    "hole_groups": "diameter:mm,count:count",
+    "weld_length_mm": "mm"
+  }
+}

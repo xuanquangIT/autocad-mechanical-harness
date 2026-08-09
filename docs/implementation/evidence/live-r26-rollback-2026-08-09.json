@@ -1,0 +1,32 @@
+{
+  "adapter": "dotnet_bridge",
+  "autocad_version": "26.0",
+  "schema_version": "1.10",
+  "scratch_only": true,
+  "commit": {
+    "entity_types": ["LINE", "CIRCLE"],
+    "metadata_readback": true,
+    "previous_revision": "sha256:78779a10187db171b53846595a75895f3483a7a0ace9a2802fe774f6a316d2f7",
+    "new_revision": "sha256:a6cee1ad4abead3d806bd5ffe6b1cab0ac26f5a6cf37770eee6eea842297206c",
+    "checkpoint_created": true,
+    "undo_receipt_created": true
+  },
+  "rollback": {
+    "method": "undo_group",
+    "restored_exact_previous_revision": true,
+    "idempotent_replay_equal": true,
+    "intervening_command_rejected": true,
+    "rejected_document_revision_unchanged": true
+  },
+  "scratch_file": {
+    "sha256_before": "a79251721f39baa00e8117aef242b5e5824058a9ee3a073068a25ee1fbcd8d1f",
+    "sha256_after": "a79251721f39baa00e8117aef242b5e5824058a9ee3a073068a25ee1fbcd8d1f",
+    "unchanged": true
+  },
+  "safety": {
+    "user_autocad_process_untouched": true,
+    "installed_read_only_bundle_restored": true,
+    "signed_release_tested": false,
+    "durable_checkpoint_replacement_tested": false
+  }
+}

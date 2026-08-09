@@ -1,0 +1,17 @@
+# DEMO MATERIAL TABLE - not company approved.
+profile_id: demo-materials
+version: "1.0"
+company_approved: false
+entries:
+  - material_code: SS400
+    description: Demo structural carbon steel
+    density_kg_per_m3: 7850.0
+  - material_code: S355
+    description: Demo structural steel
+    density_kg_per_m3: 7850.0
+  - material_code: SUS304
+    description: Demo austenitic stainless steel
+    density_kg_per_m3: 7930.0
+  - material_code: AL6061
+    description: Demo aluminium alloy
+    density_kg_per_m3: 2700.0

@@ -1,0 +1,210 @@
+{
+  "$defs": {
+    "CandidateExplanation": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "feature": {
+          "$ref": "#/$defs/RecognizedFeature"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "feature",
+        "rationale"
+      ],
+      "title": "CandidateExplanation",
+      "type": "object"
+    },
+    "MeasuredValue": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_refs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Entity Refs",
+          "type": "array"
+        },
+        "provenance": {
+          "enum": [
+            "measured",
+            "user_supplied"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "unit": {
+          "enum": [
+            "mm",
+            "mm2",
+            "deg",
+            "count"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "provenance"
+      ],
+      "title": "MeasuredValue",
+      "type": "object"
+    },
+    "OpenContourFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "const": "OPEN_CONTOUR",
+          "default": "OPEN_CONTOUR",
+          "title": "Code",
+          "type": "string"
+        },
+        "endpoint_entity_refs": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Endpoint Entity Refs",
+          "type": "array"
+        },
+        "gap_mm": {
+          "title": "Gap Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "gap_mm",
+        "endpoint_entity_refs"
+      ],
+      "title": "OpenContourFinding",
+      "type": "object"
+    },
+    "RecognizedFeature": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Entity Refs",
+          "type": "array"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Evidence",
+          "type": "object"
+        },
+        "feature_type": {
+          "$ref": "#/$defs/RecognizedFeatureType"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/MeasuredValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "source_revision": {
+          "title": "Source Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature_type",
+        "source_revision",
+        "entity_refs",
+        "parameters"
+      ],
+      "title": "RecognizedFeature",
+      "type": "object"
+    },
+    "RecognizedFeatureType": {
+      "enum": [
+        "part_outline",
+        "circular_hole",
+        "rectangular_hole_pattern",
+        "bolt_circle_pattern",
+        "slot",
+        "fillet_corner",
+        "chamfer_corner"
+      ],
+      "title": "RecognizedFeatureType",
+      "type": "string"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/recognition-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "ambiguous_groups": {
+      "default": [],
+      "items": {
+        "items": {
+          "$ref": "#/$defs/CandidateExplanation"
+        },
+        "type": "array"
+      },
+      "title": "Ambiguous Groups",
+      "type": "array"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "features": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RecognizedFeature"
+      },
+      "title": "Features",
+      "type": "array"
+    },
+    "open_contours": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/OpenContourFinding"
+      },
+      "title": "Open Contours",
+      "type": "array"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_id",
+    "revision"
+  ],
+  "title": "RecognitionReport",
+  "type": "object"
+}

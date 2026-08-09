@@ -1,0 +1,77 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:flange-boundary:outer",
+      "feature_id": "flange-boundary",
+      "type": "create_circle",
+      "layer": "OBJECT",
+      "geometry": {
+        "center_mm": [
+          10.0,
+          10.0
+        ],
+        "diameter_mm": 138.01
+      },
+      "expected": {
+        "diameter_mm": 138.01,
+        "center_mm": [
+          10.0,
+          10.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bore",
+      "feature_id": "flange-boundary",
+      "type": "create_circle",
+      "layer": "OBJECT",
+      "geometry": {
+        "center_mm": [
+          10.0,
+          10.0
+        ],
+        "diameter_mm": 50.0
+      },
+      "expected": {
+        "diameter_mm": 50.0,
+        "center_mm": [
+          10.0,
+          10.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary:bolt-holes",
+      "feature_id": "flange-boundary",
+      "type": "create_circles",
+      "layer": "OBJECT",
+      "geometry": {
+        "centers_mm": [
+          [
+            70.0,
+            10.0
+          ],
+          [
+            10.000000000000004,
+            70.0
+          ],
+          [
+            -50.0,
+            10.000000000000007
+          ],
+          [
+            9.99999999999999,
+            -50.0
+          ]
+        ],
+        "diameter_mm": 14.0
+      },
+      "expected": {
+        "count": 4,
+        "diameter_mm": 14.0
+      }
+    }
+  ]
+}

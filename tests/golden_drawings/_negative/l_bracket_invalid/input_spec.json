@@ -1,0 +1,14 @@
+{
+  "_comment": "Invalid bracket: thickness equals its shorter leg.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "l-bracket-invalid",
+    "type": "l_bracket",
+    "parameters": {
+      "leg_a_mm": 20.0,
+      "leg_b_mm": 30.0,
+      "thickness_mm": 20.0,
+      "origin_mm": [0.0, 0.0]
+    }
+  }]
+}

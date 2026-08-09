@@ -1,8 +1,9 @@
 # CadBridge - C# AutoCAD plug-in (Phase 5)
 
-Not implemented yet. This directory holds the intended structure so the Python side can
-be built against a known contract, and so the switch from COM is a configuration change
-rather than a rewrite.
+The offline-testable contracts, IPC, execution, inspection, metadata, hosting router and
+Autodesk-dependent plug-in foundation live here. Operation dispatch and live AutoCAD
+acceptance remain separate gates; an offline build is not evidence of AutoCAD runtime
+correctness.
 
 ## Why it exists
 
@@ -56,6 +57,20 @@ Failure before the transaction commits: abort, leaving nothing behind. Failure a
 commit but before the response: mark the outcome for reconciliation using the job and
 idempotency records. Never guess.
 
+The write-enabled plug-in stores restart-safe idempotency state below
+`%LOCALAPPDATA%\AutoCADMechanicalHarness\bridge-commit-journal-v1` by default. An operator may
+set `CAD_HARNESS_COMMIT_JOURNAL_ROOT` to another absolute local directory; network/device paths
+are rejected. The journal durably records `prepared` before invoking AutoCAD, atomically replaces
+it with a flushed `committed` receipt before returning success, and recovers an interrupted
+`prepared` entry as `unknown` only after its PID plus process-start epoch proves the reserving
+process is dead. Live competing processes cannot poison the owner's safe-abandon path. Entry names
+hash the job/key, raw job ids are redacted from stored receipts, and plans, approval tokens, drawing
+paths, exceptions, and stacks are never written. Journal envelopes are HMAC authenticated with an
+independent random key protected by Windows DPAPI for the current user; the local root receives a
+non-inherited current-user-only ACL and reparse points are rejected. This protects against accidental
+corruption and other-user modification, not malicious code already executing as the same Windows
+user, which can access that user's DPAPI material and is inside the documented trust boundary.
+
 ## Hard rules
 
 - No exception may escape the pipe boundary. Map to an `ErrorCode`.
@@ -66,6 +81,32 @@ idempotency records. Never guess.
 - Reject unknown contract major versions rather than best-effort parsing.
 - `AutoCADHarness.bundle/PackageContents.xml` is built per target AutoCAD version. Do
   not ship one DLL for all versions when the runtime differs.
+
+## Bundle packaging
+
+`Package-BridgeBundle.ps1` is the only supported bundle assembly path. It restores with
+this subtree's `NuGet.Config`, builds with explicit target framework/API/Series inputs,
+checks `PackageContents.xml`, excludes Autodesk runtime DLLs and writes an ordinal,
+deterministic `SHA256SUMS.ps1` manifest.
+
+An unsigned package is development-only and must be requested explicitly:
+
+```powershell
+.\Package-BridgeBundle.ps1 `
+  -TargetFramework net8.0-windows `
+  -AutoCADManagedApiVersion 25.0.1 `
+  -AutoCADSeries R25.0 `
+  -PackageVersion 0.1.0.0 `
+  -ProductCode 246FD1B2-83D8-4AAB-9EA4-C86AB9ECCDF2 `
+  -DevelopmentUnsigned
+```
+
+It is emitted below `CadBridge.Plugin\bin\BridgePackages\DEVELOPMENT-UNSIGNED-*` and
+contains an internal `DEVELOPMENT-UNSIGNED.txt` warning. Release mode is the default and
+fails closed unless both `-OrganizationSupportEmail` uses a routable non-`.local` domain
+and `-SigningCertificateThumbprint` resolves to a current code-signing certificate with
+a private key. Release mode Authenticode-signs every staged DLL and the checksum manifest,
+then verifies each signature before returning the bundle path.
 
 ## Before starting
 

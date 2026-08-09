@@ -1,0 +1,30 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "plate-edge-boundary-g04",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 125.5,
+        "height_mm": 100.4,
+        "thickness_mm": 12.55,
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "edge-cutout-boundary-g04",
+          "type": "edge_cutout",
+          "parameters": {
+            "edge_index": 0,
+            "offset_mm": 6.275,
+            "width_mm": 112.95,
+            "depth_mm": 25.1
+          }
+        }
+      ]
+    }
+  ]
+}

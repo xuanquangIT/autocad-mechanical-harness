@@ -1,0 +1,4 @@
+{
+  "_comment": "Thickness equal to a leg cannot produce a valid L outline.",
+  "error_code": "INVALID_FEATURE_PARAMETERS"
+}

@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "UnsupportedEntityCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "entity_type": {
+          "title": "Entity Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_type",
+        "count"
+      ],
+      "title": "UnsupportedEntityCount",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/drawing-summary.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Counts only; deliberately has no geometry or entity collection.",
+  "properties": {
+    "counts_by_entity_type": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Entity Type",
+      "type": "object"
+    },
+    "counts_by_layer": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Layer",
+      "type": "object"
+    },
+    "counts_by_space": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Counts By Space",
+      "type": "object"
+    },
+    "coverage_complete": {
+      "default": true,
+      "title": "Coverage Complete",
+      "type": "boolean"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "unsupported": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/UnsupportedEntityCount"
+      },
+      "title": "Unsupported",
+      "type": "array"
+    }
+  },
+  "required": [
+    "document_id",
+    "revision",
+    "counts_by_entity_type",
+    "counts_by_layer",
+    "counts_by_space"
+  ],
+  "title": "DrawingSummary",
+  "type": "object"
+}

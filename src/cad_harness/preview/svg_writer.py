@@ -23,7 +23,7 @@ def _plan_points(plan: OperationPlan) -> list[Point2D]:
         for key in ("vertices_mm", "centers_mm"):
             for raw in operation.geometry.get(key, []):
                 points.append(Point2D(float(raw[0]), float(raw[1])))
-        for key in ("center_mm", "start_mm", "end_mm"):
+        for key in ("center_mm", "start_mm", "end_mm", "position_mm", "text_position_mm"):
             raw = operation.geometry.get(key)
             if raw is not None:
                 points.append(Point2D(float(raw[0]), float(raw[1])))
@@ -74,11 +74,42 @@ def write_svg(plan: OperationPlan, target: Path, *, scale: float = 2.0) -> Path:
                     f'<circle cx="{sx(float(center[0])):.2f}" cy="{sy(float(center[1])):.2f}" '
                     f'r="{radius:.2f}"/>'
                 )
-        elif operation.type is OperationType.CREATE_LINE:
+        elif operation.type is OperationType.CREATE_CIRCLE:
+            center = operation.geometry["center_mm"]
+            radius = float(operation.geometry["diameter_mm"]) / 2.0 * scale
+            parts.append(
+                f'<circle cx="{sx(float(center[0])):.2f}" cy="{sy(float(center[1])):.2f}" '
+                f'r="{radius:.2f}"/>'
+            )
+        elif operation.type is OperationType.CREATE_ARC:
+            from cad_harness.geometry.curves import linearize_curve, normalize_arc
+
+            center = operation.geometry["center_mm"]
+            curve = normalize_arc(
+                Point2D(float(center[0]), float(center[1])),
+                float(operation.geometry["radius_mm"]),
+                float(operation.geometry["start_angle_deg"]),
+                float(operation.geometry["end_angle_deg"]),
+            )
+            arc_points = linearize_curve(curve, 0.01)
+            coords = " ".join(f"{sx(point.x):.2f},{sy(point.y):.2f}" for point in arc_points)
+            parts.append(f'<polyline points="{coords}"/>')
+        elif operation.type in {
+            OperationType.CREATE_LINE,
+            OperationType.CREATE_CENTERLINE,
+            OperationType.CREATE_LINEAR_DIMENSION,
+            OperationType.CREATE_ALIGNED_DIMENSION,
+        }:
             start, end = operation.geometry["start_mm"], operation.geometry["end_mm"]
             parts.append(
                 f'<line x1="{sx(float(start[0])):.2f}" y1="{sy(float(start[1])):.2f}" '
                 f'x2="{sx(float(end[0])):.2f}" y2="{sy(float(end[1])):.2f}"/>'
+            )
+        elif operation.type is OperationType.CREATE_TEXT:
+            position = operation.geometry["position_mm"]
+            parts.append(
+                f'<text x="{sx(float(position[0])):.2f}" y="{sy(float(position[1])):.2f}" '
+                f'fill="{STROKE_NEW}" stroke="none">{operation.geometry["text"]}</text>'
             )
 
     parts.append("</g></svg>")

@@ -10,6 +10,7 @@
         "APPROVED",
         "COMMITTING",
         "COMMITTED",
+        "UNKNOWN_COMMIT_STATE",
         "FAILED",
         "ROLLED_BACK",
         "CANCELLED"
@@ -89,7 +90,7 @@
       "title": "Plan Id"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.10",
       "title": "Schema Version",
       "type": "string"
     },

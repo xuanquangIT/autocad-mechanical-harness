@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from apps.mcp_server.context import build_context
-from cad_harness.domain.errors import HarnessError
+from cad_harness.domain.errors import ApprovalRequiredError, HarnessError
+from cad_harness.domain.models.raster import RasterTraceReport
 from cad_harness.domain.models.validation import Severity, ValidationStage
 
 #: The pilot case study from architecture section 32.
@@ -124,6 +125,19 @@ def _cmd_demo(args: argparse.Namespace) -> int:
         )
         return 0
 
+    if service.adapter.status().adapter_type != "fake":
+        _emit(
+            {
+                "status": "blocked",
+                "reason": "live_cli_self_approval_disabled",
+                "required_action": (
+                    "Use Engineer Desktop to review and approve the exact live plan; "
+                    "the CLI demo may commit only to the in-memory fake adapter."
+                ),
+            }
+        )
+        return 4
+
     acknowledged = tuple(f.rule_id for f in report.findings if f.severity is Severity.WARNING)
     approval_id, token = service.approve(job.job_id, args.approved_by, acknowledged)
     print(f"approval:   {approval_id} by {args.approved_by}", file=sys.stderr)
@@ -151,6 +165,38 @@ def _cmd_migrate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_raster_accept(args: argparse.Namespace) -> int:
+    """Human-only acceptance surface for one exact calibrated raster trace."""
+    if not args.confirm_reviewed_overlay:
+        raise ApprovalRequiredError(
+            "Raster candidates were not confirmed against the generated overlay",
+            required_action="Review the overlay, then repeat with --confirm-reviewed-overlay",
+        )
+    context = build_context(args.config)
+    service = context.raster_trace_service
+    if service is None:
+        raise ApprovalRequiredError(
+            "Raster acceptance requires a local signing secret",
+            required_action="Set CAD_HARNESS_APPROVAL_SECRET and retry locally",
+        )
+    report = RasterTraceReport.model_validate_json(args.report.read_text(encoding="utf-8"))
+    acceptance, token = service.accept(
+        report,
+        tuple(args.candidate),
+        args.accepted_by,
+        layer=args.layer,
+    )
+    _emit(
+        {
+            "status": "ok",
+            "acceptance": acceptance.model_dump(mode="json"),
+            "acceptance_token": token,
+            "warning": "Token expires in at most 15 minutes and covers only this exact trace.",
+        }
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cad-harness", description="AutoCAD Mechanical Harness CLI"
@@ -172,6 +218,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     migrate = subparsers.add_parser("migrate", help="Create the SQLite schema (dev only)")
     migrate.set_defaults(func=_cmd_migrate)
+
+    raster_accept = subparsers.add_parser(
+        "raster-accept",
+        help="Accept reviewed raster candidates and issue a short-lived local token",
+    )
+    raster_accept.add_argument("report", type=Path, help="RasterTraceReport JSON to review")
+    raster_accept.add_argument(
+        "--candidate",
+        action="append",
+        required=True,
+        help="Proposed candidate id to accept; repeat for multiple candidates",
+    )
+    raster_accept.add_argument("--accepted-by", required=True, help="Engineer identity")
+    raster_accept.add_argument(
+        "--layer", required=True, help="Exact target layer approved for these candidates"
+    )
+    raster_accept.add_argument(
+        "--confirm-reviewed-overlay",
+        action="store_true",
+        help="Confirm the local SVG overlay and exact candidates were reviewed",
+    )
+    raster_accept.set_defaults(func=_cmd_raster_accept)
 
     return parser
 

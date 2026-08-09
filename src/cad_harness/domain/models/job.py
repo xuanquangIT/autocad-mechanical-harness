@@ -20,6 +20,7 @@ class JobState(StrEnum):
     APPROVED = "APPROVED"
     COMMITTING = "COMMITTING"
     COMMITTED = "COMMITTED"
+    UNKNOWN_COMMIT_STATE = "UNKNOWN_COMMIT_STATE"
     FAILED = "FAILED"
     ROLLED_BACK = "ROLLED_BACK"
     CANCELLED = "CANCELLED"
@@ -34,9 +35,14 @@ ALLOWED_TRANSITIONS: dict[JobState, frozenset[JobState]] = {
     JobState.PREVIEWED: frozenset({JobState.VALIDATED, JobState.SPEC_ACCEPTED, JobState.CANCELLED}),
     JobState.VALIDATED: frozenset({JobState.APPROVED, JobState.SPEC_ACCEPTED, JobState.CANCELLED}),
     JobState.APPROVED: frozenset({JobState.COMMITTING, JobState.SPEC_ACCEPTED}),
-    JobState.COMMITTING: frozenset({JobState.COMMITTED, JobState.FAILED}),
+    JobState.COMMITTING: frozenset(
+        {JobState.COMMITTED, JobState.FAILED, JobState.UNKNOWN_COMMIT_STATE}
+    ),
     JobState.COMMITTED: frozenset({JobState.ROLLED_BACK}),
-    JobState.FAILED: frozenset({JobState.PLANNED, JobState.CANCELLED}),
+    JobState.UNKNOWN_COMMIT_STATE: frozenset(),
+    # FAILED may be pre-write (no checkpoint) or a proven post-commit validation
+    # failure. HarnessService permits rollback only for the latter.
+    JobState.FAILED: frozenset({JobState.PLANNED, JobState.ROLLED_BACK, JobState.CANCELLED}),
     JobState.ROLLED_BACK: frozenset(),
     JobState.CANCELLED: frozenset(),
 }

@@ -1,0 +1,91 @@
+{
+  "entity_count": 6,
+  "entities": [
+    {
+      "operation_id": "op:flange-boundary-g06:outer",
+      "feature_id": "flange-boundary-g06",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          10.0,
+          10.0
+        ],
+        "diameter_mm": 182.86325
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary-g06:bore",
+      "feature_id": "flange-boundary-g06",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "center_mm": [
+          10.0,
+          10.0
+        ],
+        "diameter_mm": 66.25
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary-g06:bolt-holes",
+      "feature_id": "flange-boundary-g06",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 18.55,
+        "center_mm": [
+          89.5,
+          10.0
+        ],
+        "area_mm2": 270.25747152047046
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary-g06:bolt-holes",
+      "feature_id": "flange-boundary-g06",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 18.55,
+        "center_mm": [
+          10.000000000000005,
+          89.5
+        ],
+        "area_mm2": 270.25747152047046
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary-g06:bolt-holes",
+      "feature_id": "flange-boundary-g06",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 18.55,
+        "center_mm": [
+          -69.5,
+          10.000000000000009
+        ],
+        "area_mm2": 270.25747152047046
+      }
+    },
+    {
+      "operation_id": "op:flange-boundary-g06:bolt-holes",
+      "feature_id": "flange-boundary-g06",
+      "entity_type": "AcDbCircle",
+      "layer": "OBJECT",
+      "measurements": {
+        "count": 4,
+        "diameter_mm": 18.55,
+        "center_mm": [
+          9.999999999999986,
+          -69.5
+        ],
+        "area_mm2": 270.25747152047046
+      }
+    }
+  ]
+}

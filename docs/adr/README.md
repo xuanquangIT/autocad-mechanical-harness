@@ -17,6 +17,20 @@ ADR-001 through ADR-007 are recorded in section 30 of the architecture document:
 
 New decisions get their own file here: `NNN-short-title.md`.
 
+| ADR | Decision | File |
+|---|---|---|
+| 008 | Schema 1.1: additive contract expansion for the production roadmap | [008-schema-1-1-contract-expansion.md](008-schema-1-1-contract-expansion.md) |
+| 009 | Schema 1.2: writer leases and unknown commit state | [009-schema-1-2-writer-lease-and-unknown-commit.md](009-schema-1-2-writer-lease-and-unknown-commit.md) |
+| 010 | Schema 1.3: versioned outline modifiers | [010-schema-1-3-outline-modifiers.md](010-schema-1-3-outline-modifiers.md) |
+| 011 | Schema 1.4: annotation, views, and GD&T | [011-schema-1-4-annotation-views-gdt.md](011-schema-1-4-annotation-views-gdt.md) |
+| 012 | Schema 1.5: drawing read contract | [012-schema-1-5-drawing-read-contract.md](012-schema-1-5-drawing-read-contract.md) |
+| 013 | Recognition round-trip stays semantic | [013-recognition-round-trip-safety.md](013-recognition-round-trip-safety.md) |
+| 014 | Pilot metrics contract and measurement semantics | [014-pilot-metrics-contract.md](014-pilot-metrics-contract.md) |
+| 015 | Schema 1.8: explicit bridge cancellation | [015-schema-1-8-bridge-cancellation.md](015-schema-1-8-bridge-cancellation.md) |
+| 016 | Schema 1.9: calibrated raster intake is an untrusted read path | [016-calibrated-raster-intake.md](016-calibrated-raster-intake.md) |
+| 017 | Schema 1.10: separate human approval for destructive rollback | [017-separate-rollback-approval.md](017-separate-rollback-approval.md) |
+| 018 | Session-bound undo rollback and activity fence | [018-session-undo-rollback-fence.md](018-session-undo-rollback-fence.md) |
+
 ## Template
 
 ```markdown

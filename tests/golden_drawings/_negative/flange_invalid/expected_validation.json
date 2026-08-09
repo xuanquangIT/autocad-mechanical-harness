@@ -1,0 +1,21 @@
+{
+  "stage": "pre_commit",
+  "blocking_count": 0,
+  "error_count": 1,
+  "warning_count": 1,
+  "commit_allowed": false,
+  "findings": [
+    {
+      "rule_id": "GEO-HOLE-PLACEMENT",
+      "severity": "info"
+    },
+    {
+      "rule_id": "FLANGE_OUTER_DIAMETER_CLEARANCE",
+      "severity": "error"
+    },
+    {
+      "rule_id": "STD-PROFILE-PROVENANCE",
+      "severity": "warning"
+    }
+  ]
+}

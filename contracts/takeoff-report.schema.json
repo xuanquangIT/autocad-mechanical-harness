@@ -1,0 +1,333 @@
+{
+  "$defs": {
+    "Finding": {
+      "additionalProperties": false,
+      "description": "One rule outcome, always carrying evidence a human can check.",
+      "properties": {
+        "actual": {
+          "default": null,
+          "title": "Actual"
+        },
+        "entity_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Ref"
+        },
+        "expected": {
+          "default": null,
+          "title": "Expected"
+        },
+        "feature_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Feature Id"
+        },
+        "measurement": {
+          "additionalProperties": true,
+          "title": "Measurement",
+          "type": "object"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "suggested_fix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suggested Fix"
+        },
+        "tolerance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tolerance"
+        }
+      },
+      "required": [
+        "rule_id",
+        "severity",
+        "message"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "HoleGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "diameter_mm": {
+          "title": "Diameter Mm",
+          "type": "number"
+        },
+        "entity_refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Entity Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "diameter_mm",
+        "count",
+        "entity_refs"
+      ],
+      "title": "HoleGroup",
+      "type": "object"
+    },
+    "PartTakeoffLine": {
+      "additionalProperties": false,
+      "properties": {
+        "cut_length_mm": {
+          "title": "Cut Length Mm",
+          "type": "number"
+        },
+        "density_kg_per_m3": {
+          "title": "Density Kg Per M3",
+          "type": "number"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "minProperties": 1,
+          "title": "Evidence",
+          "type": "object"
+        },
+        "gross_area_mm2": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Gross Area Mm2"
+        },
+        "hole_groups": {
+          "items": {
+            "$ref": "#/$defs/HoleGroup"
+          },
+          "title": "Hole Groups",
+          "type": "array"
+        },
+        "inner_cut_length_mm": {
+          "title": "Inner Cut Length Mm",
+          "type": "number"
+        },
+        "material_code": {
+          "title": "Material Code",
+          "type": "string"
+        },
+        "net_area_mm2": {
+          "title": "Net Area Mm2",
+          "type": "number"
+        },
+        "outer_cut_length_mm": {
+          "title": "Outer Cut Length Mm",
+          "type": "number"
+        },
+        "part_code": {
+          "title": "Part Code",
+          "type": "string"
+        },
+        "pierce_count": {
+          "title": "Pierce Count",
+          "type": "integer"
+        },
+        "quantity": {
+          "title": "Quantity",
+          "type": "integer"
+        },
+        "thickness_mm": {
+          "title": "Thickness Mm",
+          "type": "number"
+        },
+        "total_mass_kg": {
+          "title": "Total Mass Kg",
+          "type": "number"
+        },
+        "total_mass_kg_raw": {
+          "title": "Total Mass Kg Raw",
+          "type": "number"
+        },
+        "total_mass_kg_raw_text": {
+          "title": "Total Mass Kg Raw Text",
+          "type": "string"
+        },
+        "unit_mass_kg": {
+          "title": "Unit Mass Kg",
+          "type": "number"
+        },
+        "unit_mass_kg_raw": {
+          "title": "Unit Mass Kg Raw",
+          "type": "number"
+        },
+        "unit_mass_kg_raw_text": {
+          "title": "Unit Mass Kg Raw Text",
+          "type": "string"
+        },
+        "weld_length_mm": {
+          "title": "Weld Length Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "part_code",
+        "material_code",
+        "density_kg_per_m3",
+        "thickness_mm",
+        "quantity",
+        "net_area_mm2",
+        "gross_area_mm2",
+        "unit_mass_kg",
+        "unit_mass_kg_raw",
+        "unit_mass_kg_raw_text",
+        "total_mass_kg",
+        "total_mass_kg_raw",
+        "total_mass_kg_raw_text",
+        "cut_length_mm",
+        "outer_cut_length_mm",
+        "inner_cut_length_mm",
+        "pierce_count",
+        "hole_groups",
+        "weld_length_mm",
+        "evidence"
+      ],
+      "title": "PartTakeoffLine",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "blocking"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/takeoff-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "company_approved": {
+      "title": "Company Approved",
+      "type": "boolean"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "excluded_contours": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Excluded Contours",
+      "type": "array"
+    },
+    "material_profile_id": {
+      "title": "Material Profile Id",
+      "type": "string"
+    },
+    "material_profile_version": {
+      "title": "Material Profile Version",
+      "type": "string"
+    },
+    "parts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PartTakeoffLine"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "profile_id": {
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "revision": {
+      "title": "Revision",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "units": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Units",
+      "type": "object"
+    }
+  },
+  "required": [
+    "document_id",
+    "revision",
+    "profile_id",
+    "material_profile_id",
+    "material_profile_version",
+    "company_approved",
+    "units"
+  ],
+  "title": "TakeoffReport",
+  "type": "object"
+}

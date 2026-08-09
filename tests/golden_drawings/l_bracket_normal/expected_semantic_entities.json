@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:l-bracket-normal:outline",
+      "feature_id": "l-bracket-normal",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 18,
+        "width_mm": 100.0,
+        "height_mm": 80.0,
+        "area_mm2": 1703.469485546875,
+        "perimeter_mm": 358.2787004060937
+      }
+    }
+  ]
+}

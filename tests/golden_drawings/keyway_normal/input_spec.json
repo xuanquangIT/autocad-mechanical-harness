@@ -1,0 +1,1 @@
+{"_comment":"Normal keyed bore.","units":"mm","features":[{"feature_id":"keyway-normal","type":"keyway","parameters":{"bore_diameter_mm":20.0,"key_width_mm":6.0,"key_depth_mm":3.0,"center_mm":[50.0,40.0]}}]}

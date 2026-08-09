@@ -1,0 +1,57 @@
+name: quality-gates
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows-quality:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync locked Python environment
+        run: uv sync --frozen
+
+      - name: Ruff lint and format
+        run: |
+          uv run ruff check src apps tests scripts
+          uv run ruff format --check src apps tests scripts
+
+      - name: Mypy strict
+        run: uv run mypy src apps scripts
+
+      - name: Contract and architecture gates
+        run: |
+          uv run python scripts/generate_schemas.py --check
+          uv run python scripts/check_import_boundaries.py
+          uv run python scripts/check_static_invariants.py
+
+      - name: Offline test suite
+        run: uv run pytest -m "not integration and not com and not slow" -q --durations=20
+
+      - name: Golden suite
+        run: uv run python scripts/run_golden_tests.py
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore and test pure bridge assemblies
+        run: |
+          dotnet restore dotnet/AutoCADBridge/CadBridge.Tests/CadBridge.Tests.csproj --configfile dotnet/AutoCADBridge/NuGet.Config
+          dotnet test dotnet/AutoCADBridge/CadBridge.Tests/CadBridge.Tests.csproj -c Release --no-restore --nologo -warnaserror
+
+      - name: Build AutoCAD 2025 plugin
+        run: |
+          dotnet restore dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj --configfile dotnet/AutoCADBridge/NuGet.Config -p:AutoCADManagedApiVersion=25.0.1
+          dotnet build dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj -c Release --no-restore --nologo -warnaserror -p:AutoCADManagedApiVersion=25.0.1

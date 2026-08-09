@@ -1,0 +1,29 @@
+{
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "plate-corner-boundary-g02",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 118.5,
+        "height_mm": 94.8,
+        "thickness_mm": 11.85,
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "corner-notch-boundary-g02",
+          "type": "corner_notch",
+          "parameters": {
+            "corner_index": 1,
+            "width_mm": 59.25,
+            "height_mm": 47.4
+          }
+        }
+      ]
+    }
+  ]
+}

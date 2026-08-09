@@ -22,12 +22,28 @@ SENSITIVE_KEYS: frozenset[str] = frozenset(
         "prompt",
         "raw_prompt",
         "api_key",
+        # Geometry volume must stay bounded independently of entity count. Counts and
+        # aggregate measurements remain observable; coordinate collections do not.
+        "geometry",
+        "geometries",
+        "coordinates",
+        "vertices",
+        "points",
     }
 )
 
 #: Keys holding filesystem paths, replaced with a stable pseudonym.
 PATH_KEYS: frozenset[str] = frozenset(
-    {"path", "full_path", "target_path", "file_path", "artifact_ref", "document_path"}
+    {
+        "path",
+        "full_path",
+        "target_path",
+        "file_path",
+        "artifact_ref",
+        "document_path",
+        "display_name",
+        "filename",
+    }
 )
 
 REDACTED = "[redacted]"

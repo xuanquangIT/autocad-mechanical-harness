@@ -28,6 +28,8 @@ _CREATE_TYPES = frozenset(
         OperationType.CREATE_ALIGNED_DIMENSION,
         OperationType.CREATE_DIAMETER_DIMENSION,
         OperationType.CREATE_RADIUS_DIMENSION,
+        OperationType.CREATE_ANGULAR_DIMENSION,
+        OperationType.CREATE_HATCH,
     }
 )
 
@@ -40,6 +42,8 @@ class DiffEntry:
     entity_type: str
     layer: str
     summary: str
+    #: Existing entity changed by update/delete; absent for additions.
+    target_entity_ref: str | None = None
     measurements: dict[str, Any] = field(default_factory=dict)
 
 
@@ -80,6 +84,7 @@ class SemanticDiff:
                     "entity_type": e.entity_type,
                     "layer": e.layer,
                     "summary": e.summary,
+                    "target_entity_ref": e.target_entity_ref,
                     "measurements": e.measurements,
                 }
                 for e in self.entries
@@ -130,6 +135,7 @@ def build_semantic_diff(plan: OperationPlan, snapshot: DocumentSnapshot) -> Sema
                 entity_type=ENTITY_TYPE_BY_OPERATION.get(operation.type, "AcDbEntity"),
                 layer=operation.layer,
                 summary=_summarize(operation.type, operation.geometry),
+                target_entity_ref=operation.target_entity_ref,
                 measurements=dict(operation.expected),
             )
         )

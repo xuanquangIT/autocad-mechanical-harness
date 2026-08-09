@@ -63,13 +63,55 @@ def write_dxf(plan: OperationPlan, target: Path) -> Path:
                 float(operation.geometry["diameter_mm"]) / 2.0,
                 dxfattribs=attributes,
             )
-        elif operation.type is OperationType.CREATE_LINE:
+        elif operation.type is OperationType.CREATE_ARC:
+            center = operation.geometry["center_mm"]
+            model.add_arc(
+                (float(center[0]), float(center[1])),
+                float(operation.geometry["radius_mm"]),
+                float(operation.geometry["start_angle_deg"]),
+                float(operation.geometry["end_angle_deg"]),
+                dxfattribs=attributes,
+            )
+        elif operation.type in {OperationType.CREATE_LINE, OperationType.CREATE_CENTERLINE}:
             start, end = operation.geometry["start_mm"], operation.geometry["end_mm"]
             model.add_line(
                 (float(start[0]), float(start[1])),
                 (float(end[0]), float(end[1])),
                 dxfattribs=attributes,
             )
+        elif operation.type is OperationType.CREATE_TEXT:
+            position = operation.geometry["position_mm"]
+            entity = model.add_text(
+                str(operation.geometry["text"]),
+                height=float(operation.geometry.get("text_height_mm", 2.5)),
+                dxfattribs=attributes,
+            )
+            entity.set_placement((float(position[0]), float(position[1])))
+        elif operation.type in {
+            OperationType.CREATE_LINEAR_DIMENSION,
+            OperationType.CREATE_ALIGNED_DIMENSION,
+            OperationType.CREATE_DIAMETER_DIMENSION,
+            OperationType.CREATE_RADIUS_DIMENSION,
+            OperationType.CREATE_ANGULAR_DIMENSION,
+        }:
+            start = operation.geometry.get("start_mm")
+            end = operation.geometry.get("end_mm")
+            if start is not None and end is not None:
+                model.add_line(
+                    (float(start[0]), float(start[1])),
+                    (float(end[0]), float(end[1])),
+                    dxfattribs=attributes,
+                )
+            position = operation.geometry.get(
+                "text_position_mm", operation.geometry.get("center_mm")
+            )
+            if position is not None:
+                entity = model.add_text(
+                    str(operation.geometry.get("text_value", "")),
+                    height=float(operation.geometry.get("text_height_mm", 2.5)),
+                    dxfattribs=attributes,
+                )
+                entity.set_placement((float(position[0]), float(position[1])))
         elif operation.type is OperationType.CREATE_CENTERMARK:
             center = operation.geometry["center_mm"]
             size = 2.5
@@ -91,7 +133,15 @@ def unsupported_operations(plan: OperationPlan) -> list[str]:
         OperationType.CREATE_POLYLINE,
         OperationType.CREATE_CIRCLE,
         OperationType.CREATE_CIRCLES,
+        OperationType.CREATE_ARC,
         OperationType.CREATE_LINE,
+        OperationType.CREATE_TEXT,
+        OperationType.CREATE_CENTERLINE,
         OperationType.CREATE_CENTERMARK,
+        OperationType.CREATE_LINEAR_DIMENSION,
+        OperationType.CREATE_ALIGNED_DIMENSION,
+        OperationType.CREATE_DIAMETER_DIMENSION,
+        OperationType.CREATE_RADIUS_DIMENSION,
+        OperationType.CREATE_ANGULAR_DIMENSION,
     }
     return sorted({op.type.value for op in plan.operations if op.type not in renderable})

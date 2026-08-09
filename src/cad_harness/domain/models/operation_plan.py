@@ -36,6 +36,8 @@ class OperationType(StrEnum):
     CREATE_ALIGNED_DIMENSION = "create_aligned_dimension"
     CREATE_DIAMETER_DIMENSION = "create_diameter_dimension"
     CREATE_RADIUS_DIMENSION = "create_radius_dimension"
+    CREATE_ANGULAR_DIMENSION = "create_angular_dimension"
+    CREATE_HATCH = "create_hatch"
     UPDATE_ENTITY = "update_entity"
     DELETE_ENTITY = "delete_entity"
 
@@ -82,7 +84,11 @@ class OperationPlan(ContractModel):
     plan_hash: str | None = None
 
     def compute_hash(self) -> str:
-        return compute_plan_hash(self.to_canonical_dict())
+        # Hash the exact JSON-mode wire shape.  In particular, optional fields such as
+        # target_entity_ref are emitted as explicit nulls by model_dump at the IPC
+        # boundary; omitting them here would make Python approvals unverifiable by the
+        # C# bridge even though both peers received the same OperationPlan.
+        return compute_plan_hash(self.model_dump(mode="json"))
 
     def with_hash(self) -> OperationPlan:
         """Return a copy carrying its deterministic hash."""

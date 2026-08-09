@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "MeasurementKind": {
+      "description": "The twelve analytic measurements supported by the read path.",
+      "enum": [
+        "point_to_point",
+        "point_to_entity",
+        "entity_to_entity",
+        "angle_between_lines",
+        "arc_length",
+        "contour_perimeter",
+        "contour_area",
+        "diameter",
+        "radius",
+        "bounding_box",
+        "hole_to_edge",
+        "hole_center_to_center"
+      ],
+      "title": "MeasurementKind",
+      "type": "string"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/measurement-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A read-only measurement request resolved against one DrawingModel.",
+  "properties": {
+    "entity_refs": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Entity Refs",
+      "type": "array"
+    },
+    "first_point_mm": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "First Point Mm"
+    },
+    "kind": {
+      "$ref": "#/$defs/MeasurementKind"
+    },
+    "second_point_mm": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Second Point Mm"
+    }
+  },
+  "required": [
+    "kind"
+  ],
+  "title": "MeasurementRequest",
+  "type": "object"
+}

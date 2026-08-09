@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework Condition="'$(CadBridgeTargetFramework)' == ''">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(CadBridgeTargetFramework)' != ''">$(CadBridgeTargetFramework)</TargetFramework>
+    <AutoCADManagedApiVersion Condition="'$(AutoCADManagedApiVersion)' == ''">25.0.1</AutoCADManagedApiVersion>
+    <AssemblyName>AutoCADHarness</AssemblyName>
+    <RootNamespace>CadBridge.Plugin</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows' and '$(AutoCADManagedApiVersion)' == '26.0.0'">
+    <DefineConstants>$(DefineConstants);CADBRIDGE_VERIFIED_R26_WRITE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoCAD.NET" Version="$(AutoCADManagedApiVersion)" ExcludeAssets="runtime" />
+    <ProjectReference Include="..\CadBridge.Execution\CadBridge.Execution.csproj" />
+    <ProjectReference Include="..\CadBridge.Hosting\CadBridge.Hosting.csproj" />
+    <ProjectReference Include="..\CadBridge.Inspection\CadBridge.Inspection.csproj" />
+    <ProjectReference Include="..\CadBridge.Ipc\CadBridge.Ipc.csproj" />
+    <ProjectReference Include="..\CadBridge.Metadata\CadBridge.Metadata.csproj" />
+  </ItemGroup>
+</Project>

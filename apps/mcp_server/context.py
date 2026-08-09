@@ -3,12 +3,41 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from cad_harness.adapters import build_adapter
+from cad_harness.adapters import (
+    BridgeDrawingReader,
+    ComDrawingReader,
+    DxfDrawingReader,
+    build_adapter,
+)
+from cad_harness.adapters.dotnet_bridge import DotNetBridgeAdapter
+from cad_harness.application.manual_gate import (
+    ManualStepId,
+    load_live_setup_confirmations_from_environment,
+    require_live_setup_confirmations,
+)
+from cad_harness.application.services.drawing_audit_service import DrawingAuditService
+from cad_harness.application.services.drawing_read_service import DrawingReadService
 from cad_harness.application.services.harness_service import HarnessService
-from cad_harness.config import Settings, load_settings
+from cad_harness.application.services.instrumented_measurement_service import (
+    InstrumentedMeasurementService,
+)
+from cad_harness.application.services.lease_service import LeaseService
+from cad_harness.application.services.measurement_service import MeasurementService
+from cad_harness.application.services.metrics_service import MetricsService
+from cad_harness.application.services.raster_trace_service import RasterTraceService
+from cad_harness.application.services.retention_cleanup_service import (
+    cleanup_filesystem_retention,
+)
+from cad_harness.application.services.takeoff_service import TakeoffService
+from cad_harness.company_rules.loader import CompanyProfile
+from cad_harness.company_rules.material_loader import YamlMaterialTableLoader
+from cad_harness.compatibility import load_compatibility_matrix
+from cad_harness.comprehension.raster_trace import LocalRasterTracer, RasterTraceLimits
+from cad_harness.config import Settings, load_settings, resolve_config_relative_path
 from cad_harness.domain.errors import (
     ErrorCode,
     HarnessError,
@@ -17,7 +46,21 @@ from cad_harness.domain.errors import (
     WriterLeaseConflictError,
 )
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
+from cad_harness.domain.ports.drawing_source import DrawingSourcePort
+from cad_harness.geometry.tolerance import ToleranceProfile
+from cad_harness.metrics.collector import load_pilot_thresholds
+from cad_harness.metrics.recorder import OperationMetricsRecorder
 from cad_harness.observability.logging import configure_logging, get_logger
+from cad_harness.persistence.engine import build_engine, build_session_factory, create_all
+from cad_harness.persistence.sql_audit_sink import SqlAuditSink
+from cad_harness.persistence.sql_drawing_audit_store import SqlDrawingAuditStore
+from cad_harness.persistence.sql_job_store import SqlJobStore
+from cad_harness.persistence.sql_lease_store import SqlLeaseStore
+from cad_harness.persistence.sql_metrics_store import SqlMetricsStore
+from cad_harness.persistence.sql_takeoff_report_store import SqlTakeoffReportStore
+from cad_harness.security.local_only import configure_local_only_network_guard
+from cad_harness.security.redaction import redact_payload
+from cad_harness.security.retention import RetentionPolicy
 
 #: Errors that mean "the world moved", not "you asked wrongly".
 _CONFLICT_ERRORS = (
@@ -45,19 +88,71 @@ _FAILURE_CODES = frozenset(
 class ServerContext:
     settings: Settings
     service: HarnessService
+    drawing_read_service: DrawingReadService
+    drawing_audit_service: DrawingAuditService
+    takeoff_service: TakeoffService
+    measurement_service: InstrumentedMeasurementService
+    operation_metrics: OperationMetricsRecorder
+    metrics_service: MetricsService
+    company_profile: CompanyProfile
+    tolerance_profile: ToleranceProfile
+    raster_tracer: LocalRasterTracer
+    raster_trace_service: RasterTraceService | None
 
 
-def build_context(config_path: Path | None = None) -> ServerContext:
+def build_context(
+    config_path: Path | None = None,
+    *,
+    manual_confirmations: tuple[ManualStepId, ...] | None = None,
+) -> ServerContext:
     """Load settings, configure logging, wire the adapter and the service."""
     settings = load_settings(config_path)
+    confirmations = (
+        load_live_setup_confirmations_from_environment()
+        if manual_confirmations is None
+        else manual_confirmations
+    )
+    require_live_setup_confirmations(settings.adapter.type, confirmations)
+    configure_local_only_network_guard(enabled=settings.app.local_only)
     configure_logging(
         level=settings.observability.log_level,
         json_output=settings.observability.log_json,
     )
+
+    def apply_retention() -> Any:
+        retention = cleanup_filesystem_retention(
+            preview_root=Path(settings.storage.preview_directory),
+            preview_policy=RetentionPolicy(
+                settings.storage.preview_retention_days,
+                settings.storage.preview_max_total_bytes,
+            ),
+            checkpoint_root=Path(settings.storage.checkpoint_directory),
+            checkpoint_policy=RetentionPolicy(
+                settings.storage.checkpoint_retention_days,
+                settings.storage.checkpoint_max_total_bytes,
+            ),
+            now=datetime.now(UTC),
+        )
+        failures = (*retention.preview.failures, *retention.checkpoint.failures)
+        get_logger(__name__).info(
+            "retention_cleanup_completed",
+            preview_selected=len(retention.preview.selected),
+            preview_deleted=len(retention.preview.deleted),
+            checkpoint_selected=len(retention.checkpoint.selected),
+            checkpoint_deleted=len(retention.checkpoint.deleted),
+            failure_count=len(failures),
+        )
+        return retention
+
+    # Validate both roots and enforce existing TTL/quota before any adapter starts.
+    apply_retention()
     adapter = build_adapter(
         settings.adapter.type,
         preview_directory=Path(settings.storage.preview_directory),
         autocad_prog_id=settings.adapter.autocad_prog_id,
+        pipe_name=settings.bridge.pipe_name_template,
+        timeout_seconds=settings.bridge.ipc_timeout_seconds,
+        max_request_bytes=settings.bridge.max_request_bytes,
     )
 
     # COM needs an explicit attach. Failing here is better than failing on first write.
@@ -73,7 +168,100 @@ def build_context(config_path: Path | None = None) -> ServerContext:
         environment=settings.app.environment,
         profile=settings.standards.company_profile,
     )
-    return ServerContext(settings=settings, service=HarnessService(settings, adapter))
+    engine = build_engine(Path(settings.storage.sqlite_path))
+    # Development remains zero-setup; pilot/production schema changes are applied by
+    # Alembic so migration history and backups stay auditable.
+    if settings.app.environment == "development":
+        create_all(engine)
+    session_factory = build_session_factory(engine)
+    store = SqlJobStore(session_factory)
+    audit = SqlAuditSink(session_factory)
+    drawing_audit_store = SqlDrawingAuditStore(session_factory)
+    metrics_store = SqlMetricsStore(session_factory, pilot_run_id=settings.pilot.run_id)
+    operation_metrics = OperationMetricsRecorder(metrics_store)
+    raster_tracer = LocalRasterTracer(
+        Path(settings.storage.preview_directory) / "raster",
+        limits=RasterTraceLimits(
+            max_bytes=settings.raster.max_bytes,
+            max_pixels=settings.raster.max_pixels,
+            max_dimension_px=settings.raster.max_dimension_px,
+        ),
+        confidence_threshold=settings.raster.confidence_threshold,
+    )
+    raster_secret = settings.approval_secret()
+    raster_trace_service = (
+        RasterTraceService(
+            raster_tracer,
+            signing_secret=raster_secret,
+            acceptance_ttl=timedelta(minutes=settings.raster.acceptance_ttl_minutes),
+        )
+        if raster_secret
+        else None
+    )
+    compatibility_matrix = load_compatibility_matrix(
+        resolve_config_relative_path(settings.compatibility.matrix_path, config_path)
+    )
+    metrics_service = MetricsService(
+        thresholds=load_pilot_thresholds(
+            resolve_config_relative_path(settings.pilot.thresholds_path, config_path)
+        ),
+        store=metrics_store,
+        audit_events=audit,
+    )
+    lease_service = LeaseService(
+        SqlLeaseStore(session_factory),
+        ttl_seconds=settings.lease.ttl_seconds,
+        heartbeat_interval_seconds=settings.lease.heartbeat_interval_seconds,
+        minimum_remaining_seconds=settings.lease.minimum_remaining_seconds,
+    )
+    drawing_source: DrawingSourcePort
+    if isinstance(adapter, DotNetBridgeAdapter):
+        drawing_source = BridgeDrawingReader(adapter)
+    elif settings.adapter.type == "com":
+        from cad_harness.adapters.autocad_com import ComAutoCADAdapter
+
+        assert isinstance(adapter, ComAutoCADAdapter)
+        drawing_source = ComDrawingReader(adapter)
+    else:
+        drawing_source = DxfDrawingReader()
+    drawing_read_service = DrawingReadService(
+        settings, drawing_source, operation_metrics=operation_metrics
+    )
+    drawing_audit_service = DrawingAuditService(store=drawing_audit_store, audit=audit)
+    takeoff_service = TakeoffService(
+        settings,
+        YamlMaterialTableLoader(),
+        persistence=SqlTakeoffReportStore(session_factory),
+        operation_metrics=operation_metrics,
+    )
+    service = HarnessService(
+        settings,
+        adapter,
+        store=store,
+        audit=audit,
+        lease_service=lease_service,
+        drawing_audit_store=drawing_audit_store,
+        operation_metrics=operation_metrics,
+        compatibility_matrix=compatibility_matrix,
+        retention_cleanup=apply_retention,
+        raster_trace_service=raster_trace_service,
+    )
+    return ServerContext(
+        settings=settings,
+        service=service,
+        drawing_read_service=drawing_read_service,
+        drawing_audit_service=drawing_audit_service,
+        takeoff_service=takeoff_service,
+        measurement_service=InstrumentedMeasurementService(
+            MeasurementService(), operation_metrics, settings
+        ),
+        operation_metrics=operation_metrics,
+        metrics_service=metrics_service,
+        company_profile=service.profile,
+        tolerance_profile=service.tolerance,
+        raster_tracer=raster_tracer,
+        raster_trace_service=raster_trace_service,
+    )
 
 
 def ok(
@@ -88,7 +276,12 @@ def ok(
     ).model_dump(mode="json", exclude_none=True)
 
 
-def failure(error: Exception, *, job_id: str | None = None) -> dict[str, Any]:
+def failure(
+    error: Exception,
+    *,
+    job_id: str | None = None,
+    request_id: str | None = None,
+) -> dict[str, Any]:
     """Map an exception onto the response envelope.
 
     Unexpected exceptions become a generic ``INTERNAL_ERROR``: no stack traces or
@@ -106,9 +299,21 @@ def failure(error: Exception, *, job_id: str | None = None) -> dict[str, Any]:
         get_logger(__name__).warning(
             "tool_error", error_code=error.code.value, job_id=job_id, outcome=status.value
         )
-        return ToolResponse.from_error(error, status=status, job_id=job_id).model_dump(
-            mode="json", exclude_none=True
+        response = ToolResponse.from_error(
+            error,
+            status=status,
+            job_id=job_id,
+            request_id=request_id,
         )
+        if response.error is not None:
+            response = response.model_copy(
+                update={
+                    "error": response.error.model_copy(
+                        update={"details": redact_payload(response.error.details)}
+                    )
+                }
+            )
+        return response.model_dump(mode="json", exclude_none=True)
 
     get_logger(__name__).error(
         "tool_unhandled_error", error_type=type(error).__name__, job_id=job_id
@@ -116,6 +321,7 @@ def failure(error: Exception, *, job_id: str | None = None) -> dict[str, Any]:
     return ToolResponse(
         status=ToolStatus.FAILED,
         job_id=job_id,
+        request_id=request_id,
         error={  # type: ignore[arg-type]
             "code": ErrorCode.INTERNAL_ERROR.value,
             "message": "An internal error occurred",

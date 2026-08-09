@@ -17,14 +17,22 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from cad_harness.domain.models.approval import ApprovalRecord
+from cad_harness.domain.models.approval import ApprovalRecord, RollbackApprovalRecord
 from cad_harness.domain.models.document import DocumentSnapshot, SelectionSnapshot
-from cad_harness.domain.models.drawing_spec import DrawingSpec
+from cad_harness.domain.models.drawing_model import DrawingModel, DrawingSummary
+from cad_harness.domain.models.drawing_spec import DrawingSpec, ModifierSpec
 from cad_harness.domain.models.envelope import ToolResponse
 from cad_harness.domain.models.job import CadJob
+from cad_harness.domain.models.lease import WriterLease
+from cad_harness.domain.models.measurement import MeasurementRequest, MeasurementResult
+from cad_harness.domain.models.metrics import PilotReport
 from cad_harness.domain.models.operation_plan import OperationPlan
-from cad_harness.domain.models.result import CommitResult
+from cad_harness.domain.models.raster import RasterTraceAcceptance, RasterTraceReport
+from cad_harness.domain.models.recognition import RecognitionReport
+from cad_harness.domain.models.result import CommitResult, PreviewResult, RollbackResult
+from cad_harness.domain.models.takeoff import MaterialTable, TakeoffReport, TakeoffRequest
 from cad_harness.domain.models.validation import ValidationReport
+from cad_harness.domain.ports.autocad_adapter import RollbackRequest
 from scripts.ipc_envelope_schema import FILENAME as IPC_FILENAME
 from scripts.ipc_envelope_schema import IPC_ENVELOPE_SCHEMA
 
@@ -33,13 +41,30 @@ CONTRACTS_DIR = Path(__file__).resolve().parents[1] / "contracts"
 #: Output filename -> model. Filenames are part of the contract; do not rename casually.
 SCHEMAS: dict[str, type[BaseModel]] = {
     "drawing-spec.schema.json": DrawingSpec,
+    "drawing-model.schema.json": DrawingModel,
+    "drawing-summary.schema.json": DrawingSummary,
+    "modifier-spec.schema.json": ModifierSpec,
     "operation-plan.schema.json": OperationPlan,
     "operation-result.schema.json": CommitResult,
+    "preview-result.schema.json": PreviewResult,
+    "rollback-result.schema.json": RollbackResult,
+    "recognition-report.schema.json": RecognitionReport,
+    "raster-trace-report.schema.json": RasterTraceReport,
+    "raster-trace-acceptance.schema.json": RasterTraceAcceptance,
+    "takeoff-request.schema.json": TakeoffRequest,
+    "takeoff-report.schema.json": TakeoffReport,
+    "material-table.schema.json": MaterialTable,
+    "measurement-request.schema.json": MeasurementRequest,
+    "measurement-result.schema.json": MeasurementResult,
+    "pilot-report.schema.json": PilotReport,
     "validation-report.schema.json": ValidationReport,
     "document-snapshot.schema.json": DocumentSnapshot,
     "selection-snapshot.schema.json": SelectionSnapshot,
     "approval-record.schema.json": ApprovalRecord,
+    "rollback-approval-record.schema.json": RollbackApprovalRecord,
+    "rollback-request.schema.json": RollbackRequest,
     "cad-job.schema.json": CadJob,
+    "writer-lease.schema.json": WriterLease,
     "tool-response.schema.json": ToolResponse,
 }
 

@@ -1,21 +1,82 @@
 """Pydantic models forming the versioned contracts of the harness."""
 
-from cad_harness.domain.models.approval import ApprovalRecord
+from cad_harness.domain.models.approval import ApprovalRecord, RollbackApprovalRecord
 from cad_harness.domain.models.base import SCHEMA_VERSION, ContractModel
 from cad_harness.domain.models.document import DocumentSnapshot, SelectionSnapshot
+from cad_harness.domain.models.drawing_model import (
+    DrawingModel,
+    DrawingSummary,
+    EntityRecord,
+    MeasuredValue,
+    ReadScope,
+)
 from cad_harness.domain.models.drawing_spec import (
+    Annotations,
     Datum,
+    DatumFeatureSymbol,
     DefaultRecord,
     DrawingSpec,
+    FeatureControlFrame,
     FeatureSpec,
     MissingInput,
+    ModifierSpec,
     StandardProfileRef,
+    ViewSpec,
 )
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
 from cad_harness.domain.models.job import CadJob, JobState, assert_transition
+from cad_harness.domain.models.lease import WriterLease
+from cad_harness.domain.models.measurement import (
+    SUPPORTED_ENTITY_TYPES,
+    MeasurementKind,
+    MeasurementRequest,
+    MeasurementResult,
+)
+from cad_harness.domain.models.metrics import (
+    BaselineCase,
+    EffortRecord,
+    FailureReason,
+    Metric,
+    OperationMetricSummary,
+    PilotCaseResult,
+    PilotReport,
+    WorkLabelSummary,
+)
 from cad_harness.domain.models.operation_plan import Operation, OperationPlan, OperationType
-from cad_harness.domain.models.result import Checkpoint, CommitResult, EntityResult
+from cad_harness.domain.models.raster import (
+    PixelPoint,
+    RasterCalibration,
+    RasterCandidateStatus,
+    RasterFormat,
+    RasterSource,
+    RasterTraceAcceptance,
+    RasterTraceReport,
+    RasterVectorCandidate,
+)
+from cad_harness.domain.models.recognition import (
+    CandidateExplanation,
+    OpenContourFinding,
+    RecognitionReport,
+    RecognizedFeature,
+    RecognizedFeatureType,
+)
+from cad_harness.domain.models.result import (
+    Checkpoint,
+    CommitResult,
+    EntityMappingRecord,
+    EntityResult,
+)
+from cad_harness.domain.models.takeoff import (
+    HoleGroup,
+    MaterialEntry,
+    MaterialTable,
+    PartInput,
+    PartTakeoffLine,
+    TakeoffReport,
+    TakeoffRequest,
+)
 from cad_harness.domain.models.validation import (
+    DrawingAuditEvidence,
     Finding,
     Severity,
     ValidationReport,
@@ -24,29 +85,75 @@ from cad_harness.domain.models.validation import (
 
 __all__ = [
     "SCHEMA_VERSION",
+    "SUPPORTED_ENTITY_TYPES",
+    "Annotations",
     "ApprovalRecord",
+    "BaselineCase",
     "CadJob",
+    "CandidateExplanation",
     "Checkpoint",
     "CommitResult",
     "ContractModel",
     "Datum",
+    "DatumFeatureSymbol",
     "DefaultRecord",
     "DocumentSnapshot",
+    "DrawingAuditEvidence",
+    "DrawingModel",
     "DrawingSpec",
+    "DrawingSummary",
+    "EffortRecord",
+    "EntityMappingRecord",
+    "EntityRecord",
     "EntityResult",
+    "FailureReason",
+    "FeatureControlFrame",
     "FeatureSpec",
     "Finding",
+    "HoleGroup",
     "JobState",
+    "MaterialEntry",
+    "MaterialTable",
+    "MeasuredValue",
+    "MeasurementKind",
+    "MeasurementRequest",
+    "MeasurementResult",
+    "Metric",
     "MissingInput",
+    "ModifierSpec",
+    "OpenContourFinding",
     "Operation",
+    "OperationMetricSummary",
     "OperationPlan",
     "OperationType",
+    "PartInput",
+    "PartTakeoffLine",
+    "PilotCaseResult",
+    "PilotReport",
+    "PixelPoint",
+    "RasterCalibration",
+    "RasterCandidateStatus",
+    "RasterFormat",
+    "RasterSource",
+    "RasterTraceAcceptance",
+    "RasterTraceReport",
+    "RasterVectorCandidate",
+    "ReadScope",
+    "RecognitionReport",
+    "RecognizedFeature",
+    "RecognizedFeatureType",
+    "RollbackApprovalRecord",
     "SelectionSnapshot",
     "Severity",
     "StandardProfileRef",
+    "TakeoffReport",
+    "TakeoffRequest",
     "ToolResponse",
     "ToolStatus",
     "ValidationReport",
     "ValidationStage",
+    "ViewSpec",
+    "WorkLabelSummary",
+    "WriterLease",
     "assert_transition",
 ]

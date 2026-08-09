@@ -1,0 +1,55 @@
+{
+  "canonical_units": "mm",
+  "profile_ref": "demo-profile@1.0",
+  "operations": [
+    {
+      "operation_id": "op:plate-edge-boundary:outline",
+      "feature_id": "plate-edge-boundary",
+      "type": "create_closed_polyline",
+      "layer": "OBJECT",
+      "geometry": {
+        "vertices_mm": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            5.0,
+            0.0
+          ],
+          [
+            5.0,
+            20.0
+          ],
+          [
+            95.0,
+            20.0
+          ],
+          [
+            95.0,
+            0.0
+          ],
+          [
+            100.0,
+            0.0
+          ],
+          [
+            100.0,
+            80.0
+          ],
+          [
+            0.0,
+            80.0
+          ]
+        ]
+      },
+      "expected": {
+        "closed": true,
+        "vertex_count": 8,
+        "width_mm": 100.0,
+        "height_mm": 80.0,
+        "area_mm2": 6200.0
+      }
+    }
+  ]
+}

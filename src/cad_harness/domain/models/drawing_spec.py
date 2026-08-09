@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from cad_harness.domain.models.base import SCHEMA_VERSION, ContractModel
 from cad_harness.domain.value_objects.units import Unit
@@ -63,26 +63,80 @@ class MissingInput(ContractModel):
     accepted_formats: tuple[str, ...] = ()
 
 
+class ModifierSpec(ContractModel):
+    """Ordered outline transformation containing engineering inputs only."""
+
+    type: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def reject_intermediate_coordinates(self) -> ModifierSpec:
+        forbidden = {"point", "points", "coordinate", "coordinates", "vertex", "vertices"}
+        invalid = sorted(
+            key
+            for key in self.parameters
+            if any(token in forbidden for token in key.lower().replace("-", "_").split("_"))
+            and key.lower() != "vertex_indices"
+        )
+        if invalid:
+            raise ValueError(
+                "Modifier parameters cannot contain intermediate coordinate keys: "
+                + ", ".join(invalid)
+            )
+        return self
+
+
 class FeatureSpec(ContractModel):
     """One mechanical feature with typed parameters and optional child features."""
 
     feature_id: str
     type: str
     parameters: dict[str, Any] = Field(default_factory=dict)
+    modifiers: tuple[ModifierSpec, ...] = ()
     children: tuple[FeatureSpec, ...] = ()
+
+
+class ViewSpec(ContractModel):
+    """One requested view; supported values are validated by the view compiler."""
+
+    type: str
+    name: str | None = None
+
+
+class DatumFeatureSymbol(ContractModel):
+    """An explicitly declared GD&T datum symbol; never inferred."""
+
+    identifier: str
+    feature_id: str
+    position_mm: tuple[float, float]
+
+
+class FeatureControlFrame(ContractModel):
+    """An explicitly declared note-level feature control frame."""
+
+    frame_id: str
+    feature_id: str
+    characteristic: str
+    tolerance_text: str
+    datum_references: tuple[str, ...] = ()
+    position_mm: tuple[float, float]
 
 
 class DrawingIntent(ContractModel):
     projection: Literal["orthographic", "isometric"] = "orthographic"
     view: Literal["top", "front", "side", "section"] = "top"
+    views: tuple[ViewSpec, ...] = ()
     datum: Datum | None = None
 
 
 class Annotations(ContractModel):
     general_tolerance: str | None = None
-    dimensions: Literal["auto_required", "auto_optional", "none"] = "auto_required"
+    dimensions: Literal["auto_required", "auto_optional", "none"] = "none"
     title_block: str | None = None
+    title_block_values: dict[str, str] = Field(default_factory=dict)
     dimension_style: str | None = None
+    datum_symbols: tuple[DatumFeatureSymbol, ...] = ()
+    feature_control_frames: tuple[FeatureControlFrame, ...] = ()
 
 
 class DrawingSpec(ContractModel):
@@ -101,3 +155,4 @@ class DrawingSpec(ContractModel):
 
 
 FeatureSpec.model_rebuild()
+ModifierSpec.model_rebuild()

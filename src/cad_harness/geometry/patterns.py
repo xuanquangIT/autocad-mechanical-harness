@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from cad_harness.domain.errors import InvalidFeatureParametersError
+from cad_harness.geometry.curves import CurveParams, normalize_arc
 from cad_harness.geometry.primitives import Point2D, require_finite
 
 
@@ -106,3 +107,72 @@ def slot_outline(
         Point2D(-half_straight, -half_width),
     )
     return tuple(p.rotated(angle_deg).translated(center.x, center.y) for p in local)
+
+
+def slot_end_arcs(
+    tangent_points: tuple[Point2D, ...], width_mm: float
+) -> tuple[CurveParams, CurveParams]:
+    """Build the two semicircles joining :func:`slot_outline` tangent points.
+
+    Keeping the centre calculation in the kernel prevents feature compilers from
+    becoming a second, unaudited geometry implementation.
+    """
+    if len(tangent_points) != 4:
+        raise InvalidFeatureParametersError(
+            "A slot outline must provide exactly four tangent points",
+            details={"point_count": len(tangent_points)},
+        )
+    require_finite(width_mm)
+    if width_mm <= 0.0:
+        raise InvalidFeatureParametersError(
+            "Slot width must be positive", details={"width_mm": width_mm}
+        )
+    top_left, top_right, bottom_right, bottom_left = tangent_points
+    right_center = Point2D(
+        (top_right.x + bottom_right.x) / 2.0,
+        (top_right.y + bottom_right.y) / 2.0,
+    )
+    left_center = Point2D(
+        (bottom_left.x + top_left.x) / 2.0,
+        (bottom_left.y + top_left.y) / 2.0,
+    )
+    radius = width_mm / 2.0
+    right_start = math.degrees(
+        math.atan2(top_right.y - right_center.y, top_right.x - right_center.x)
+    )
+    left_start = math.degrees(
+        math.atan2(bottom_left.y - left_center.y, bottom_left.x - left_center.x)
+    )
+    return (
+        normalize_arc(right_center, radius, right_start, sweep_deg=-180.0),
+        normalize_arc(left_center, radius, left_start, sweep_deg=-180.0),
+    )
+
+
+def linear_pattern(
+    start_point: Point2D,
+    direction: tuple[float, float],
+    pitch_mm: float,
+    count: int,
+) -> tuple[Point2D, ...]:
+    """Return deterministic centres along a normalized direction vector."""
+    require_finite(direction[0], direction[1], pitch_mm)
+    if count < 1:
+        raise InvalidFeatureParametersError(
+            "Linear pattern count must be a positive integer", details={"count": count}
+        )
+    if pitch_mm <= 0.0:
+        raise InvalidFeatureParametersError(
+            "Linear pattern pitch must be positive", details={"pitch_mm": pitch_mm}
+        )
+    length = math.hypot(direction[0], direction[1])
+    if length <= 0.0:
+        raise InvalidFeatureParametersError("Linear pattern direction cannot be zero")
+    unit_x, unit_y = direction[0] / length, direction[1] / length
+    return tuple(
+        Point2D(
+            start_point.x + unit_x * pitch_mm * index,
+            start_point.y + unit_y * pitch_mm * index,
+        )
+        for index in range(count)
+    )

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.10",
+  "document_id": "replaced-by-golden-runner",
+  "parts": [
+    {
+      "part_code": "GOLDEN-01",
+      "outline_entity_ref": "31",
+      "thickness_mm": 8.0,
+      "material_code": "SS400",
+      "quantity": 1
+    }
+  ],
+  "weld_edges": [],
+  "material_profile_ref": "demo-materials@1.0"
+}

@@ -1651,7 +1651,7 @@ storage:
 
 security:
   require_commit_approval: true
-  require_rollback_approval: true
+  # Rollback approval is mandatory and cannot be disabled by configuration.
   allow_arbitrary_export_path: false
   redact_document_paths: true
 

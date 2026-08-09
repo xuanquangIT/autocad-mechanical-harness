@@ -1,0 +1,47 @@
+{
+  "units": "mm",
+  "drawing": {
+    "projection": "orthographic",
+    "view": "top",
+    "datum": {
+      "type": "point",
+      "point_mm": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "features": [
+    {
+      "feature_id": "special-plate-1",
+      "type": "rectangular_plate",
+      "parameters": {
+        "width_mm": 160.0,
+        "height_mm": 100.0,
+        "thickness_mm": 12.0,
+        "material": "SS400",
+        "origin_mm": [
+          0.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "feature_id": "dense-rect-holes",
+          "type": "rectangular_hole_pattern",
+          "parameters": {
+            "hole_diameter_mm": 8.0,
+            "edge_offset_x_mm": 20.0,
+            "edge_offset_y_mm": 20.0,
+            "count_x": 3,
+            "count_y": 3
+          }
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "general_tolerance": "ISO 2768-m",
+    "dimensions": "auto_required"
+  }
+}

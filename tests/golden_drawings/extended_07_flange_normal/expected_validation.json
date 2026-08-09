@@ -1,0 +1,17 @@
+{
+  "stage": "pre_commit",
+  "blocking_count": 0,
+  "error_count": 0,
+  "warning_count": 1,
+  "commit_allowed": true,
+  "findings": [
+    {
+      "rule_id": "GEO-HOLE-PLACEMENT",
+      "severity": "info"
+    },
+    {
+      "rule_id": "STD-PROFILE-PROVENANCE",
+      "severity": "warning"
+    }
+  ]
+}

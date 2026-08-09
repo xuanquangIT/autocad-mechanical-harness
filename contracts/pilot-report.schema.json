@@ -1,0 +1,314 @@
+{
+  "$defs": {
+    "CapabilityGroup": {
+      "enum": [
+        "B",
+        "D",
+        "E"
+      ],
+      "type": "string"
+    },
+    "FailureReason": {
+      "description": "Finite classifications for cases below the configured saving floor.",
+      "enum": [
+        "unsupported_feature",
+        "validation_blocked",
+        "adapter_failure",
+        "timeout",
+        "engineer_rejected",
+        "unknown_commit_state",
+        "excessive_spec_iterations",
+        "manual_fixup",
+        "workflow_overhead",
+        "missing_effort_record"
+      ],
+      "title": "FailureReason",
+      "type": "string"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "description": "One aggregate together with the denominator and usability label.",
+      "properties": {
+        "insufficient_sample": {
+          "title": "Insufficient Sample",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "sample_count": {
+          "minimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value",
+        "sample_count",
+        "insufficient_sample"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "OperationMetricSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "median_ms": {
+          "$ref": "#/$defs/Metric"
+        },
+        "operation_name": {
+          "enum": [
+            "compile",
+            "preview",
+            "commit",
+            "read",
+            "takeoff",
+            "measure"
+          ],
+          "title": "Operation Name",
+          "type": "string"
+        },
+        "p95_ms": {
+          "$ref": "#/$defs/Metric"
+        }
+      },
+      "required": [
+        "operation_name",
+        "median_ms",
+        "p95_ms"
+      ],
+      "title": "OperationMetricSummary",
+      "type": "object"
+    },
+    "PilotCaseResult": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_group": {
+          "$ref": "#/$defs/CapabilityGroup"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "completed": {
+          "title": "Completed",
+          "type": "boolean"
+        },
+        "effort_record_present": {
+          "title": "Effort Record Present",
+          "type": "boolean"
+        },
+        "failure_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailureReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "harness_minutes": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Harness Minutes"
+        },
+        "manual_minutes": {
+          "title": "Manual Minutes",
+          "type": "number"
+        },
+        "saving": {
+          "title": "Saving",
+          "type": "number"
+        },
+        "work_label": {
+          "$ref": "#/$defs/WorkLabel"
+        }
+      },
+      "required": [
+        "case_id",
+        "capability_group",
+        "work_label",
+        "manual_minutes",
+        "harness_minutes",
+        "saving",
+        "completed",
+        "effort_record_present"
+      ],
+      "title": "PilotCaseResult",
+      "type": "object"
+    },
+    "WorkLabel": {
+      "enum": [
+        "ve_moi",
+        "sua_ban_co_san"
+      ],
+      "type": "string"
+    },
+    "WorkLabelSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "case_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Case Ids",
+          "type": "array"
+        },
+        "median_saving": {
+          "$ref": "#/$defs/Metric"
+        },
+        "work_label": {
+          "$ref": "#/$defs/WorkLabel"
+        }
+      },
+      "required": [
+        "work_label",
+        "case_ids",
+        "median_saving"
+      ],
+      "title": "WorkLabelSummary",
+      "type": "object"
+    }
+  },
+  "$id": "https://cad-harness.local/contracts/pilot-report.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "baseline_case_count": {
+      "minimum": 0,
+      "title": "Baseline Case Count",
+      "type": "integer"
+    },
+    "baseline_valid": {
+      "title": "Baseline Valid",
+      "type": "boolean"
+    },
+    "biased_case_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Biased Case Ids",
+      "type": "array"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/PilotCaseResult"
+      },
+      "title": "Cases",
+      "type": "array"
+    },
+    "committed_job_rate": {
+      "$ref": "#/$defs/Metric"
+    },
+    "first_preview_clean_rate": {
+      "$ref": "#/$defs/Metric"
+    },
+    "goal_met": {
+      "title": "Goal Met",
+      "type": "boolean"
+    },
+    "group_savings": {
+      "items": {
+        "$ref": "#/$defs/Metric"
+      },
+      "title": "Group Savings",
+      "type": "array"
+    },
+    "manual_entity_edit_rate": {
+      "$ref": "#/$defs/Metric"
+    },
+    "median_spec_changes": {
+      "$ref": "#/$defs/Metric"
+    },
+    "operation_metrics": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/OperationMetricSummary"
+      },
+      "title": "Operation Metrics",
+      "type": "array"
+    },
+    "overall_saving": {
+      "$ref": "#/$defs/Metric"
+    },
+    "pilot_acceptance_met": {
+      "title": "Pilot Acceptance Met",
+      "type": "boolean"
+    },
+    "pilot_run_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "title": "Pilot Run Id",
+      "type": "string"
+    },
+    "quality_gate_failures": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Quality Gate Failures",
+      "type": "array"
+    },
+    "quality_gates_met": {
+      "title": "Quality Gates Met",
+      "type": "boolean"
+    },
+    "report_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.10",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "work_label_summaries": {
+      "items": {
+        "$ref": "#/$defs/WorkLabelSummary"
+      },
+      "title": "Work Label Summaries",
+      "type": "array"
+    }
+  },
+  "required": [
+    "pilot_run_id",
+    "report_id",
+    "baseline_valid",
+    "baseline_case_count",
+    "cases",
+    "overall_saving",
+    "group_savings",
+    "work_label_summaries",
+    "first_preview_clean_rate",
+    "median_spec_changes",
+    "manual_entity_edit_rate",
+    "committed_job_rate",
+    "goal_met",
+    "quality_gates_met",
+    "pilot_acceptance_met"
+  ],
+  "title": "PilotReport",
+  "type": "object"
+}

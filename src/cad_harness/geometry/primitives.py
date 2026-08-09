@@ -37,7 +37,7 @@ class Vector2D:
 
     def normalized(self) -> Vector2D:
         length = self.length
-        if length == 0.0:
+        if length <= 0.0:
             raise InvalidGeometryError("Cannot normalize a zero-length vector")
         return Vector2D(self.dx / length, self.dy / length)
 

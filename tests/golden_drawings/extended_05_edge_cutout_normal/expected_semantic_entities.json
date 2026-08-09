@@ -1,0 +1,19 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:plate-edge-normal-g05:outline",
+      "feature_id": "plate-edge-normal-g05",
+      "entity_type": "AcDbPolyline",
+      "layer": "OBJECT",
+      "measurements": {
+        "closed": true,
+        "vertex_count": 8,
+        "width_mm": 129.0,
+        "height_mm": 103.2,
+        "area_mm2": 13187.9925,
+        "perimeter_mm": 477.3
+      }
+    }
+  ]
+}

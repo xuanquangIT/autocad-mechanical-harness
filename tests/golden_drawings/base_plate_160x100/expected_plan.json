@@ -9,7 +9,24 @@
       "type": "create_closed_polyline",
       "layer": "OBJECT",
       "geometry": {
-        "vertices_mm": [[0.0, 0.0], [160.0, 0.0], [160.0, 100.0], [0.0, 100.0]]
+        "vertices_mm": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            160.0,
+            0.0
+          ],
+          [
+            160.0,
+            100.0
+          ],
+          [
+            0.0,
+            100.0
+          ]
+        ]
       },
       "expected": {
         "closed": true,
@@ -25,12 +42,592 @@
       "type": "create_circles",
       "layer": "OBJECT",
       "geometry": {
-        "centers_mm": [[20.0, 20.0], [140.0, 20.0], [20.0, 80.0], [140.0, 80.0]],
+        "centers_mm": [
+          [
+            20.0,
+            20.0
+          ],
+          [
+            140.0,
+            20.0
+          ],
+          [
+            20.0,
+            80.0
+          ],
+          [
+            140.0,
+            80.0
+          ]
+        ],
         "diameter_mm": 14.0
       },
       "expected": {
         "count": 4,
         "diameter_mm": 14.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:overall-width",
+      "feature_id": "annotation:overall",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          160.0,
+          0.0
+        ],
+        "text_position_mm": [
+          0.0,
+          -8.0
+        ],
+        "measurement_mm": 160.0,
+        "text_value": "160",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          0.0,
+          -8.0,
+          4.5,
+          -5.5
+        ],
+        "annotation_kind": "linear_dimension"
+      },
+      "expected": {
+        "measurement_mm": 160.0,
+        "text_value_mm": 160.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:overall-height",
+      "feature_id": "annotation:overall",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          100.0
+        ],
+        "text_position_mm": [
+          -8.0,
+          0.0
+        ],
+        "measurement_mm": 100.0,
+        "text_value": "100",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          -8.0,
+          0.0,
+          -3.5,
+          2.5
+        ],
+        "annotation_kind": "linear_dimension"
+      },
+      "expected": {
+        "measurement_mm": 100.0,
+        "text_value_mm": 100.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-callout-0",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_text",
+      "layer": "DIM",
+      "geometry": {
+        "position_mm": [
+          20.0,
+          20.0
+        ],
+        "text": "4 × Ø14",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          20.0,
+          30.5,
+          22.5
+        ],
+        "annotation_kind": "hole_callout",
+        "diameter_mm": 14.0,
+        "count": 4
+      },
+      "expected": {
+        "text": "4 × Ø14"
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-0-x",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          20.0,
+          0.0
+        ],
+        "text_position_mm": [
+          20.0,
+          25.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          25.0,
+          23.0,
+          27.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "expected": {
+        "measurement_mm": 20.0,
+        "text_value_mm": 20.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-0-y",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          20.0
+        ],
+        "text_position_mm": [
+          15.0,
+          20.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          15.0,
+          20.0,
+          18.0,
+          22.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "expected": {
+        "measurement_mm": 20.0,
+        "text_value_mm": 20.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-1-x",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          20.0,
+          0.0
+        ],
+        "text_position_mm": [
+          20.0,
+          80.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          80.0,
+          23.0,
+          82.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "expected": {
+        "measurement_mm": 20.0,
+        "text_value_mm": 20.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-1-y",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          80.0
+        ],
+        "text_position_mm": [
+          20.0,
+          85.0
+        ],
+        "measurement_mm": 80.0,
+        "text_value": "80",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          20.0,
+          85.0,
+          23.0,
+          87.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "expected": {
+        "measurement_mm": 80.0,
+        "text_value_mm": 80.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-2-x",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          140.0,
+          0.0
+        ],
+        "text_position_mm": [
+          140.0,
+          20.0
+        ],
+        "measurement_mm": 140.0,
+        "text_value": "140",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          20.0,
+          144.5,
+          22.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "expected": {
+        "measurement_mm": 140.0,
+        "text_value_mm": 140.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-2-y",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          20.0
+        ],
+        "text_position_mm": [
+          140.0,
+          25.0
+        ],
+        "measurement_mm": 20.0,
+        "text_value": "20",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          25.0,
+          143.0,
+          27.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "expected": {
+        "measurement_mm": 20.0,
+        "text_value_mm": 20.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-3-x",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          140.0,
+          0.0
+        ],
+        "text_position_mm": [
+          140.0,
+          80.0
+        ],
+        "measurement_mm": 140.0,
+        "text_value": "140",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          80.0,
+          144.5,
+          82.5
+        ],
+        "annotation_kind": "hole_location_x"
+      },
+      "expected": {
+        "measurement_mm": 140.0,
+        "text_value_mm": 140.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-0-3-y",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_linear_dimension",
+      "layer": "DIM",
+      "geometry": {
+        "start_mm": [
+          0.0,
+          0.0
+        ],
+        "end_mm": [
+          0.0,
+          80.0
+        ],
+        "text_position_mm": [
+          140.0,
+          85.0
+        ],
+        "measurement_mm": 80.0,
+        "text_value": "80",
+        "dimstyle": "DEMO-ISO-MM",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          140.0,
+          85.0,
+          143.0,
+          87.5
+        ],
+        "annotation_kind": "hole_location_y"
+      },
+      "expected": {
+        "measurement_mm": 80.0,
+        "text_value_mm": 80.0
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-0",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_centermark",
+      "layer": "CENTER",
+      "geometry": {
+        "center_mm": [
+          20.0,
+          20.0
+        ]
+      },
+      "expected": {
+        "center_mm": [
+          20.0,
+          20.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-1",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_centermark",
+      "layer": "CENTER",
+      "geometry": {
+        "center_mm": [
+          20.0,
+          80.0
+        ]
+      },
+      "expected": {
+        "center_mm": [
+          20.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-2",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_centermark",
+      "layer": "CENTER",
+      "geometry": {
+        "center_mm": [
+          140.0,
+          20.0
+        ]
+      },
+      "expected": {
+        "center_mm": [
+          140.0,
+          20.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centermark-3",
+      "feature_id": "base-plate-001-holes",
+      "type": "create_centermark",
+      "layer": "CENTER",
+      "geometry": {
+        "center_mm": [
+          140.0,
+          80.0
+        ]
+      },
+      "expected": {
+        "center_mm": [
+          140.0,
+          80.0
+        ]
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-0",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "type": "create_centerline",
+      "layer": "CENTER",
+      "geometry": {
+        "start_mm": [
+          20.0,
+          20.0
+        ],
+        "end_mm": [
+          20.0,
+          80.0
+        ]
+      },
+      "expected": {
+        "coaxial": true
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-1",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "type": "create_centerline",
+      "layer": "CENTER",
+      "geometry": {
+        "start_mm": [
+          20.0,
+          20.0
+        ],
+        "end_mm": [
+          140.0,
+          20.0
+        ]
+      },
+      "expected": {
+        "coaxial": true
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-2",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "type": "create_centerline",
+      "layer": "CENTER",
+      "geometry": {
+        "start_mm": [
+          20.0,
+          80.0
+        ],
+        "end_mm": [
+          140.0,
+          80.0
+        ]
+      },
+      "expected": {
+        "coaxial": true
+      }
+    },
+    {
+      "operation_id": "op:annotation:centerline-3",
+      "feature_id": "annotation:centerline:base-plate-001-holes",
+      "type": "create_centerline",
+      "layer": "CENTER",
+      "geometry": {
+        "start_mm": [
+          140.0,
+          20.0
+        ],
+        "end_mm": [
+          140.0,
+          80.0
+        ]
+      },
+      "expected": {
+        "coaxial": true
+      }
+    },
+    {
+      "operation_id": "op:annotation:hole-table-0",
+      "feature_id": "annotation:hole-table",
+      "type": "create_text",
+      "layer": "TEXT",
+      "geometry": {
+        "position_mm": [
+          175.0,
+          100.0
+        ],
+        "text": "A | 4 | Ø14",
+        "textstyle": "DEMO-ISO",
+        "text_height_mm": 2.5,
+        "text_bbox_mm": [
+          175.0,
+          100.0,
+          191.5,
+          102.5
+        ],
+        "annotation_kind": "hole_table_row",
+        "symbol": "A",
+        "count": 4,
+        "diameter_mm": 14.0
+      },
+      "expected": {
+        "text": "A | 4 | Ø14"
       }
     }
   ]
