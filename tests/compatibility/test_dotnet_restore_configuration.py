@@ -16,4 +16,4 @@ def test_test_host_transitive_packages_are_mapped_to_nuget_org() -> None:
     assert nuget_org is not None
     patterns = {package.attrib["pattern"] for package in nuget_org.findall("package")}
     # Microsoft.NET.Test.Sdk's test host restores these non-Microsoft-prefixed packages.
-    assert {"Newtonsoft.Json", "System.Reflection.Metadata"} <= patterns
+    assert {"Newtonsoft.Json", "System.*"} <= patterns
