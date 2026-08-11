@@ -13,6 +13,7 @@ import pytest
 import cad_harness.application.process_runner as process_runner
 from cad_harness.application.process_runner import (
     ProcessWorkerCommand,
+    prestarted_process_worker_broker,
     run_process_worker,
 )
 from cad_harness.application.timeout import OperationDeadline
@@ -96,6 +97,28 @@ def test_timeout_kills_worker_before_late_marker_side_effect(tmp_path) -> None:
 
     sleep(0.7)
     assert not marker.exists()
+
+
+def test_prestarted_broker_timeout_is_terminal_and_requires_restart() -> None:
+    with prestarted_process_worker_broker():
+        with pytest.raises(IpcTimeoutError) as captured:
+            run_process_worker(
+                OperationDeadline(0.15, "broker-timeout"),
+                ProcessWorkerCommand.SLEEP,
+                {"seconds": 5.0},
+            )
+
+        assert captured.value.details["worker_terminal"] is True
+        with pytest.raises(HarnessError) as unavailable:
+            run_process_worker(
+                OperationDeadline(1.0, "broker-after-timeout"),
+                ProcessWorkerCommand.ECHO_JSON,
+                {"value": "must-not-respawn"},
+            )
+        assert unavailable.value.required_action is not None
+        assert unavailable.value.required_action.startswith("Restart the MCP server")
+
+    assert not [child for child in active_children() if child.name == "cad-harness-process-broker"]
 
 
 def test_completed_marker_is_bounded_to_allowlisted_root(tmp_path) -> None:
@@ -334,4 +357,11 @@ def test_production_commands_reject_unknown_fields_and_oversized_json() -> None:
             OperationDeadline(1.0, "oversized"),
             ProcessWorkerCommand.ECHO_JSON,
             {"value": "x" * (process_runner.MAX_REQUEST_BYTES + 1)},
+        )
+
+    with pytest.raises(InvalidFeatureParametersError):
+        run_process_worker(
+            OperationDeadline(1.0, "invalid-bridge-request"),
+            ProcessWorkerCommand.BRIDGE_REQUEST,
+            {"pipe_name": r"\\.\pipe\cadharness.S-1-5-21-1-2-3-1001"},
         )

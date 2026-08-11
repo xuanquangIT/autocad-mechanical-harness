@@ -92,6 +92,13 @@ class TestToolSurface:
             "approval_token",
         }
 
+    def test_change_submit_exposes_spec_and_remediation_variants(self, server) -> None:
+        mcp, _ = server
+        change = next(tool for tool in _tools(mcp) if tool.name == "cad_change_submit")
+        properties = change.inputSchema["properties"]
+        assert {"job_id", "spec", "remediation"} <= set(properties)
+        assert change.inputSchema["required"] == ["job_id"]
+
     def test_permission_sets_are_an_exact_partition(self) -> None:
         assert not READ_ONLY_TOOLS & APPROVAL_REQUIRED_TOOLS
         assert frozenset(TOOL_NAMES) == READ_ONLY_TOOLS | APPROVAL_REQUIRED_TOOLS
@@ -143,6 +150,109 @@ class TestToolSurface:
 
 
 class TestToolInvocation:
+    @staticmethod
+    def _approval_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[object, object]:
+        monkeypatch.setenv("CAD_HARNESS_APPROVAL_SECRET", "test-secret")
+        config = tmp_path / "approval-server.yaml"
+        config.write_text(
+            "\n".join(
+                [
+                    "adapter:",
+                    "  type: fake",
+                    "mcp:",
+                    "  client_profiles:",
+                    "    clients:",
+                    "      anonymous:",
+                    "        mode: approval_required",
+                    "storage:",
+                    f"  sqlite_path: '{(tmp_path / 'approval.db').as_posix()}'",
+                    f"  preview_directory: '{(tmp_path / 'previews').as_posix()}'",
+                    f"  checkpoint_directory: '{(tmp_path / 'checkpoints').as_posix()}'",
+                    f"  export_directory: '{(tmp_path / 'exports').as_posix()}'",
+                    "observability:",
+                    "  log_level: ERROR",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        return create_server(config)
+
+    def test_change_submit_routes_only_a_finding_selection(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mcp, context = self._approval_server(tmp_path, monkeypatch)
+        captured: dict[str, object] = {}
+
+        def submit(job_id, audit_id, selected_findings, technical_inputs):
+            captured.update(
+                job_id=job_id,
+                audit_id=audit_id,
+                selected_findings=selected_findings,
+                technical_inputs=technical_inputs,
+            )
+            return {
+                "status": "ok",
+                "job_id": job_id,
+                "plan_hash": "sha256:trusted",
+                "operation_count": 1,
+                "selected_finding_count": 1,
+            }
+
+        monkeypatch.setattr(context.service, "submit_remediation_selection", submit)
+        result = asyncio.run(
+            mcp.call_tool(
+                "cad_change_submit",
+                {
+                    "job_id": "job_remediation",
+                    "remediation": {
+                        "audit_id": "audit_current",
+                        "selected_findings": [
+                            {"rule_id": "DUPLICATE_ENTITY", "entity_ref": "acad:handle:2A"}
+                        ],
+                    },
+                },
+            )
+        )
+        payload = result[1] if isinstance(result, tuple) else result
+        assert payload["status"] == "ok"
+        assert captured == {
+            "job_id": "job_remediation",
+            "audit_id": "audit_current",
+            "selected_findings": (("DUPLICATE_ENTITY", "acad:handle:2A"),),
+            "technical_inputs": {},
+        }
+
+    def test_change_submit_rejects_both_or_untrusted_plan_fields(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mcp, _ = self._approval_server(tmp_path, monkeypatch)
+        both = asyncio.run(
+            mcp.call_tool(
+                "cad_change_submit",
+                {"job_id": "job_both", "spec": {}, "remediation": {}},
+            )
+        )
+        both_payload = both[1] if isinstance(both, tuple) else both
+        assert both_payload["status"] == "rejected"
+        assert both_payload["error"]["code"] == "INVALID_FEATURE_PARAMETERS"
+
+        untrusted = asyncio.run(
+            mcp.call_tool(
+                "cad_change_submit",
+                {
+                    "job_id": "job_plan",
+                    "remediation": {
+                        "audit_id": "audit_current",
+                        "selected_findings": [{"rule_id": "DUPLICATE_ENTITY", "entity_ref": "ref"}],
+                        "plan": {"operations": []},
+                    },
+                },
+            )
+        )
+        untrusted_payload = untrusted[1] if isinstance(untrusted, tuple) else untrusted
+        assert untrusted_payload["status"] == "rejected"
+        assert untrusted_payload["error"]["code"] == "INVALID_FEATURE_PARAMETERS"
+
     def test_missing_inputs_return_envelope_instead_of_raising(self, server) -> None:
         mcp, _ = server
         result = asyncio.run(mcp.call_tool("cad_measure", {}))

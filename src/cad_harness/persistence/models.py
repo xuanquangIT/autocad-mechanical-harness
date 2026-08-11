@@ -83,6 +83,17 @@ class Plan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class RemediationSelectionRow(Base):
+    """Immutable evidence needed to re-audit a remediation after process restart."""
+
+    __tablename__ = "remediation_selections"
+
+    job_id: Mapped[str] = mapped_column(String(64), ForeignKey("jobs.job_id"), primary_key=True)
+    plan_hash: Mapped[str] = mapped_column(String(80), nullable=False)
+    selection_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Validation(Base):
     __tablename__ = "validations"
 

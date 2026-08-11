@@ -92,3 +92,10 @@ def test_noninteractive_live_context_fails_before_adapter_construction(
         build_context(config_path)
 
     assert ManualStepId.OPEN_TARGET_DRAWING.value in str(error.value.required_action)
+
+
+def test_unsigned_bridge_instruction_is_limited_to_owned_disposable_acceptance() -> None:
+    instruction = MANUAL_STEP_INSTRUCTIONS[ManualStepId.INSTALL_BRIDGE_BUNDLE]
+
+    assert "development-unsigned" in instruction
+    assert "PID-owned disposable" in instruction

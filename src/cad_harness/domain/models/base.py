@@ -12,7 +12,9 @@ from pydantic import BaseModel, ConfigDict
 #: 1.8 - explicit terminal cancellation for bridge IPC (see ADR-015).
 #: 1.9 - calibrated raster intake, observed unknown units and point geometry (ADR-016).
 #: 1.10 - separate rollback approval and exact destructive restore request (ADR-017).
-SCHEMA_VERSION = "1.10"
+#: 1.11 - explicit cross-layer inner contours for safe take-off (ADR-019).
+#: 1.12 - selected-finding remediation submission and restart evidence (ADR-020).
+SCHEMA_VERSION = "1.12"
 
 
 class ContractModel(BaseModel):

@@ -1,0 +1,47 @@
+{
+  "adapter": {
+    "active_document_id": "ce780dc5-28f5-48c5-864f-e2bc15e22c56",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": true
+  },
+  "audit_finding_count": 21,
+  "disposable_autocad_pid": 11032,
+  "document_id": "ce780dc5-28f5-48c5-864f-e2bc15e22c56",
+  "measurement": {
+    "entity_refs": [
+      "acad:handle:FB"
+    ],
+    "kind": "contour_perimeter",
+    "unit": "mm",
+    "value": 520.0
+  },
+  "readback_entity_count": 25,
+  "recognized_feature_count": 6,
+  "revision": "sha256:05f7b64e7c74729e5f7697dfadf85eeb1ad4c0070cd74ff015d4fcb5f814d98f",
+  "takeoff": {
+    "company_approved": false,
+    "cut_length_mm": 1055.9291886010283,
+    "hole_group_count": 1,
+    "material_profile_id": "demo-materials",
+    "material_profile_version": "1.0",
+    "net_area_mm2": 8184.2478398964,
+    "pierce_count": 6,
+    "unit_mass_kg": 0.771
+  },
+  "test": "live_mcp_r26_read_audit_measure_takeoff",
+  "user_autocad_pid": 25644
+}

@@ -37,17 +37,17 @@ public sealed class PipeRequestProcessorTests
         { Encoding.UTF8.GetBytes("{"), "INVALID_FEATURE_PARAMETERS" },
         {
             Encoding.UTF8.GetBytes(
-                """{"schema_version":"1.10","method":"does_not_exist","request_id":"unknown-1","params":{}}"""),
+                """{"schema_version":"1.12","method":"does_not_exist","request_id":"unknown-1","params":{}}"""),
             "INVALID_FEATURE_PARAMETERS"
         },
         {
             Encoding.UTF8.GetBytes(
-                """{"schema_version":"1.10","method":"status","request_id":"missing-1"}"""),
+                """{"schema_version":"1.12","method":"status","request_id":"missing-1"}"""),
             "INVALID_FEATURE_PARAMETERS"
         },
         {
             Encoding.UTF8.GetBytes(
-                """{"schema_version":"1.10","method":"status","request_id":"extra-1","params":{},"unexpected":true}"""),
+                """{"schema_version":"1.12","method":"status","request_id":"extra-1","params":{},"unexpected":true}"""),
             "INVALID_FEATURE_PARAMETERS"
         },
         {
@@ -58,7 +58,7 @@ public sealed class PipeRequestProcessorTests
         { Encoding.UTF8.GetBytes(new string('x', 129)), "INVALID_FEATURE_PARAMETERS" },
         {
             Encoding.UTF8.GetBytes(
-                """{"schema_version":"1.10","method":"status","request_id":"depth-1","params":{"a":{"b":{"c":{"d":1}}}}}"""),
+                """{"schema_version":"1.12","method":"status","request_id":"depth-1","params":{"a":{"b":{"c":{"d":1}}}}}"""),
             "INVALID_FEATURE_PARAMETERS"
         },
     };
@@ -221,7 +221,7 @@ public sealed class PipeRequestProcessorTests
             ValidPayload("domain-error-1"),
             (_, _) => ValueTask.FromResult(expected));
 
-        Assert.Equal("1.10", Text(response, "schema_version"));
+        Assert.Equal("1.12", Text(response, "schema_version"));
         Assert.Equal("domain-error-1", Text(response, "request_id"));
         Assert.Equal(status, Text(response, "status"));
         Assert.Equal("STALE_DOCUMENT_REVISION", ErrorText(response, "code"));
@@ -495,7 +495,7 @@ public sealed class PipeRequestProcessorTests
                     }
 
                     return Encoding.UTF8.GetBytes(
-                        $"{{\"schema_version\":\"1.10\",\"method\":\"status\"," +
+                        $"{{\"schema_version\":\"1.12\",\"method\":\"status\"," +
                         $"\"request_id\":\"{requestId}\",\"params\":{{\"value\":{nested}}}}}");
                 }
 
@@ -507,12 +507,12 @@ public sealed class PipeRequestProcessorTests
             case Property14CaseKind.InvalidEnvelope:
                 return Encoding.UTF8.GetBytes(random.Next(6) switch
                 {
-                    0 => $"{{\"schema_version\":\"1.10\",\"method\":\"status\",\"request_id\":\"{requestId}\"}}",
-                    1 => $"{{\"schema_version\":\"1.10\",\"method\":\"arbitrary\",\"request_id\":\"{requestId}\",\"params\":{{}}}}",
-                    2 => "{\"schema_version\":\"1.10\",\"method\":\"status\",\"request_id\":\"\",\"params\":{}}",
-                    3 => $"{{\"schema_version\":\"1.10\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":{{}},\"extra\":true}}",
-                    4 => $"{{\"schema_version\":\"1.10\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":[]}}",
-                    _ => $"{{\"schema_version\":\"1.10\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"request_id\":\"duplicate\",\"params\":{{}}}}",
+                    0 => $"{{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"{requestId}\"}}",
+                    1 => $"{{\"schema_version\":\"1.12\",\"method\":\"arbitrary\",\"request_id\":\"{requestId}\",\"params\":{{}}}}",
+                    2 => "{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"\",\"params\":{}}",
+                    3 => $"{{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":{{}},\"extra\":true}}",
+                    4 => $"{{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":[]}}",
+                    _ => $"{{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"request_id\":\"duplicate\",\"params\":{{}}}}",
                 });
 
             case Property14CaseKind.HandlerThrows:
@@ -545,10 +545,10 @@ public sealed class PipeRequestProcessorTests
     }
 
     private static byte[] ValidPayload(string requestId) => Encoding.UTF8.GetBytes(
-        $"{{\"schema_version\":\"1.10\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":{{}}}}");
+        $"{{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":{{}}}}");
 
     private static byte[] CancelPayload(string requestId, string targetRequestId) => Encoding.UTF8.GetBytes(
-        $"{{\"schema_version\":\"1.10\",\"method\":\"cancel\",\"request_id\":\"{requestId}\"," +
+        $"{{\"schema_version\":\"1.12\",\"method\":\"cancel\",\"request_id\":\"{requestId}\"," +
         $"\"params\":{{\"target_request_id\":\"{targetRequestId}\"}}}}");
 
     private static byte[] Frame(byte[] payload)

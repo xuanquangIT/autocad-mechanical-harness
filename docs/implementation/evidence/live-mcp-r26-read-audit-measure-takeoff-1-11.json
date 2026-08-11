@@ -1,0 +1,142 @@
+{
+  "adapter": {
+    "active_document_id": "3775e5b3-17c7-4ad6-9801-4da2732b89cf",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": true
+  },
+  "analytic_takeoff_reference": {
+    "formula": "net_area = width*height - 4*pi*(hole_diameter/2)^2; cut_length = 2*(width+height) + 4*pi*hole_diameter; mass = net_area*thickness*density/1e9",
+    "gross_area_mm2": 21160.0,
+    "hole_area_mm2": 814.3322317370104,
+    "inner_cut_length_mm": 202.31856689118268,
+    "material_density_kg_per_m3": 7850.0,
+    "net_area_mm2": 20345.66776826299,
+    "outer_perimeter_mm": 598.0,
+    "parameters": {
+      "height_mm": 115.0,
+      "hole_count": 4,
+      "hole_diameter_mm": 16.1,
+      "thickness_mm": 13.8,
+      "width_mm": 184.0
+    },
+    "total_cut_length_mm": 800.3185668911826,
+    "unit_mass_kg_raw": 2.20404618933593,
+    "unit_mass_kg_rounded_half_up": 2.204
+  },
+  "ambiguous_recognition_group_count": 0,
+  "approval_id": "approval_01KZJNDHNK9DTBPW630VS9HMF9",
+  "audit_finding_count": 21,
+  "bridge_preflight": {
+    "active_document_id": "3775e5b3-17c7-4ad6-9801-4da2732b89cf",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": null
+  },
+  "commit": {
+    "checkpoint_present": true,
+    "entity_count": 25,
+    "new_revision": "sha256:0b1db642a4bf4f989eee2f2e0514265c1b4bf1d1583a5bb801e30d3efb075611",
+    "previous_revision": "sha256:06c86de320b8f17db5519c77c29586b573043c7820adbc9d787311ffbbd5cfc2",
+    "status": "committed",
+    "undo_group_present": true
+  },
+  "document_id": "3775e5b3-17c7-4ad6-9801-4da2732b89cf",
+  "initial_revision": "sha256:06c86de320b8f17db5519c77c29586b573043c7820adbc9d787311ffbbd5cfc2",
+  "job_id": "job_01KZJNDHG59D8VFM6127ZD2E06",
+  "live_takeoff": {
+    "company_approved": false,
+    "cut_length_mm": 800.3185668911826,
+    "measured_perimeter_mm": 598.0,
+    "net_area_mm2": 20345.66776826299,
+    "outline_entity_ref": "acad:handle:FB",
+    "pierce_count": 5,
+    "unit_mass_kg": 2.204
+  },
+  "manual_cleanup": {
+    "acceptance_spawned_pid": 12012,
+    "identity_verified": {
+      "image_path": "D:/CAD/AutoCAD 2027/acad.exe",
+      "main_window_title": "AutoCAD Mechanical 2027 - EDUCATION (NON COMMERCIAL) - [Drawing1.dwg]",
+      "start_time_local": "2026-08-09T14:04:33+07:00"
+    },
+    "post_cleanup_acad_pids": [],
+    "reason": "AutoCAD launcher left a second acceptance-spawned empty Drawing1 process; it was identity-checked and closed after evidence capture. The runner now treats any such PID as owned cleanup work."
+  },
+  "open_contour_count": 0,
+  "operation_count": 22,
+  "owned_process": {
+    "creation_time_100ns": 134307326711072595,
+    "image_name": "acad.exe",
+    "pid": 27104,
+    "preexisting_pids": []
+  },
+  "plan_hash": "sha256:35ab8ed8151eeee70917dbbc3b9ca5a92c31284f47693ddf7ceabd91f139617d",
+  "postexisting_pids": [
+    12012
+  ],
+  "preview_artifact_count": 2,
+  "readback_entity_count": 25,
+  "recognized_feature_count": 6,
+  "result_dwg_bytes": 42704,
+  "result_dwg_sha256": "afd11b706f00b4515421919e67607b8de2958e8c2a4b271d6ea5062d2a3a51b5",
+  "result_name": "base-plate-live-takeoff5-result.dwg",
+  "scratch_sha256_before": "aabd684377b75986de0b5824d804a7f147574dc6a0406a6df7e01acddbb52a5d",
+  "tool_count": 22,
+  "tool_names": [
+    "cad_audit",
+    "cad_change_submit",
+    "cad_commit",
+    "cad_diff_get",
+    "cad_document_inspect",
+    "cad_drawing_read",
+    "cad_export",
+    "cad_feature_catalog_search",
+    "cad_feature_recognize",
+    "cad_image_draft",
+    "cad_image_inspect",
+    "cad_image_trace",
+    "cad_job_create",
+    "cad_measure",
+    "cad_preview",
+    "cad_rollback",
+    "cad_selection_inspect",
+    "cad_spec_submit",
+    "cad_status",
+    "cad_takeoff",
+    "cad_takeoff_export",
+    "cad_validate"
+  ],
+  "user_process_preserved": true,
+  "validation": {
+    "blocking_count": 0,
+    "error_count": 0,
+    "warning_count": 1
+  }
+}

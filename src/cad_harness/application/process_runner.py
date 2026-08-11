@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from enum import StrEnum
 from multiprocessing import get_context
 from multiprocessing.connection import Connection
 from pathlib import Path
+from threading import Lock
 from time import sleep
 from typing import Any, Literal, cast
 
@@ -40,6 +42,9 @@ MAX_ENVELOPE_BYTES = 16_777_216
 MAX_REQUEST_BYTES = MAX_ENVELOPE_BYTES - 1_024
 MAX_JSON_DEPTH = 32
 _TERMINATE_GRACE_SECONDS = 0.25
+_BROKER_STARTUP_TIMEOUT_SECONDS = 30.0
+_BROKER_REGISTRY_LOCK = Lock()
+_ACTIVE_BROKER: _ProcessWorkerBroker | None = None
 
 
 class ProcessWorkerCommand(StrEnum):
@@ -54,6 +59,7 @@ class ProcessWorkerCommand(StrEnum):
     LOAD_MATERIAL_TABLE = "load_material_table"
     COMPUTE_TAKEOFF = "compute_takeoff"
     MEASURE = "measure"
+    BRIDGE_REQUEST = "bridge_request"
 
 
 class _ToleranceInput(BaseModel):
@@ -95,6 +101,35 @@ def run_process_worker(
     request_json, normalized_payload, normalized_output_root, normalized_input_root = (
         _prepare_request(command, payload, allowed_output_root, allowed_input_root)
     )
+    broker = _registered_broker()
+    if broker is not None:
+        return broker.run(
+            deadline,
+            command,
+            request_json,
+            normalized_payload,
+            normalized_output_root,
+            normalized_input_root,
+        )
+    return _run_one_shot_worker(
+        deadline,
+        command,
+        request_json,
+        normalized_payload,
+        normalized_output_root,
+        normalized_input_root,
+    )
+
+
+def _run_one_shot_worker(
+    deadline: CancellationTokenPort,
+    command: ProcessWorkerCommand,
+    request_json: bytes,
+    normalized_payload: dict[str, JsonValue],
+    normalized_output_root: str | None,
+    normalized_input_root: str | None,
+) -> dict[str, JsonValue]:
+    """Run the original per-call worker outside an active STDIO broker."""
     context = get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
     process = context.Process(
@@ -159,6 +194,228 @@ def run_process_worker(
         receiver.close()
         if process.pid is not None and process.is_alive():
             _terminate_and_join(process)
+
+
+class _ProcessWorkerBroker:
+    """Prestarted worker used where spawning after transport startup is unsafe.
+
+    FastMCP's Windows STDIO transport keeps blocking stream wrappers active. Starting a
+    new spawn process from that runtime can block inside ``multiprocessing.reduction``
+    before the caller can poll its deadline. The broker is therefore spawned before the
+    transport starts and executes the same closed command set over bounded JSON.
+    """
+
+    def __init__(self) -> None:
+        context = get_context("spawn")
+        parent, child = context.Pipe(duplex=True)
+        process = context.Process(
+            target=_broker_main,
+            args=(child,),
+            name="cad-harness-process-broker",
+            daemon=False,
+        )
+        self._connection = parent
+        self._process = process
+        self._request_lock = Lock()
+        self._terminal = False
+        try:
+            process.start()
+            child.close()
+            if not parent.poll(_BROKER_STARTUP_TIMEOUT_SECONDS):
+                self._terminate()
+                raise HarnessError(
+                    "Isolated process broker did not become ready",
+                    required_action="Restart the MCP server",
+                    details={"worker_terminal": True},
+                )
+            ready = _decode_json_object(parent.recv_bytes(MAX_ENVELOPE_BYTES + 1))
+            if ready != {"ready": True}:
+                self._terminate()
+                raise HarnessError(
+                    "Isolated process broker returned an invalid startup envelope",
+                    required_action="Restart the MCP server",
+                    details={"worker_terminal": True},
+                )
+        except Exception:
+            child.close()
+            parent.close()
+            if process.pid is not None and process.is_alive():
+                _terminate_and_join(process)
+            raise
+
+    def run(
+        self,
+        deadline: CancellationTokenPort,
+        command: ProcessWorkerCommand,
+        request_json: bytes,
+        normalized_payload: dict[str, JsonValue],
+        normalized_output_root: str | None,
+        normalized_input_root: str | None,
+    ) -> dict[str, JsonValue]:
+        deadline.checkpoint()
+        if not self._request_lock.acquire(timeout=deadline.remaining_seconds):
+            deadline.cancel()
+            raise IpcTimeoutError(
+                f"Operation '{deadline.operation}' exceeded its configured timeout",
+                details={
+                    "operation": deadline.operation,
+                    "timeout_seconds": deadline.timeout_seconds,
+                    "elapsed_seconds": deadline.elapsed_seconds,
+                    "cancelled": True,
+                    "worker_terminal": self._terminal,
+                },
+            )
+        try:
+            if self._terminal or not self._process.is_alive():
+                raise HarnessError(
+                    "Isolated process broker is unavailable",
+                    required_action="Restart the MCP server before retrying the operation",
+                    details={"command": command.value, "worker_terminal": True},
+                )
+            broker_request = _encode_json(
+                {
+                    "command": command.value,
+                    "payload": _decode_json_object(request_json),
+                    "allowed_output_root": normalized_output_root,
+                    "allowed_input_root": normalized_input_root,
+                }
+            )
+            self._connection.send_bytes(broker_request)
+            raw_response: bytes | None = None
+            if self._connection.poll(deadline.remaining_seconds):
+                try:
+                    raw_response = self._connection.recv_bytes(MAX_ENVELOPE_BYTES + 1)
+                except (EOFError, OSError):
+                    raw_response = None
+            if (
+                raw_response is None
+                or deadline.cancelled
+                or deadline.elapsed_seconds > deadline.timeout_seconds
+            ):
+                deadline.cancel()
+                worker_pid = self._process.pid
+                self._terminate()
+                raise IpcTimeoutError(
+                    f"Operation '{deadline.operation}' exceeded its configured timeout",
+                    details={
+                        "operation": deadline.operation,
+                        "timeout_seconds": deadline.timeout_seconds,
+                        "elapsed_seconds": deadline.elapsed_seconds,
+                        "cancelled": True,
+                        "worker_pid": worker_pid,
+                        "worker_terminal": True,
+                    },
+                )
+            envelope = _decode_json_object(raw_response)
+            return _unwrap_response(envelope, command, normalized_payload)
+        finally:
+            self._request_lock.release()
+
+    def close(self) -> None:
+        with self._request_lock:
+            if self._terminal:
+                return
+            try:
+                self._connection.send_bytes(_encode_json({"shutdown": True}))
+                self._process.join(_TERMINATE_GRACE_SECONDS)
+            except (EOFError, OSError):
+                pass
+            finally:
+                if self._process.is_alive():
+                    _terminate_and_join(self._process)
+                self._connection.close()
+                self._terminal = True
+
+    def _terminate(self) -> None:
+        if self._terminal:
+            return
+        if self._process.pid is not None and self._process.is_alive():
+            _terminate_and_join(self._process)
+        self._connection.close()
+        self._terminal = True
+
+
+def _broker_main(connection: Connection) -> None:
+    try:
+        _warm_broker_commands()
+        connection.send_bytes(_encode_json({"ready": True}))
+        while True:
+            raw_request = connection.recv_bytes(MAX_ENVELOPE_BYTES + 1)
+            request = _decode_json_object(raw_request)
+            if request == {"shutdown": True}:
+                return
+            command_value = request.get("command")
+            try:
+                if not isinstance(command_value, str):
+                    raise ValueError("missing broker command")
+                command = ProcessWorkerCommand(command_value)
+                payload = request.get("payload")
+                if not isinstance(payload, dict):
+                    raise ValueError("invalid broker payload")
+                output_root = request.get("allowed_output_root")
+                input_root = request.get("allowed_input_root")
+                if output_root is not None and not isinstance(output_root, str):
+                    raise ValueError("invalid output root")
+                if input_root is not None and not isinstance(input_root, str):
+                    raise ValueError("invalid input root")
+                result = _execute_command(command, payload, output_root, input_root)
+                response: dict[str, JsonValue] = {
+                    "ok": True,
+                    "command": command.value,
+                    "result": result,
+                }
+            except Exception:
+                response = {
+                    "ok": False,
+                    "command": command_value if isinstance(command_value, str) else "invalid",
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "Isolated process worker failed",
+                        "retryable": False,
+                        "required_action": None,
+                        "details": {},
+                    },
+                }
+            connection.send_bytes(_encode_json(response))
+    except (EOFError, OSError):
+        return
+    finally:
+        connection.close()
+
+
+def _warm_broker_commands() -> None:
+    """Pay the controlled command import cost before STDIO starts accepting calls."""
+    from cad_harness.adapters.dxf_drawing_reader import DxfDrawingReader
+    from cad_harness.application.services.measurement_service import MeasurementService
+    from cad_harness.company_rules.material_loader import load_material_table
+    from cad_harness.comprehension.takeoff import compute_takeoff
+
+    # Keeping explicit references makes this a preload, not an accidental unused import.
+    del DxfDrawingReader, MeasurementService, compute_takeoff, load_material_table
+
+
+def _registered_broker() -> _ProcessWorkerBroker | None:
+    with _BROKER_REGISTRY_LOCK:
+        return _ACTIVE_BROKER
+
+
+@contextmanager
+def prestarted_process_worker_broker() -> Iterator[None]:
+    """Install one broker before a Windows STDIO transport begins serving calls."""
+    global _ACTIVE_BROKER
+    broker = _ProcessWorkerBroker()
+    with _BROKER_REGISTRY_LOCK:
+        if _ACTIVE_BROKER is not None:
+            broker.close()
+            raise RuntimeError("A process worker broker is already active")
+        _ACTIVE_BROKER = broker
+    try:
+        yield
+    finally:
+        with _BROKER_REGISTRY_LOCK:
+            if _ACTIVE_BROKER is broker:
+                _ACTIVE_BROKER = None
+        broker.close()
 
 
 def _prepare_request(
@@ -250,6 +507,23 @@ def _prepare_request(
         _strict_contract(DrawingModel, normalized_payload["model"])
         _strict_contract(MeasurementRequest, normalized_payload["request"])
         _strict_tolerance(normalized_payload["tolerance"])
+    elif command is ProcessWorkerCommand.BRIDGE_REQUEST:
+        _require_exact_keys(
+            normalized_payload,
+            required={"pipe_name", "envelope", "timeout_seconds", "max_frame_bytes"},
+        )
+        if not isinstance(normalized_payload["pipe_name"], str):
+            raise InvalidFeatureParametersError("Bridge pipe name must be a string")
+        if not isinstance(normalized_payload["envelope"], dict):
+            raise InvalidFeatureParametersError("Bridge envelope must be a JSON object")
+        _require_duration(normalized_payload["timeout_seconds"])
+        max_frame_bytes = normalized_payload["max_frame_bytes"]
+        if (
+            isinstance(max_frame_bytes, bool)
+            or not isinstance(max_frame_bytes, int)
+            or not 4 <= max_frame_bytes <= MAX_ENVELOPE_BYTES
+        ):
+            raise InvalidFeatureParametersError("Bridge frame limit is out of range")
     request_json = _encode_json(normalized_payload)
     if len(request_json) > MAX_REQUEST_BYTES:
         raise InvalidFeatureParametersError("Process worker JSON payload is too large")
@@ -363,7 +637,67 @@ def _execute_command(
             tolerance=_strict_tolerance(payload["tolerance"]),
         )
         return {"measurement": cast(JsonValue, result.model_dump(mode="json"))}
+    if command is ProcessWorkerCommand.BRIDGE_REQUEST:
+        from cad_harness.adapters.named_pipe_transport import (
+            NamedPipeTransport,
+            TerminalCancellationUnconfirmedError,
+        )
+        from cad_harness.domain.errors import IpcTimeoutError
+
+        try:
+            response = NamedPipeTransport(
+                cast(str, payload["pipe_name"]),
+                max_frame_bytes=cast(int, payload["max_frame_bytes"]),
+            ).request(
+                cast(dict[str, Any], payload["envelope"]),
+                timeout_seconds=float(cast(int | float, payload["timeout_seconds"])),
+            )
+            return {"transport_ok": True, "response": cast(JsonValue, response)}
+        except TerminalCancellationUnconfirmedError as error:
+            return {
+                "transport_ok": False,
+                "error_type": "terminal_cancellation_unconfirmed",
+                "details": cast(JsonValue, error.details),
+            }
+        except IpcTimeoutError as error:
+            return {
+                "transport_ok": False,
+                "error_type": "ipc_timeout",
+                "details": cast(JsonValue, error.details),
+            }
+        except Exception:
+            return {"transport_ok": False, "error_type": "transport_error", "details": {}}
     raise ValueError("unreachable command")
+
+
+def run_bridge_request_on_registered_broker(
+    *,
+    pipe_name: str,
+    envelope: dict[str, Any],
+    timeout_seconds: float,
+    max_frame_bytes: int,
+) -> dict[str, JsonValue] | None:
+    """Route bridge I/O through the process prestarted before Windows STDIO.
+
+    FastMCP's active Windows STDIO wrappers can prevent a new Named Pipe client handle
+    from becoming usable even though the endpoint is healthy. The existing terminal
+    process broker avoids that runtime interaction and is absent in CLI/test callers.
+    """
+    if _registered_broker() is None:
+        return None
+    from cad_harness.application.timeout import OperationDeadline
+
+    deadline = OperationDeadline(timeout_seconds + 1.0, "bridge_ipc_broker")
+    return run_process_worker(
+        deadline,
+        ProcessWorkerCommand.BRIDGE_REQUEST,
+        {
+            "pipe_name": pipe_name,
+            "envelope": cast(JsonValue, envelope),
+            "timeout_seconds": timeout_seconds,
+            "max_frame_bytes": max_frame_bytes,
+        },
+    )
 
 
 def _terminate_and_join(process: Any) -> None:
@@ -555,4 +889,10 @@ def _unwrap_response(
     )
 
 
-__all__ = ["JsonValue", "ProcessWorkerCommand", "run_process_worker"]
+__all__ = [
+    "JsonValue",
+    "ProcessWorkerCommand",
+    "prestarted_process_worker_broker",
+    "run_bridge_request_on_registered_broker",
+    "run_process_worker",
+]

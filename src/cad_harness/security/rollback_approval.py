@@ -18,6 +18,7 @@ from cad_harness.domain.errors import (
     ApprovalScopeMismatchError,
 )
 from cad_harness.domain.models.approval import RollbackApprovalRecord
+from cad_harness.domain.models.base import SCHEMA_VERSION
 from cad_harness.domain.value_objects.identifiers import IdPrefix, new_id
 
 _TOKEN_VERSION = "rb1"
@@ -160,6 +161,12 @@ def verify_rollback_approval_token(
             "Rollback approval token claims are invalid",
             required_action="Request a fresh rollback approval in the engineer desktop",
         ) from exc
+    if approval.schema_version != SCHEMA_VERSION:
+        raise ApprovalScopeMismatchError(
+            "Rollback approval contract version is not current",
+            required_action="Request a fresh rollback approval in the engineer desktop",
+            details={"approved_schema_version": approval.schema_version},
+        )
     if approval.is_expired(now):
         raise ApprovalExpiredError(
             "Rollback approval has expired",

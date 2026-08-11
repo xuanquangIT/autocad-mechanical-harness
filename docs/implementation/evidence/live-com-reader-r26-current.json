@@ -1,0 +1,31 @@
+{
+  "adapter": "com",
+  "autocad_pid_owned": true,
+  "coarse_summary_coverage_complete": false,
+  "detailed_read_error": "semantic_geometry_read",
+  "document_opened_read_only": true,
+  "entity_count": 3,
+  "layer_table_unchanged": true,
+  "model_space_unchanged": true,
+  "owned_process": {
+    "creation_time_100ns": 134307114049161363,
+    "image_name": "acad.exe",
+    "image_path_sha256": "d513906d17e9836dabb5c9db34c149239b30b401a9e0fc7b2aa50b9f439046fa",
+    "pid": 18436
+  },
+  "postexisting_pids": [
+    25644
+  ],
+  "preexisting_pids_preserved": [
+    25644
+  ],
+  "revision_unchanged": true,
+  "schema_version": "1.10",
+  "scratch_file_unchanged": true,
+  "scratch_sha256_after": "a79251721f39baa00e8117aef242b5e5824058a9ee3a073068a25ee1fbcd8d1f",
+  "scratch_sha256_before": "a79251721f39baa00e8117aef242b5e5824058a9ee3a073068a25ee1fbcd8d1f",
+  "selection_count": 3,
+  "selection_summary_coverage_complete": false,
+  "selection_unchanged": true,
+  "system_variables_unchanged": true
+}

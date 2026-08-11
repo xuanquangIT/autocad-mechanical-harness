@@ -147,6 +147,61 @@ def _validate_part(
     return material
 
 
+def _part_boundary_model(
+    model: DrawingModel,
+    part: PartInput,
+    index: int,
+    entities: dict[str, EntityRecord],
+) -> DrawingModel:
+    """Restrict cutting contours to the explicit outline's layer and space.
+
+    Annotation and centre geometry can form geometrically closed loops. Treating those
+    loops as material voids produces dangerously low areas and masses. The selected
+    outline is therefore also the authoritative cutting-layer/space selector; hidden
+    entities never contribute to quotation quantities.
+    """
+    outline = entities.get(part.outline_entity_ref)
+    if outline is None:
+        raise _missing(
+            "Part outline entity does not exist in the drawing",
+            path=f"parts[{index}].outline_entity_ref",
+            actual=part.outline_entity_ref,
+        )
+    if not outline.visible:
+        raise _missing(
+            "Part outline entity must be visible for take-off",
+            path=f"parts[{index}].outline_entity_ref",
+            actual=part.outline_entity_ref,
+        )
+    explicit_inner_refs = set(part.inner_contour_entity_refs)
+    if part.outline_entity_ref in explicit_inner_refs:
+        raise _missing(
+            "Part outline cannot also be an inner contour",
+            path=f"parts[{index}].inner_contour_entity_refs",
+            actual=part.outline_entity_ref,
+        )
+    for entity_ref in explicit_inner_refs:
+        entity = entities.get(entity_ref)
+        if entity is None or not entity.visible or entity.space != outline.space:
+            raise _missing(
+                "Explicit inner contour must identify visible geometry in the outline space",
+                path=f"parts[{index}].inner_contour_entity_refs",
+                actual=entity_ref,
+            )
+    layer = outline.layer.casefold()
+    return model.model_copy(
+        update={
+            "entities": tuple(
+                entity
+                for entity in model.entities
+                if entity.visible
+                and entity.space == outline.space
+                and (entity.layer.casefold() == layer or entity.entity_ref in explicit_inner_refs)
+            )
+        }
+    )
+
+
 def _descendants(analysis: ContourAnalysis, root_index: int) -> tuple[int, ...]:
     result: list[int] = []
     for index in range(len(analysis.forest.nodes)):
@@ -576,26 +631,42 @@ def compute_takeoff(
     if checkpoint is not None:
         checkpoint()
     material_by_code = _validate_request(model, request, materials)
-    analysis = analyze_contours(model, tolerance)
-    if checkpoint is not None:
-        checkpoint()
     entities = {entity.entity_ref: entity for entity in model.entities}
     lines: list[PartTakeoffLine] = []
-    excluded_findings: list[Finding] = list(_open_findings(analysis, tolerance))
-    used_roots: set[int] = set()
+    excluded_findings: list[Finding] = []
+    used_roots: set[frozenset[str]] = set()
     for part_index, part in enumerate(request.parts):
         if checkpoint is not None:
             checkpoint()
         material = _validate_part(part, part_index, material_by_code)
+        boundary_model = _part_boundary_model(model, part, part_index, entities)
+        analysis = analyze_contours(boundary_model, tolerance)
+        excluded_findings.extend(_open_findings(analysis, tolerance))
+        if checkpoint is not None:
+            checkpoint()
         root_index = _resolve_root(analysis, part, part_index)
-        if root_index in used_roots:
+        root_identity = frozenset(analysis.contours[root_index].entity_refs)
+        if root_identity in used_roots:
             raise _missing(
                 "A root contour cannot be assigned to more than one part",
                 path=f"parts[{part_index}].outline_entity_ref",
                 actual=part.outline_entity_ref,
             )
-        used_roots.add(root_index)
+        used_roots.add(root_identity)
         subtree = _descendants(analysis, root_index)
+        subtree_refs = {
+            entity_ref
+            for contour_index in subtree
+            if contour_index != root_index
+            for entity_ref in analysis.contours[contour_index].entity_refs
+        }
+        unresolved_inner_refs = set(part.inner_contour_entity_refs) - subtree_refs
+        if unresolved_inner_refs:
+            raise _missing(
+                "Explicit inner contours must form closed boundaries inside the part outline",
+                path=f"parts[{part_index}].inner_contour_entity_refs",
+                unresolved_count=len(unresolved_inner_refs),
+            )
         excluded_findings.extend(
             _outside_circle_findings(analysis, root_index, subtree, entities, tolerance)
         )

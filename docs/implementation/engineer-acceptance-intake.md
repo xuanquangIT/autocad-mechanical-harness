@@ -41,8 +41,9 @@ successful synthetic or single-user trial is not a substitute.
 
 ## ChatGPT web deployment packet
 
-The installed local Codex MCP server is suitable for development and runs with the fake
-adapter. A ChatGPT web app requires a remote HTTPS MCP endpoint or Secure MCP Tunnel,
+The installed local Codex MCP server is configured for the local `dotnet_bridge` acceptance
+profile; it fails closed when no approved disposable AutoCAD session is available. A ChatGPT
+web app requires a remote HTTPS MCP endpoint or Secure MCP Tunnel,
 workspace developer-mode authorization, and an admin/owner to scan and approve tools.
 Do not publish a write-enabled CAD endpoint until signed bundle, clean-workstation, engineer
 golden and pilot gates have passed.

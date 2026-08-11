@@ -113,9 +113,8 @@ class TestPlanHashing:
             ),
         )
 
-        assert (
-            plan.compute_hash()
-            == "sha256:88ddfd92cc6743f8d8bcbcd9e42d31e94204d32a1ed1ce1467367de5163068c6"
+        assert plan.compute_hash() == (
+            "sha256:6affc600564b5fff6e76877861457b966047c24c7703ec35d9358106f0ff49be"
         )
 
     def test_verify_hash(self) -> None:

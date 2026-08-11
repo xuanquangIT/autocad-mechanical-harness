@@ -17,6 +17,21 @@ class PartInput(ContractModel):
     material_code: str
     quantity: int
     stock_allowance_mm: float | None = None
+    inner_contour_entity_refs: tuple[str, ...] = Field(default=(), max_length=20_000)
+
+    @field_validator("inner_contour_entity_refs")
+    @classmethod
+    def inner_contour_refs_are_opaque_and_unique(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        if any(
+            not entity_ref
+            or len(entity_ref) > 512
+            or any(ord(character) < 32 for character in entity_ref)
+            for entity_ref in value
+        ):
+            raise ValueError("Inner contour entity references must be bounded opaque ids")
+        if len(set(value)) != len(value):
+            raise ValueError("Inner contour entity references must be unique")
+        return value
 
 
 class TakeoffRequest(ContractModel):

@@ -582,7 +582,7 @@ Only 13 high-level tools are exposed:
 | `cad_feature_catalog_search` | None | No | Find supported features and schemas |
 | `cad_job_create` | Internal DB only | No | Create a job and pin the input revision |
 | `cad_spec_submit` | Internal DB only | No | Validate and normalize a DrawingSpec |
-| `cad_change_submit` | Internal DB only | No | Change a spec with versioning |
+| `cad_change_submit` | Internal DB only | No | Submit one revised spec or selected-finding remediation |
 | `cad_preview` | Temporary files | May be auto | Generate a preview and semantic diff |
 | `cad_validate` | No DWG change | No | Run validation per stage |
 | `cad_diff_get` | None | No | Get the semantic diff and artifact refs |

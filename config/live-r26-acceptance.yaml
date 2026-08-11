@@ -1,0 +1,60 @@
+# Dedicated local acceptance profile for a PID-owned, disposable AutoCAD 2027 drawing.
+# It never launches or attaches to AutoCAD by itself. The live acceptance runner first
+# proves ownership of a separate AutoCAD process and opens the scratch drawing.
+app:
+  environment: development
+  local_only: true
+
+adapter:
+  type: dotnet_bridge
+  launch_autocad_if_missing: false
+
+mcp:
+  transport: stdio
+  server_name: cad-harness-live-r26
+  client_profiles:
+    default: read_only
+    clients:
+      anonymous:
+        mode: approval_required
+
+storage:
+  sqlite_path: ./data/live-r26/harness.db
+  preview_directory: ./data/live-r26/previews
+  checkpoint_directory: ./data/live-r26/checkpoints
+  export_directory: ./data/live-r26/exports
+
+security:
+  require_commit_approval: true
+  require_export_approval: true
+  allow_arbitrary_export_path: false
+  redact_document_paths: true
+  export_path_allowlist:
+    - ./data/live-r26/exports
+
+standards:
+  # Development acceptance only; never present it as a company-approved profile.
+  company_profile: demo-profile@1.0
+
+observability:
+  log_level: ERROR
+  log_json: true
+  log_prompts: false
+
+# Windows spawn cold-start is not the one-second steady-state performance gate.
+# Leave terminal-cancellation headroom for the live MCP acceptance workflow.
+measure:
+  timeout_seconds: 10
+
+bridge:
+  pipe_name_template: "cadharness.{user_sid}"
+  max_request_bytes: 1048576
+  max_request_depth: 32
+  ipc_timeout_seconds: 30
+
+compatibility:
+  matrix_path: compatibility.yaml
+
+pilot:
+  thresholds_path: pilot.yaml
+  run_id: live-r26-acceptance

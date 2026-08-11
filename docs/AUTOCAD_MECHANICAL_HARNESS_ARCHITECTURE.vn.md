@@ -582,7 +582,7 @@ Chỉ expose 13 tool cấp cao:
 | `cad_feature_catalog_search` | Không | Không | Tìm feature và schema hỗ trợ |
 | `cad_job_create` | Chỉ DB nội bộ | Không | Tạo job và cố định revision đầu vào |
 | `cad_spec_submit` | Chỉ DB nội bộ | Không | Validate và chuẩn hóa DrawingSpec |
-| `cad_change_submit` | Chỉ DB nội bộ | Không | Thay đổi spec có version |
+| `cad_change_submit` | Chỉ DB nội bộ | Không | Nộp một spec sửa đổi hoặc remediation theo finding đã chọn |
 | `cad_preview` | File tạm | Có thể auto | Sinh preview và semantic diff |
 | `cad_validate` | Không sửa DWG | Không | Chạy validation theo stage |
 | `cad_diff_get` | Không | Không | Lấy semantic diff và artifact refs |

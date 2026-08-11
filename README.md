@@ -99,7 +99,7 @@ would let the model assemble geometry itself, which is exactly what this design 
 | `cad_diff_get` | none | read-only |
 | `cad_job_create` | internal DB | approval-required client |
 | `cad_spec_submit` | internal DB | approval-required client |
-| `cad_change_submit` | internal DB | approval-required client |
+| `cad_change_submit` | internal DB; exactly one revised spec or selected-finding remediation | approval-required client |
 | `cad_preview` | temporary files | approval-required client |
 | `cad_takeoff_export` | allowlisted file | approval-required client |
 | `cad_export` | allowlisted file | approval-required client |

@@ -12,6 +12,7 @@ from cad_harness.application.services.remediation_service import RemediationServ
 from cad_harness.comprehension.auditor import audit_drawing
 from cad_harness.config import Settings
 from cad_harness.domain.errors import (
+    InvalidFeatureParametersError,
     PostCommitValidationFailedError,
     StaleDocumentRevisionError,
 )
@@ -167,6 +168,47 @@ def test_remediation_commit_reaudits_and_partitions_selected_findings(
     assert reaudit_event.payload["remaining_count"] == 0
     assert adapter.current_revision() == result.new_revision
     assert service.store.entity_mappings_for(adapter.document.document_id) == ()
+
+
+def test_remediation_restart_reloads_selection_before_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A process restart cannot downgrade remediation into an ordinary commit."""
+    service, adapter, token, plan_hash, job_id, expected_revision = _registered_service(
+        tmp_path, monkeypatch, finding_remains=False
+    )
+    restarted = HarnessService(
+        service.settings,
+        adapter,
+        store=service.store,
+        drawing_model_reader=service._drawing_model_reader,
+        drawing_audit_store=service._drawing_audit_store,
+    )
+    assert restarted._remediation_jobs == {}
+
+    result = restarted.commit(
+        job_id,
+        idempotency_key="remediation-after-restart",
+        expected_revision=expected_revision,
+        plan_hash=plan_hash,
+        approval_token=token,
+    )
+
+    assert result.new_revision == adapter.current_revision()
+    assert isinstance(restarted.audit, InMemoryAuditSink)
+    reaudit = next(
+        event for event in restarted.audit.events if event.event_type == "DRAWING_AUDITED"
+    )
+    assert reaudit.payload["resolved_count"] == 1
+    assert reaudit.payload["remaining_count"] == 0
+
+
+def test_remediation_job_cannot_be_repurposed_as_a_spec_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service, _, _, _, job_id, _ = _registered_service(tmp_path, monkeypatch, finding_remains=False)
+    with pytest.raises(InvalidFeatureParametersError, match="cannot be repurposed"):
+        service.submit_spec(job_id, {})
 
 
 def test_remaining_finding_fails_with_rule_and_checkpoint(

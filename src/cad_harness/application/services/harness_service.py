@@ -6,7 +6,7 @@ the audit trail live in this layer so the interface layer stays free of policy.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager, nullcontext
 from datetime import timedelta
 from pathlib import Path
@@ -31,6 +31,7 @@ from cad_harness.domain.errors import (
     ApprovalRequiredError,
     DocumentNotFoundError,
     IdempotencyKeyReusedError,
+    InvalidFeatureParametersError,
     PlanHashMismatchError,
     PostCommitValidationFailedError,
     RollbackNotAvailableError,
@@ -51,7 +52,12 @@ from cad_harness.domain.models.result import (
     ExportResult,
     RollbackResult,
 )
-from cad_harness.domain.models.validation import Severity, ValidationReport, ValidationStage
+from cad_harness.domain.models.validation import (
+    Finding,
+    Severity,
+    ValidationReport,
+    ValidationStage,
+)
 from cad_harness.domain.ports.autocad_adapter import (
     CommitRequest,
     ExportRequest,
@@ -248,6 +254,12 @@ class HarnessService:
         revokes the approval, because the approved plan no longer describes the change.
         """
         job = self._require_job(job_id)
+        if self.store.get_remediation(job_id) is not None:
+            raise InvalidFeatureParametersError(
+                "A remediation job cannot be repurposed as a revised specification",
+                required_action="Create a new job for the revised DrawingSpec",
+                details={"job_id": job_id},
+            )
         prior_spec_version = job.spec_version
 
         payload = dict(spec_payload)
@@ -406,6 +418,12 @@ class HarnessService:
             },
         )
         self.store.save_plan(plan)
+        assert plan.plan_hash is not None
+        self.store.save_remediation(
+            job_id=job.job_id,
+            plan_hash=plan.plan_hash,
+            payload=remediation.model_dump(mode="json"),
+        )
         planned = accepted.transition_to(
             JobState.PLANNED,
             plan_id=plan.plan_id,
@@ -431,6 +449,83 @@ class HarnessService:
             "operation_count": len(plan.operations),
             "selected_finding_count": len(remediation.selected_findings),
         }
+
+    def _load_remediation_for_plan(
+        self, job_id: str, plan: OperationPlan
+    ) -> RemediationResult | None:
+        """Reload immutable remediation evidence and fail closed on any mismatch."""
+        cached = self._remediation_jobs.get(job_id)
+        stored = self.store.get_remediation(job_id)
+        plan_is_remediation = any(
+            operation.feature_id.startswith("remediation:") for operation in plan.operations
+        )
+        if stored is None:
+            if plan_is_remediation:
+                raise DocumentNotFoundError(
+                    "Persisted remediation selection is missing",
+                    required_action=(
+                        "Do not commit this job; create a new job from a current audit"
+                    ),
+                    details={"job_id": job_id},
+                )
+            return None
+
+        stored_plan_hash, payload = stored
+        remediation = RemediationResult.model_validate(payload)
+        if (
+            plan.plan_hash is None
+            or stored_plan_hash != plan.plan_hash
+            or remediation.plan.plan_hash != plan.plan_hash
+            or remediation.plan.job_id != job_id
+            or (cached is not None and cached != remediation)
+        ):
+            raise PlanHashMismatchError(
+                "Persisted remediation evidence does not match the current plan",
+                required_action=("Do not commit this job; create a new job from a current audit"),
+                details={"job_id": job_id},
+            )
+        self._remediation_jobs[job_id] = remediation
+        return remediation
+
+    def submit_remediation_selection(
+        self,
+        job_id: str,
+        audit_id: str,
+        selected_findings: Sequence[tuple[str, str]],
+        technical_inputs: Mapping[str, Mapping[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Compile a caller's finding selection from trusted current evidence.
+
+        The public boundary deliberately accepts neither a ``DrawingModel`` nor an
+        ``OperationPlan``. Both the structured drawing and plan are rebuilt on the
+        server, so a caller cannot substitute geometry or a plan body.
+        """
+        job = self._require_job(job_id)
+        if self._drawing_model_reader is None:
+            raise AdapterCapabilityMissingError(
+                "A remediation workflow requires structured drawing readback",
+                required_action="Configure a DrawingModel reader before compiling remediation",
+                details={"missing_capability": "drawing_model_readback"},
+            )
+        if self._drawing_audit_store is None:
+            raise AdapterCapabilityMissingError(
+                "A remediation workflow requires persisted drawing-audit evidence",
+                required_action="Configure the DrawingAuditStore used by DrawingAuditService",
+                details={"missing_capability": "drawing_audit_store"},
+            )
+
+        current_model = self._drawing_model_reader(job.document_id)
+        remediation = RemediationService(
+            self.tolerance,
+            self._drawing_audit_store,
+        ).compile_plan(
+            job_id=job.job_id,
+            model=current_model,
+            audit_id=audit_id,
+            selected_rule_findings=selected_findings,
+            technical_inputs=technical_inputs,
+        )
+        return self.register_remediation_plan(remediation)
 
     # ------------------------------------------------------------------ #
     # Preview and validation
@@ -498,6 +593,16 @@ class HarnessService:
             RuleContext(plan=plan, profile=self.profile, tolerance=self.tolerance),
             job_id=job_id,
         )
+        snapshot = self._snapshots.get(job.document_id)
+        if stage is ValidationStage.PRE_COMMIT and snapshot is not None:
+            live_style_findings = self._missing_live_style_findings(plan, snapshot)
+            if live_style_findings:
+                report = ValidationReport.model_validate(
+                    {
+                        **report.model_dump(mode="python"),
+                        "findings": (*report.findings, *live_style_findings),
+                    }
+                )
         self.store.save_validation(report)
 
         if (
@@ -520,6 +625,54 @@ class HarnessService:
             },
         )
         return report
+
+    @staticmethod
+    def _missing_live_style_findings(
+        plan: OperationPlan,
+        snapshot: DocumentSnapshot,
+    ) -> tuple[Finding, ...]:
+        """Fail before approval when a plan names styles absent from the live drawing."""
+        required: dict[str, dict[str, str]] = {"dimstyle": {}, "textstyle": {}}
+        for operation in plan.operations:
+            for field_name in required:
+                value = operation.geometry.get(field_name)
+                if isinstance(value, str) and value:
+                    required[field_name].setdefault(value, operation.operation_id)
+
+        findings: list[Finding] = []
+        for field_name, available, rule_id, label in (
+            (
+                "dimstyle",
+                snapshot.dimension_styles,
+                "LIVE_DIMSTYLE_MISSING",
+                "dimension style",
+            ),
+            (
+                "textstyle",
+                snapshot.text_styles,
+                "LIVE_TEXTSTYLE_MISSING",
+                "text style",
+            ),
+        ):
+            available_set = set(available)
+            for style_name, operation_id in sorted(required[field_name].items()):
+                if style_name in available_set:
+                    continue
+                findings.append(
+                    Finding(
+                        rule_id=rule_id,
+                        severity=Severity.BLOCKING,
+                        message=f"Required {label} is not present in the live drawing.",
+                        operation_id=operation_id,
+                        expected=style_name,
+                        actual=sorted(available_set),
+                        suggested_fix=(
+                            "Load the approved DWT/DWS styles, then inspect, preview, "
+                            "validate and approve again."
+                        ),
+                    )
+                )
+        return tuple(findings)
 
     def get_diff(self, job_id: str) -> dict[str, Any]:
         job = self._require_job(job_id)
@@ -720,6 +873,11 @@ class HarnessService:
             _, stored_result = previous
             return CommitResult.model_validate(stored_result)
 
+        # A restart must not turn a remediation plan into an ordinary plan and skip
+        # the mandatory post-commit re-audit. Load and bind its immutable evidence
+        # before any writer capability, revision, lease or adapter side effect.
+        remediation = self._load_remediation_for_plan(job_id, plan)
+
         if job.state is JobState.UNKNOWN_COMMIT_STATE:
             raise UnknownCommitStateError(
                 "This job has an unknown commit outcome and cannot be committed automatically",
@@ -892,7 +1050,6 @@ class HarnessService:
                     },
                 )
 
-            remediation = self._remediation_jobs.get(job_id)
             if remediation is not None:
                 selected_set = set(remediation.selected_findings)
                 readback_error: str | None = None

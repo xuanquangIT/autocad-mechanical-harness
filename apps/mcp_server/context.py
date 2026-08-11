@@ -39,14 +39,20 @@ from cad_harness.compatibility import load_compatibility_matrix
 from cad_harness.comprehension.raster_trace import LocalRasterTracer, RasterTraceLimits
 from cad_harness.config import Settings, load_settings, resolve_config_relative_path
 from cad_harness.domain.errors import (
+    AdapterCapabilityMissingError,
     ErrorCode,
     HarnessError,
     IdempotencyKeyReusedError,
     StaleDocumentRevisionError,
     WriterLeaseConflictError,
 )
+from cad_harness.domain.models.drawing_model import DrawingModel, ReadScope
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
-from cad_harness.domain.ports.drawing_source import DrawingSourcePort
+from cad_harness.domain.ports.drawing_source import (
+    DrawingReadRequest,
+    DrawingSourcePort,
+    DrawingSourceRef,
+)
 from cad_harness.geometry.tolerance import ToleranceProfile
 from cad_harness.metrics.collector import load_pilot_thresholds
 from cad_harness.metrics.recorder import OperationMetricsRecorder
@@ -227,6 +233,35 @@ def build_context(
     drawing_read_service = DrawingReadService(
         settings, drawing_source, operation_metrics=operation_metrics
     )
+
+    def read_active_drawing_model(document_id: str) -> DrawingModel:
+        result = drawing_read_service.read(
+            DrawingReadRequest(
+                source=DrawingSourceRef(
+                    kind="active_document",
+                    format="dwg",
+                    ref=document_id,
+                ),
+                scope=ReadScope(kind="model_space"),
+                max_entities=settings.read.max_entities,
+                max_block_nesting_depth=settings.read.max_block_nesting_depth,
+                include_geometry=True,
+            )
+        )
+        if not isinstance(result, DrawingModel):  # explicit scope must never summarize
+            raise AdapterCapabilityMissingError(
+                "Structured remediation readback returned no drawing geometry",
+                required_action="Use a drawing reader that supports model-space geometry",
+                details={"missing_capability": "semantic_geometry_read"},
+            )
+        if result.document_id != document_id:
+            raise StaleDocumentRevisionError(
+                "Structured remediation readback returned a different active document",
+                required_action="Activate the audited drawing and retry remediation",
+                details={"requested_document_id": document_id},
+            )
+        return result
+
     drawing_audit_service = DrawingAuditService(store=drawing_audit_store, audit=audit)
     takeoff_service = TakeoffService(
         settings,
@@ -240,6 +275,7 @@ def build_context(
         store=store,
         audit=audit,
         lease_service=lease_service,
+        drawing_model_reader=read_active_drawing_model,
         drawing_audit_store=drawing_audit_store,
         operation_metrics=operation_metrics,
         compatibility_matrix=compatibility_matrix,

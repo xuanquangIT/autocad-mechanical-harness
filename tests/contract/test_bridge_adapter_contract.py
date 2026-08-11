@@ -583,8 +583,8 @@ def test_response_envelope_rejects_excessive_depth_and_non_finite_numbers() -> N
 @pytest.mark.parametrize(
     "body",
     [
-        b'{"schema_version":"1.10","request_id":"req_1","status":"ok","data":{"value":NaN}}',
-        b'{"schema_version":"1.10","request_id":"req_1","request_id":"req_2",'
+        b'{"schema_version":"1.12","request_id":"req_1","status":"ok","data":{"value":NaN}}',
+        b'{"schema_version":"1.12","request_id":"req_1","request_id":"req_2",'
         b'"status":"ok","data":{}}',
     ],
 )

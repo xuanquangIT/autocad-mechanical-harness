@@ -1,0 +1,105 @@
+{
+  "adapter": {
+    "active_document_id": "c4e77be2-9972-43dc-a843-fe57b2d76511",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": true
+  },
+  "ambiguous_recognition_group_count": 0,
+  "approval_id": "approval_01KZJ2ZJX49M4ANJAHAVKKYQ8S",
+  "bridge_preflight": {
+    "active_document_id": "c4e77be2-9972-43dc-a843-fe57b2d76511",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": null
+  },
+  "commit": {
+    "checkpoint_present": true,
+    "entity_count": 10,
+    "new_revision": "sha256:ccf05871cace5c4be9a0648669236b550c7c77306c9b35da6589fa08ed49afa1",
+    "previous_revision": "sha256:b1def828acc892fcae598c5121e3ea1e1bad925d71f9b12756528836357e6bdd",
+    "status": "committed",
+    "undo_group_present": true
+  },
+  "document_id": "c4e77be2-9972-43dc-a843-fe57b2d76511",
+  "initial_revision": "sha256:b1def828acc892fcae598c5121e3ea1e1bad925d71f9b12756528836357e6bdd",
+  "job_id": "job_01KZJ2ZJNY95X9FAA26G1YE6T0",
+  "open_contour_count": 0,
+  "operation_count": 3,
+  "owned_process": {
+    "creation_time_100ns": 134307133178220604,
+    "image_name": "acad.exe",
+    "pid": 432,
+    "preexisting_pids": [
+      25644
+    ]
+  },
+  "plan_hash": "sha256:34524cec5d8791f419333e46ed7c3521cfbef57d9cb1172d515c117330a33afe",
+  "postexisting_pids": [
+    25644
+  ],
+  "preview_artifact_count": 2,
+  "readback_entity_count": 10,
+  "recognized_feature_count": 10,
+  "result_dwg_bytes": 38131,
+  "result_dwg_sha256": "db5308ad4665116415f9dda60ca1cc1e98d4d80363f2b1f724917749204caf7e",
+  "result_name": "flange-live-result.dwg",
+  "scratch_sha256_before": "5b855b13b2680966069444bd1240562df454313a5b1bb4d0da9481ecec04cee3",
+  "tool_count": 22,
+  "tool_names": [
+    "cad_audit",
+    "cad_change_submit",
+    "cad_commit",
+    "cad_diff_get",
+    "cad_document_inspect",
+    "cad_drawing_read",
+    "cad_export",
+    "cad_feature_catalog_search",
+    "cad_feature_recognize",
+    "cad_image_draft",
+    "cad_image_inspect",
+    "cad_image_trace",
+    "cad_job_create",
+    "cad_measure",
+    "cad_preview",
+    "cad_rollback",
+    "cad_selection_inspect",
+    "cad_spec_submit",
+    "cad_status",
+    "cad_takeoff",
+    "cad_takeoff_export",
+    "cad_validate"
+  ],
+  "user_process_preserved": true,
+  "validation": {
+    "blocking_count": 0,
+    "error_count": 0,
+    "warning_count": 1
+  }
+}

@@ -95,6 +95,18 @@ def test_sql_job_store_implements_full_port(
         profile_ref="demo-profile@1.0",
     ).with_hash()
     store.save_plan(plan)
+    remediation_payload = {
+        "plan": plan.model_dump(mode="json"),
+        "audit_id": "audit_sql",
+        "operation_sources": [],
+        "selected_findings": [["DUPLICATE_ENTITY", "entity:sql"]],
+        "technical_inputs": {},
+    }
+    store.save_remediation(
+        job_id=job.job_id,
+        plan_hash=str(plan.plan_hash),
+        payload=remediation_payload,
+    )
     job = job.transition_to(JobState.PLANNED, plan_id=plan.plan_id, plan_hash=plan.plan_hash)
     store.save_job(job)
     report = ValidationReport(
@@ -143,6 +155,7 @@ def test_sql_job_store_implements_full_port(
     assert store.get_job(job.job_id) is not None
     assert store.get_spec(job.job_id) == spec
     assert store.get_plan(job.job_id) == plan
+    assert store.get_remediation(job.job_id) == (str(plan.plan_hash), remediation_payload)
     assert store.get_validation(job.job_id) == report
     assert store.get_approval(approval.approval_id) == approval
     assert store.find_execution(job_id=job.job_id, idempotency_key="key_sql") == (

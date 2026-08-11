@@ -1,0 +1,105 @@
+{
+  "adapter": {
+    "active_document_id": "58b290d2-3159-48d6-815e-5c4e995bbe70",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": true
+  },
+  "ambiguous_recognition_group_count": 0,
+  "approval_id": "approval_01KZJ31FGA964ACMTX9F32909E",
+  "bridge_preflight": {
+    "active_document_id": "58b290d2-3159-48d6-815e-5c4e995bbe70",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": null
+  },
+  "commit": {
+    "checkpoint_present": true,
+    "entity_count": 1,
+    "new_revision": "sha256:18c013521fc1e11dc9e72cf738c8bf76767893ea7f2a2b128a41acedb2e164e6",
+    "previous_revision": "sha256:09501ea03a11eb0adf5f77c00a342f8a1f97f0adee5cc19975199ffb62228b48",
+    "status": "committed",
+    "undo_group_present": true
+  },
+  "document_id": "58b290d2-3159-48d6-815e-5c4e995bbe70",
+  "initial_revision": "sha256:09501ea03a11eb0adf5f77c00a342f8a1f97f0adee5cc19975199ffb62228b48",
+  "job_id": "job_01KZJ31F909YQ80HZKJHC3MFKZ",
+  "open_contour_count": 0,
+  "operation_count": 1,
+  "owned_process": {
+    "creation_time_100ns": 134307133815872172,
+    "image_name": "acad.exe",
+    "pid": 39060,
+    "preexisting_pids": [
+      25644
+    ]
+  },
+  "plan_hash": "sha256:c4ea754785b30c18703e1b6a154f899c1348ae4104f3a20740048e8ea6c268ef",
+  "postexisting_pids": [
+    25644
+  ],
+  "preview_artifact_count": 2,
+  "readback_entity_count": 1,
+  "recognized_feature_count": 5,
+  "result_dwg_bytes": 37935,
+  "result_dwg_sha256": "ef589e44e20738641b7f0b41b477dabf915730c9a05f9259c9c9f9825ef38d5e",
+  "result_name": "l-bracket-live-result.dwg",
+  "scratch_sha256_before": "b4643241f4efb3220e1820f5638a481bff7ec4b0ff91adfcdd652b94fe6a9f80",
+  "tool_count": 22,
+  "tool_names": [
+    "cad_audit",
+    "cad_change_submit",
+    "cad_commit",
+    "cad_diff_get",
+    "cad_document_inspect",
+    "cad_drawing_read",
+    "cad_export",
+    "cad_feature_catalog_search",
+    "cad_feature_recognize",
+    "cad_image_draft",
+    "cad_image_inspect",
+    "cad_image_trace",
+    "cad_job_create",
+    "cad_measure",
+    "cad_preview",
+    "cad_rollback",
+    "cad_selection_inspect",
+    "cad_spec_submit",
+    "cad_status",
+    "cad_takeoff",
+    "cad_takeoff_export",
+    "cad_validate"
+  ],
+  "user_process_preserved": true,
+  "validation": {
+    "blocking_count": 0,
+    "error_count": 0,
+    "warning_count": 1
+  }
+}

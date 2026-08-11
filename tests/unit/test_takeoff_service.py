@@ -18,6 +18,7 @@ from cad_harness.domain.errors import ExportPathNotAllowedError, IpcTimeoutError
 from cad_harness.domain.models.drawing_model import (
     DrawingModel,
     EntityRecord,
+    LineGeometry,
     PolylineGeometry,
     PolylineVertex,
     ReadScope,
@@ -121,6 +122,43 @@ def test_service_persists_and_audits_only_report_metadata(settings: Settings) ->
     assert store.records[0][2] == sum(part.total_mass_kg_raw for part in report.parts)
     event = store.events[-1]
     assert set(event) == {"document_id", "revision", "total_mass_kg", "actor_id"}
+
+
+def test_closed_centerline_loop_is_not_subtracted_as_a_cutting_contour(
+    settings: Settings,
+) -> None:
+    model = _model()
+    points = ((20.0, 10.0), (80.0, 10.0), (80.0, 40.0), (20.0, 40.0))
+    centerlines = tuple(
+        EntityRecord(
+            entity_ref=f"center-{index}",
+            entity_type="AcDbLine",
+            layer="CENTER",
+            visible=True,
+            space="model",
+            geometry=LineGeometry(start_mm=start, end_mm=end),
+            bounding_box_mm=(
+                min(start[0], end[0]),
+                min(start[1], end[1]),
+                max(start[0], end[0]),
+                max(start[1], end[1]),
+            ),
+        )
+        for index, (start, end) in enumerate(zip(points, points[1:] + points[:1], strict=True))
+    )
+    service = TakeoffService(settings, YamlMaterialTableLoader())
+
+    report = service.create(
+        model.model_copy(update={"entities": model.entities + centerlines}),
+        _request(),
+        tolerance=ToleranceProfile(id="takeoff", version="1.0"),
+    )
+
+    line = report.parts[0]
+    assert line.net_area_mm2 == 5_000.0
+    assert line.cut_length_mm == 300.0
+    assert line.pierce_count == 1
+    assert not any("center-" in ref for refs in line.evidence.values() for ref in refs)
 
 
 def test_property_55_export_allowlist_overwrite_and_formats(

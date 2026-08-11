@@ -24,6 +24,7 @@ class InMemoryJobStore:
     jobs: dict[str, CadJob] = field(default_factory=dict)
     specs: dict[str, list[DrawingSpec]] = field(default_factory=dict)
     plans: dict[str, OperationPlan] = field(default_factory=dict)
+    remediations: dict[str, tuple[str, dict[str, Any]]] = field(default_factory=dict)
     validations: dict[str, ValidationReport] = field(default_factory=dict)
     approvals: dict[str, ApprovalRecord] = field(default_factory=dict)
     #: (job_id, idempotency_key) -> (request_digest, result)
@@ -58,6 +59,15 @@ class InMemoryJobStore:
 
     def get_plan(self, job_id: str) -> OperationPlan | None:
         return self.plans.get(job_id)
+
+    def save_remediation(self, *, job_id: str, plan_hash: str, payload: dict[str, Any]) -> None:
+        if job_id in self.remediations:
+            raise ValueError("remediation evidence is append-only per job")
+        self.remediations[job_id] = (plan_hash, dict(payload))
+
+    def get_remediation(self, job_id: str) -> tuple[str, dict[str, Any]] | None:
+        stored = self.remediations.get(job_id)
+        return None if stored is None else (stored[0], dict(stored[1]))
 
     # -------------------------- validations ------------------------- #
 

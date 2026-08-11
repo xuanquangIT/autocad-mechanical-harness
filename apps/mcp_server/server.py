@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from apps.mcp_server.context import ServerContext, build_context, failure
 from apps.mcp_server.tools import register_all
 from cad_harness import __version__
+from cad_harness.application.process_runner import prestarted_process_worker_broker
 from cad_harness.domain.models.drawing_spec import MissingInput
 from cad_harness.domain.models.envelope import ToolResponse
 from cad_harness.domain.value_objects.identifiers import IdPrefix, new_id
@@ -36,6 +37,7 @@ Workflow:
   2. cad_document_inspect        - read the document and pin its revision
   3. cad_job_create              - open a change job
   4. cad_spec_submit             - submit a DrawingSpec; get a plan_hash
+     cad_change_submit           - alternatively submit exact findings from cad_audit
   5. cad_preview                 - render artifacts and a semantic diff
   6. cad_validate                - run rules; read the findings
   7. (engineer approves in their own UI, not through you)
@@ -48,6 +50,8 @@ Rules:
   - Never claim a drawing meets a company standard when cad_status reports the profile
     is not company approved.
   - Report validation findings to the user; do not work around them.
+  - To repair an existing drawing, select exact cad_audit rule_id/entity_ref pairs and
+    submit only that remediation selection. Never submit coordinates or an operation plan.
   - If a commit outcome is unknown, stop and report it. Do not retry.
 """
 
@@ -125,4 +129,8 @@ def create_server(config_path: Path | None = None) -> tuple[FastMCP, ServerConte
 
 def run_stdio(config_path: Path | None = None) -> None:
     mcp, _ = create_server(config_path)
-    mcp.run(transport="stdio")
+    # Windows spawn can deadlock in its bootstrap pipe once FastMCP's blocking STDIO
+    # wrappers are active. Start the closed-command broker before the transport and
+    # keep all later pure worker requests on that already-established process.
+    with prestarted_process_worker_broker():
+        mcp.run(transport="stdio")

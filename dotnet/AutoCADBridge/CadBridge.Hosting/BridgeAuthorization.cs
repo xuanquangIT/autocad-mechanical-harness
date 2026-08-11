@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using CadBridge.Contracts;
 
 namespace CadBridge.Hosting;
 
@@ -279,6 +280,7 @@ public static class BridgeAuthorization
                 !TryRequiredString(root, "approved_by", out var approvedBy) ||
                 !TryRequiredString(root, "approved_at", out var approvedAtText) ||
                 !TryRequiredString(root, "expires_at", out var expiresAtText) ||
+                !FixedEquals(schemaVersion, IpcContract.CurrentSchemaVersion) ||
                 !DateTimeOffset.TryParse(
                     approvedAtText,
                     CultureInfo.InvariantCulture,

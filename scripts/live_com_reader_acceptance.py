@@ -191,7 +191,7 @@ def run_acceptance(source: Path, scratch: Path, evidence_path: Path) -> dict[str
         if summary.revision != before_revision or selection_summary.revision != before_revision:
             raise AssertionError("COM summary revision drifted")
         evidence = {
-            "schema_version": "1.10",
+            "schema_version": "1.12",
             "adapter": "com",
             "autocad_pid_owned": True,
             "preexisting_pids_preserved": sorted(preexisting_pids),

@@ -578,7 +578,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
                     {
                         return ValueTask.FromResult(new JsonObject
                         {
-                            ["schema_version"] = "1.10",
+                            ["schema_version"] = "1.12",
                             ["job_id"] = request.JobId,
                             ["restored_revision"] = restored.Revision,
                             ["checkpoint_id"] = request.CheckpointId,
@@ -656,6 +656,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         Action<Document> onCommitted,
         CancellationToken cancellationToken)
     {
+        var diagnostic = _operationDiagnostics.Begin("commit.authorize");
         if (!TryReadCommitIdentity(
                 request,
                 out var documentId,
@@ -677,6 +678,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         Document document;
         try
         {
+            diagnostic.RecordStage("commit.document_bind");
             document = await _commandContext.ExecuteAsync(
                 token =>
                 {
@@ -709,6 +711,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         IReadOnlyList<AutoCadPlanOperation> operations;
         try
         {
+            diagnostic.RecordStage("commit.plan_parse");
             operations = AutoCadOperationDispatcher.ParseOperations(request.Plan);
         }
         catch
@@ -726,6 +729,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         CreatedEntityMeasurementSnapshot? measurementSnapshot = null;
         var stale = false;
 
+        diagnostic.RecordStage("commit.atomic_execute");
         var execution = await executor.ExecuteAsync(
             operations,
             dispatcher.DispatchAsync,
@@ -787,6 +791,8 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         if (!execution.IsCommitted || previousRevision is null || committedSnapshot is null ||
             measurementSnapshot is null)
         {
+            diagnostic.PublishFailure(
+                $"commit.atomic.{execution.Trace.Stage}:{execution.FailureKind}");
             DeleteCheckpointAfterProvenPreCommitFailure(checkpointArtifact);
             return new BridgeHostResult(BridgeHostOutcome.Failed);
         }
@@ -965,7 +971,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
 
         return new JsonObject
         {
-            ["schema_version"] = "1.10",
+            ["schema_version"] = "1.12",
             ["job_id"] = request.JobId,
             ["plan_hash"] = planHash,
             ["status"] = "committed",

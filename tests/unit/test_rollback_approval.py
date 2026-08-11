@@ -14,6 +14,7 @@ from cad_harness.domain.errors import (
 from cad_harness.security.approval import issue_approval
 from cad_harness.security.rollback_approval import (
     issue_rollback_approval,
+    make_rollback_approval_token,
     verify_rollback_approval_token,
 )
 
@@ -129,4 +130,21 @@ def test_commit_approval_cannot_authorize_rollback_and_empty_secret_fails_closed
             approved_by="engineer",
             secret="",
             ttl=timedelta(minutes=1),
+        )
+
+
+def test_previous_contract_version_cannot_authorize_rollback() -> None:
+    approval, _ = _issued()
+    legacy = approval.model_copy(update={"schema_version": "1.10"})
+    token = make_rollback_approval_token(legacy, SECRET)
+
+    with pytest.raises(ApprovalScopeMismatchError, match="contract version"):
+        verify_rollback_approval_token(
+            token,
+            SECRET,
+            job_id=approval.job_id,
+            document_id=approval.document_id,
+            checkpoint_id=approval.checkpoint_id,
+            current_revision=approval.current_revision,
+            now=approval.approved_at,
         )

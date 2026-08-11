@@ -27,7 +27,7 @@ public sealed record AutoCadContractContext(
 /// </summary>
 public sealed class AutoCadContractConverter
 {
-    private const string SchemaVersion = "1.10";
+    private const string SchemaVersion = "1.12";
     private const string HandlePrefix = "acad:handle:";
     private readonly AutoCadContractContext _context;
     private readonly double _coordinateScale;

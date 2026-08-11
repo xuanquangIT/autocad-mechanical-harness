@@ -30,6 +30,8 @@ New decisions get their own file here: `NNN-short-title.md`.
 | 016 | Schema 1.9: calibrated raster intake is an untrusted read path | [016-calibrated-raster-intake.md](016-calibrated-raster-intake.md) |
 | 017 | Schema 1.10: separate human approval for destructive rollback | [017-separate-rollback-approval.md](017-separate-rollback-approval.md) |
 | 018 | Session-bound undo rollback and activity fence | [018-session-undo-rollback-fence.md](018-session-undo-rollback-fence.md) |
+| 019 | Schema 1.11: explicit cross-layer take-off contours | [019-explicit-takeoff-contours.md](019-explicit-takeoff-contours.md) |
+| 020 | Schema 1.12: remediation submission and restart evidence | [020-schema-1-12-remediation-submission.md](020-schema-1-12-remediation-submission.md) |
 
 ## Template
 

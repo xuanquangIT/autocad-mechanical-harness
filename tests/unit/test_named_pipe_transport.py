@@ -15,6 +15,7 @@ from cad_harness.adapters.named_pipe_transport import (
     TerminalCancellationUnconfirmedError,
     resolve_current_user_pipe_name,
 )
+from cad_harness.application import process_runner
 from cad_harness.domain.errors import AdapterCapabilityMissingError, IpcTimeoutError
 from cad_harness.domain.models.base import SCHEMA_VERSION
 
@@ -187,6 +188,7 @@ def test_strict_monotonic_deadline_boundary(duration: float, times_out: bool) ->
     with pytest.raises(IpcTimeoutError) as captured:
         transport.request(_request(), timeout_seconds=1.0)
     assert captured.value.details["terminal_cancel_confirmed"] is True
+    assert captured.value.details["transport_stage"] == "read_response"
 
 
 def test_timeout_cancels_waits_and_closes_before_exact_control_request() -> None:
@@ -209,7 +211,7 @@ def test_timeout_cancels_waits_and_closes_before_exact_control_request() -> None
     assert driver.events.index("close:handle-1") < driver.events.index("connect:handle-2")
     cancel_payload = driver.writes[-1][1]
     assert cancel_payload == {
-        "schema_version": "1.10",
+        "schema_version": "1.12",
         "method": "cancel",
         "request_id": "fresh-cancel-request",
         "job_id": None,
@@ -217,6 +219,47 @@ def test_timeout_cancels_waits_and_closes_before_exact_control_request() -> None
         "params": {"target_request_id": "target-request"},
     }
     assert driver.events[-1] == "close:handle-2"
+
+
+def test_prestarted_stdio_broker_routes_response_without_direct_win32_io(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = VirtualClock()
+    driver = EventDriver(clock, _response(), _cancel_ack)
+    transport = NamedPipeTransport(DEFAULT_PIPE_NAME, driver=driver, clock=clock)
+    broker_calls: list[dict[str, Any]] = []
+
+    def broker(**kwargs: Any) -> dict[str, Any]:
+        broker_calls.append(kwargs)
+        return {"transport_ok": True, "response": decode_frame(_response())}
+
+    monkeypatch.setattr(process_runner, "run_bridge_request_on_registered_broker", broker)
+
+    assert transport.request(_request(), timeout_seconds=3.0)["status"] == "ok"
+    assert driver.events == []
+    assert broker_calls[0]["pipe_name"] == DEFAULT_PIPE_NAME
+    assert broker_calls[0]["timeout_seconds"] == 3.0
+
+
+def test_prestarted_stdio_broker_preserves_terminal_timeout_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    transport = NamedPipeTransport(DEFAULT_PIPE_NAME, driver=object())  # type: ignore[arg-type]
+    monkeypatch.setattr(
+        process_runner,
+        "run_bridge_request_on_registered_broker",
+        lambda **_kwargs: {
+            "transport_ok": False,
+            "error_type": "terminal_cancellation_unconfirmed",
+            "details": {"terminal_cancel_confirmed": False, "transport_stage": "read_response"},
+        },
+    )
+
+    with pytest.raises(TerminalCancellationUnconfirmedError) as captured:
+        transport.request(_request(), timeout_seconds=3.0)
+
+    assert captured.value.retryable is False
+    assert captured.value.details["terminal_cancel_confirmed"] is False
 
 
 def test_primary_io_terminal_wait_is_bounded_and_control_cancel_still_runs() -> None:

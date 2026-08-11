@@ -27,7 +27,8 @@ MANUAL_STEP_INSTRUCTIONS: dict[ManualStepId, str] = {
         "Load the controlled company DWT and DWS files into the target drawing."
     ),
     ManualStepId.INSTALL_BRIDGE_BUNDLE: (
-        "Install the signed C# Bridge .bundle for the target AutoCAD release."
+        "Install the signed C# Bridge .bundle for production, or an explicitly marked "
+        "development-unsigned bundle only in a PID-owned disposable acceptance session."
     ),
     ManualStepId.GRANT_NAMED_PIPE_ACL: (
         "Grant the current Windows user access to the bridge Named Pipe ACL."

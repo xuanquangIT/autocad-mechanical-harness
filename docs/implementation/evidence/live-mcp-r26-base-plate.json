@@ -1,0 +1,105 @@
+{
+  "adapter": {
+    "active_document_id": "9226e2bb-ceb6-4485-8dab-e903fec645e3",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": true
+  },
+  "ambiguous_recognition_group_count": 0,
+  "approval_id": "approval_01KZJ2XBK98399Q1R21KHDMB1A",
+  "bridge_preflight": {
+    "active_document_id": "9226e2bb-ceb6-4485-8dab-e903fec645e3",
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_application": "AutoCAD",
+    "cad_version": "26.0",
+    "capabilities": [
+      "atomic_transaction",
+      "commit",
+      "document_lock",
+      "inspect_document",
+      "inspect_selection",
+      "rollback_undo_group",
+      "stable_metadata",
+      "undo_group"
+    ],
+    "message": "Read and atomic write capabilities are enabled for this verified deployment.",
+    "version_supported": null
+  },
+  "commit": {
+    "checkpoint_present": true,
+    "entity_count": 25,
+    "new_revision": "sha256:cad96413cd83f10b934976f4f3c2998520862c8c7bcf8838b6303320c9a64cd2",
+    "previous_revision": "sha256:9a0460310938683ec45940bae40057ea57fb26992e5bce609d457a117c8382f7",
+    "status": "committed",
+    "undo_group_present": true
+  },
+  "document_id": "9226e2bb-ceb6-4485-8dab-e903fec645e3",
+  "initial_revision": "sha256:9a0460310938683ec45940bae40057ea57fb26992e5bce609d457a117c8382f7",
+  "job_id": "job_01KZJ2XBCS96XVH1CYDBRF9SRW",
+  "open_contour_count": 0,
+  "operation_count": 22,
+  "owned_process": {
+    "creation_time_100ns": 134307132480049550,
+    "image_name": "acad.exe",
+    "pid": 35304,
+    "preexisting_pids": [
+      25644
+    ]
+  },
+  "plan_hash": "sha256:7286f949e3fa34f1c196c2c3df2a2e0db5cae0b4bebd8ee2952e38c48ce77903",
+  "postexisting_pids": [
+    25644
+  ],
+  "preview_artifact_count": 2,
+  "readback_entity_count": 25,
+  "recognized_feature_count": 6,
+  "result_dwg_bytes": 42640,
+  "result_dwg_sha256": "e0f18bc0498733ffab3274594b35814d6b24f7d87d93395d7bb4fe2abeea7f7a",
+  "result_name": "base-plate-live9-result.dwg",
+  "scratch_sha256_before": "8d4a2c1c093245e2408394af2aa429dc1ce9201278443dbf4d467e87fbca8d6b",
+  "tool_count": 22,
+  "tool_names": [
+    "cad_audit",
+    "cad_change_submit",
+    "cad_commit",
+    "cad_diff_get",
+    "cad_document_inspect",
+    "cad_drawing_read",
+    "cad_export",
+    "cad_feature_catalog_search",
+    "cad_feature_recognize",
+    "cad_image_draft",
+    "cad_image_inspect",
+    "cad_image_trace",
+    "cad_job_create",
+    "cad_measure",
+    "cad_preview",
+    "cad_rollback",
+    "cad_selection_inspect",
+    "cad_spec_submit",
+    "cad_status",
+    "cad_takeoff",
+    "cad_takeoff_export",
+    "cad_validate"
+  ],
+  "user_process_preserved": true,
+  "validation": {
+    "blocking_count": 0,
+    "error_count": 0,
+    "warning_count": 1
+  }
+}

@@ -17,7 +17,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from cad_harness.adapters.dotnet_bridge import MAX_FRAME_BYTES, decode_frame, encode_frame
 from cad_harness.domain.errors import AdapterCapabilityMissingError, IpcTimeoutError
@@ -383,7 +383,7 @@ class NamedPipeTransport:
         return self._driver
 
     def request(self, envelope: dict[str, Any], *, timeout_seconds: float) -> dict[str, Any]:
-        """Send one envelope and return its matching schema-1.10 response.
+        """Send one envelope and return its matching schema-1.12 response.
 
         Timeout is strict: an operation completing exactly at the deadline succeeds;
         completion even one monotonic tick after it triggers terminal cancellation.
@@ -397,14 +397,31 @@ class NamedPipeTransport:
             raise ValueError(f"IPC request schema_version must be {SCHEMA_VERSION}")
 
         request_frame = self._encode_checked(envelope)
+        # FastMCP STDIO on Windows has already prestarted a bounded local broker. Route
+        # through it when present; ordinary CLI/tests keep the direct Win32 path below.
+        from cad_harness.application.process_runner import (
+            run_bridge_request_on_registered_broker,
+        )
+
+        broker_result = run_bridge_request_on_registered_broker(
+            pipe_name=self.pipe_name,
+            envelope=envelope,
+            timeout_seconds=timeout_seconds,
+            max_frame_bytes=self._max_frame_bytes,
+        )
+        if broker_result is not None:
+            return self._unwrap_broker_result(broker_result, request_id=request_id)
         driver = self._get_driver()
         deadline = self._clock() + timeout_seconds
         handle: object | None = None
+        transport_stage = "connect"
         try:
             handle = driver.connect(self.pipe_name, deadline=deadline, clock=self._clock)
             self._check_deadline(deadline)
+            transport_stage = "write"
             driver.write(handle, request_frame, deadline=deadline, clock=self._clock)
             self._check_deadline(deadline)
+            transport_stage = "read_response"
             response = self._read_response(driver, handle, deadline)
             self._check_deadline(deadline)
             self._validate_response(response, request_id=request_id)
@@ -426,6 +443,7 @@ class NamedPipeTransport:
                 "request_id": request_id,
                 "timeout_seconds": timeout_seconds,
                 "terminal_cancel_confirmed": confirmed,
+                "transport_stage": transport_stage,
             }
             if cancel_error is not None:
                 details["cancellation_error"] = cancel_error
@@ -442,6 +460,31 @@ class NamedPipeTransport:
             if handle is not None:
                 driver.close(handle)
         return response
+
+    def _unwrap_broker_result(
+        self,
+        result: dict[str, Any],
+        *,
+        request_id: str,
+    ) -> dict[str, Any]:
+        if result.get("transport_ok") is True and isinstance(result.get("response"), dict):
+            response = cast(dict[str, Any], result["response"])
+            self._validate_response(response, request_id=request_id)
+            return response
+        details = result.get("details")
+        safe_details = details if isinstance(details, dict) else {}
+        error_type = result.get("error_type")
+        if error_type == "terminal_cancellation_unconfirmed":
+            raise TerminalCancellationUnconfirmedError(
+                "Bridge request timed out and terminal cancellation was not confirmed",
+                details=safe_details,
+            )
+        if error_type == "ipc_timeout":
+            raise IpcTimeoutError(
+                "Bridge request exceeded its configured deadline",
+                details=safe_details,
+            )
+        raise OSError("Prestarted bridge transport broker failed")
 
     def _check_deadline(self, deadline: float) -> None:
         if self._clock() > deadline:

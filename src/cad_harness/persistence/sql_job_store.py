@@ -26,6 +26,7 @@ from cad_harness.persistence.models import (
     Execution,
     Job,
     Plan,
+    RemediationSelectionRow,
     SpecVersion,
     Validation,
     WriterLeaseRow,
@@ -216,6 +217,26 @@ class SqlJobStore:
                 .limit(1)
             )
             return OperationPlan.model_validate(row.plan_json) if row else None
+
+    def save_remediation(self, *, job_id: str, plan_hash: str, payload: dict[str, Any]) -> None:
+        def action(session: Session) -> None:
+            session.add(
+                RemediationSelectionRow(
+                    job_id=job_id,
+                    plan_hash=plan_hash,
+                    selection_json=dict(payload),
+                    created_at=datetime.now(UTC),
+                )
+            )
+
+        self._write(action)
+
+    def get_remediation(self, job_id: str) -> tuple[str, dict[str, Any]] | None:
+        with self._session_factory() as session:
+            row = session.get(RemediationSelectionRow, job_id)
+            if row is None:
+                return None
+            return row.plan_hash, dict(row.selection_json)
 
     def save_validation(self, report: ValidationReport) -> None:
         payload = report.model_dump(mode="json")

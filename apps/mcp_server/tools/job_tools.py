@@ -6,11 +6,43 @@ from typing import Any
 
 from mcp.server.fastmcp import Context as McpContext
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field, ValidationError
 
 from apps.mcp_server.context import ServerContext, failure, ok
 from apps.mcp_server.tools.permissions import ToolPermissionGuard
+from cad_harness.domain.errors import InvalidFeatureParametersError
+from cad_harness.domain.models.base import ContractModel
 from cad_harness.domain.models.drawing_spec import MissingInput
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
+
+
+class RemediationFindingInput(ContractModel):
+    """One exact persisted audit finding selected by an engineer."""
+
+    rule_id: str = Field(min_length=1, max_length=128)
+    entity_ref: str = Field(min_length=1, max_length=512)
+
+
+class RemediationSelectionInput(ContractModel):
+    """Untrusted MCP selection; geometry and operation plans are intentionally absent."""
+
+    audit_id: str = Field(min_length=1, max_length=64)
+    selected_findings: tuple[RemediationFindingInput, ...] = Field(min_length=1, max_length=500)
+    technical_inputs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+def _parse_remediation(payload: dict[str, Any]) -> RemediationSelectionInput:
+    try:
+        return RemediationSelectionInput.model_validate(payload)
+    except ValidationError as exc:
+        raise InvalidFeatureParametersError(
+            "The remediation selection does not match the public contract",
+            required_action=(
+                "Supply an audit_id, one or more exact rule_id/entity_ref findings, "
+                "and only documented technical_inputs"
+            ),
+            details={"invalid_fields": [".".join(map(str, item["loc"])) for item in exc.errors()]},
+        ) from exc
 
 
 def _spec_response(result: dict[str, Any], job_id: str) -> dict[str, Any]:
@@ -92,18 +124,59 @@ def register(mcp: FastMCP, context: ServerContext, guard: ToolPermissionGuard) -
 
     @guard.tool(mcp)
     def cad_change_submit(
-        request_context: McpContext[Any, Any, Any], job_id: str, spec: dict[str, Any]
+        request_context: McpContext[Any, Any, Any],
+        job_id: str,
+        spec: dict[str, Any] | None = None,
+        remediation: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Submit a revised spec for an existing job.
+        """Submit one revised spec or one selected-finding remediation request.
 
 
-        This creates a new spec version and recompiles the plan. Any prior approval is
+        A revised spec creates a new version and recompiles the plan. A remediation
+
+        request names a persisted ``audit_id`` and exact ``rule_id``/``entity_ref``
+
+        findings; the server freshly reads the drawing and compiles the operation plan.
+
+        Caller-supplied models, plans and coordinates are never accepted. Any prior
+
+        approval is
 
         revoked, because it applied to a plan that no longer describes the change.
         """
 
         try:
-            result = context.service.submit_spec(job_id, spec)
+            if spec is None and remediation is None:
+                missing = (
+                    MissingInput(
+                        path="spec_or_remediation",
+                        reason="Supply exactly one revised spec or remediation selection",
+                    ),
+                )
+                return ToolResponse.needs_input(missing, job_id=job_id).model_dump(
+                    mode="json", exclude_none=True
+                )
+            if spec is not None and remediation is not None:
+                raise InvalidFeatureParametersError(
+                    "cad_change_submit accepts exactly one change representation",
+                    required_action="Supply either spec or remediation, never both",
+                    details={"mutually_exclusive": ["spec", "remediation"]},
+                )
+
+            if remediation is not None:
+                selection = _parse_remediation(remediation)
+                selected = tuple(
+                    (item.rule_id, item.entity_ref) for item in selection.selected_findings
+                )
+                result = context.service.submit_remediation_selection(
+                    job_id,
+                    audit_id=selection.audit_id,
+                    selected_findings=selected,
+                    technical_inputs=selection.technical_inputs,
+                )
+            else:
+                assert spec is not None
+                result = context.service.submit_spec(job_id, spec)
 
             response = _spec_response(result, job_id)
 

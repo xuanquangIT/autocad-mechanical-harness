@@ -102,7 +102,7 @@ def _takeoff_fixture(case: Path, index: int) -> None:
     _write_json(
         case / "takeoff_request.json",
         {
-            "schema_version": "1.10",
+            "schema_version": "1.12",
             "document_id": "replaced-by-golden-runner",
             "parts": [
                 {

@@ -7,7 +7,7 @@ namespace CadBridge.Contracts;
 /// <summary>Wire contract version shared with the Python domain models.</summary>
 public static class IpcContract
 {
-    public const string CurrentSchemaVersion = "1.10";
+    public const string CurrentSchemaVersion = "1.12";
 }
 
 /// <summary>Methods accepted by the local AutoCAD bridge.</summary>

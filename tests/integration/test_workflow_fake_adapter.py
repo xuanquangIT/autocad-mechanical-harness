@@ -71,6 +71,27 @@ class TestHappyPath:
         assert len(provenance) == 1
         assert provenance[0].severity is Severity.WARNING
 
+    def test_precommit_blocks_styles_missing_from_live_drawing(
+        self, service: HarnessService, base_plate_spec: dict[str, Any]
+    ) -> None:
+        job = service.create_job()
+        service.submit_spec(job.job_id, base_plate_spec)
+        snapshot = service._snapshots[job.document_id]
+        service._snapshots[job.document_id] = snapshot.model_copy(
+            update={
+                "dimension_styles": ("Standard",),
+                "text_styles": ("Standard",),
+            }
+        )
+
+        report = service.validate(job.job_id, ValidationStage.PRE_COMMIT)
+
+        assert report.has_blocking
+        assert {
+            finding.rule_id for finding in report.findings if finding.rule_id.startswith("LIVE_")
+        } == {"LIVE_DIMSTYLE_MISSING", "LIVE_TEXTSTYLE_MISSING"}
+        assert not report.gate_allows_commit()
+
     def test_plan_hash_is_reproducible_across_jobs(
         self, service: HarnessService, base_plate_spec: dict[str, Any]
     ) -> None:

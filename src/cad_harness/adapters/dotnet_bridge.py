@@ -203,7 +203,7 @@ def _validate_response_envelope(
     if not isinstance(response, dict):
         raise ComCallFailedError(
             "Bridge response envelope must be an object",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     if set(response) - _RESPONSE_FIELDS or not {
@@ -213,19 +213,19 @@ def _validate_response_envelope(
     } <= set(response):
         raise ComCallFailedError(
             "Bridge response contains missing or unknown envelope fields",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     if response.get("schema_version") != SCHEMA_VERSION or response.get("request_id") != request_id:
         raise UnsupportedSchemaVersionError(
             "Bridge response did not match the request and schema contract",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     if not isinstance(response["request_id"], str) or not 1 <= len(response["request_id"]) <= 64:
         raise ComCallFailedError(
             "Bridge returned an invalid response request identifier",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     status = response["status"]
@@ -242,21 +242,21 @@ def _validate_response_envelope(
     ):
         raise ComCallFailedError(
             "Bridge returned invalid response capabilities",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     if status == "ok":
         if "error" in response or not isinstance(response.get("data"), dict):
             raise ComCallFailedError(
                 "Bridge returned an invalid successful response shape",
-                required_action="Install a bridge version matching schema 1.10",
+                required_action="Install a bridge version matching schema 1.12",
                 details={"method": method},
             )
         return response
     if "data" in response or not isinstance(response.get("error"), dict):
         raise ComCallFailedError(
             "Bridge returned an invalid error response shape",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     error_payload = response["error"]
@@ -275,7 +275,7 @@ def _validate_response_envelope(
     ):
         raise ComCallFailedError(
             "Bridge returned an invalid error object",
-            required_action="Install a bridge version matching schema 1.10",
+            required_action="Install a bridge version matching schema 1.12",
             details={"method": method},
         )
     return response
@@ -559,13 +559,13 @@ class DotNetBridgeAdapter(BaseAdapter):
         if data_fields - _HANDSHAKE_DATA_FIELDS or not data_fields >= _HANDSHAKE_REQUIRED_FIELDS:
             raise ComCallFailedError(
                 "Bridge handshake data contains missing or unknown fields",
-                required_action="Install a bridge version matching schema 1.10",
+                required_action="Install a bridge version matching schema 1.12",
                 details={"method": "handshake"},
             )
         if data.get("schema_version") != SCHEMA_VERSION:
             raise UnsupportedSchemaVersionError(
                 "Bridge handshake did not negotiate the exact client schema",
-                required_action="Install a bridge version matching schema 1.10",
+                required_action="Install a bridge version matching schema 1.12",
                 details={"required_schema_version": SCHEMA_VERSION},
             )
         raw_capabilities = data.get("capabilities")
@@ -585,7 +585,7 @@ class DotNetBridgeAdapter(BaseAdapter):
             if value is not None and (not isinstance(value, str) or not value or len(value) > 128):
                 raise ComCallFailedError(
                     "Bridge handshake returned invalid application metadata",
-                    required_action="Install a bridge version matching schema 1.10",
+                    required_action="Install a bridge version matching schema 1.12",
                     details={"method": "handshake"},
                 )
         try:
@@ -637,14 +637,14 @@ class DotNetBridgeAdapter(BaseAdapter):
             if set(data) != _STATUS_DATA_FIELDS:
                 raise ComCallFailedError(
                     "Bridge returned an invalid status response shape",
-                    required_action="Install a bridge version matching schema 1.10",
+                    required_action="Install a bridge version matching schema 1.12",
                     details={"method": "status"},
                 )
             available = data["available"]
             if not isinstance(available, bool):
                 raise ComCallFailedError(
                     "Bridge returned an invalid status availability flag",
-                    required_action="Install a bridge version matching schema 1.10",
+                    required_action="Install a bridge version matching schema 1.12",
                     details={"method": "status"},
                 )
             for field in ("cad_application", "cad_version"):
@@ -652,7 +652,7 @@ class DotNetBridgeAdapter(BaseAdapter):
                 if not isinstance(value, str) or not value or len(value) > 128:
                     raise ComCallFailedError(
                         "Bridge returned invalid typed status data",
-                        required_action="Install a bridge version matching schema 1.10",
+                        required_action="Install a bridge version matching schema 1.12",
                         details={"method": "status"},
                     )
             for field, maximum in (("active_document_id", 128), ("message", 512)):
@@ -660,7 +660,7 @@ class DotNetBridgeAdapter(BaseAdapter):
                 if value is not None and (not isinstance(value, str) or len(value) > maximum):
                     raise ComCallFailedError(
                         "Bridge returned invalid typed status data",
-                        required_action="Install a bridge version matching schema 1.10",
+                        required_action="Install a bridge version matching schema 1.12",
                         details={"method": "status"},
                     )
             return AdapterStatus(
@@ -719,7 +719,7 @@ class DotNetBridgeAdapter(BaseAdapter):
         if not isinstance(valid, bool):
             raise ComCallFailedError(
                 "Bridge returned an invalid revision validation result",
-                required_action="Install a bridge version matching schema 1.10",
+                required_action="Install a bridge version matching schema 1.12",
             )
         return valid
 
@@ -773,7 +773,7 @@ class DotNetBridgeAdapter(BaseAdapter):
             return model_type.model_validate(data)
         except ValidationError as error:
             raise ComCallFailedError(
-                "Bridge returned data that does not match schema 1.10",
+                "Bridge returned data that does not match schema 1.12",
                 required_action="Install a bridge version matching the Python contract",
                 details={"model": model_type.__name__},
             ) from error
