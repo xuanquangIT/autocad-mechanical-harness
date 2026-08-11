@@ -48,7 +48,7 @@ cad-harness-desktop = "apps.engineer_desktop.__main__:main"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3.3,<9",
+    "pytest>=8.3.3,<10",
     "pytest-cov>=6.0.0,<8",
     "hypothesis>=6.115.0,<7",
     "PySide6>=6.8.0,<7",
