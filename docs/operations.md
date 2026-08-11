@@ -36,7 +36,7 @@ The settings that matter most:
 | `fake` | tests, CI, demos | to memory only |
 | `dxf_preview` | preview development, no CAD installed | no |
 | `com` | MVP pilot on a real drawing | yes, without transaction guarantees |
-| `dotnet_bridge` | production (Phase 5) | not implemented |
+| `dotnet_bridge` | transactional pilot and approved deployment path | yes; signed release and broader version acceptance remain open |
 
 Before switching to `com`: AutoCAD running, the target drawing open, same Windows user
 session, and a scratch drawing rather than a live one for the first run.

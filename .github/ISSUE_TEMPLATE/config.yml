@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and design discussions
+    url: https://github.com/xuanquangIT/autocad-mechanical-harness/discussions
+    about: Ask setup questions or discuss an idea before opening an implementation issue.
+  - name: Security vulnerability
+    url: https://github.com/xuanquangIT/autocad-mechanical-harness/security/advisories/new
+    about: Report vulnerabilities privately. Do not create a public issue.

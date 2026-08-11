@@ -1,0 +1,67 @@
+name: Bug report
+description: Report reproducible behavior that violates a documented contract or safety rule
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Use synthetic data only. Do not upload customer drawings, private paths, credentials, or approval tokens.
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      description: Commit SHA, tag, or branch where the problem occurs.
+    validations:
+      required: true
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter
+      options:
+        - fake
+        - dxf_preview
+        - com
+        - dotnet_bridge
+        - not adapter-specific
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, and AutoCAD version if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Sanitized steps, command, and smallest synthetic fixture needed to reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Include the contract, invariant, or documented result you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include stable error codes and sanitized output; remove stack traces containing private paths.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed customer data, proprietary drawings, secrets, tokens, and private paths.
+          required: true
+        - label: Any live AutoCAD test used an explicitly approved disposable drawing.
+          required: true
