@@ -82,6 +82,90 @@ public sealed class BridgeRequestRouterTests
     }
 
     [Fact]
+    public void ExpiredRollbackApprovalRequiresExactRecordedAttemptProof()
+    {
+        const string secret = "cross-language-rollback-secret";
+        var expiry = new DateTimeOffset(2030, 1, 1, 0, 15, 0, TimeSpan.Zero);
+        var proofCalls = 0;
+
+        Assert.True(BridgeAuthorization.TryValidateRollbackRecoveryAuthorization(
+            CrossLanguageRollbackApprovalToken,
+            secret,
+            "job_rollback_1",
+            "doc_rollback_1",
+            "checkpoint_fixed",
+            "sha256:current-revision",
+            expiry.AddTicks(1),
+            claims =>
+            {
+                proofCalls++;
+                return claims.ApprovalId == "rollback_approval_fixed";
+            },
+            out var claims));
+        Assert.NotNull(claims);
+        Assert.Equal(1, proofCalls);
+
+        Assert.False(BridgeAuthorization.TryValidateRollbackRecoveryAuthorization(
+            CrossLanguageRollbackApprovalToken,
+            secret,
+            "job_rollback_1",
+            "doc_rollback_1",
+            "checkpoint_fixed",
+            "sha256:current-revision",
+            expiry.AddTicks(1),
+            _ => false,
+            out _));
+
+        var beforeRejectedTokens = proofCalls;
+        Assert.False(BridgeAuthorization.TryValidateRollbackRecoveryAuthorization(
+            CrossLanguageRollbackApprovalToken,
+            secret,
+            "job_rollback_1-changed",
+            "doc_rollback_1",
+            "checkpoint_fixed",
+            "sha256:current-revision",
+            expiry.AddTicks(1),
+            _ =>
+            {
+                proofCalls++;
+                return true;
+            },
+            out _));
+        var parts = CrossLanguageRollbackApprovalToken.Split('.');
+        Assert.False(BridgeAuthorization.TryValidateRollbackRecoveryAuthorization(
+            $"rb1.{parts[1]}.{parts[2][..^1]}0",
+            secret,
+            "job_rollback_1",
+            "doc_rollback_1",
+            "checkpoint_fixed",
+            "sha256:current-revision",
+            expiry.AddTicks(1),
+            _ =>
+            {
+                proofCalls++;
+                return true;
+            },
+            out _));
+        Assert.Equal(beforeRejectedTokens, proofCalls);
+
+        Assert.False(BridgeAuthorization.TryValidateRollbackRecoveryAuthorization(
+            CrossLanguageRollbackApprovalToken,
+            secret,
+            "job_rollback_1",
+            "doc_rollback_1",
+            "checkpoint_fixed",
+            "sha256:current-revision",
+            expiry,
+            _ =>
+            {
+                proofCalls++;
+                return true;
+            },
+            out _));
+        Assert.Equal(beforeRejectedTokens, proofCalls);
+    }
+
+    [Fact]
     public void RollbackApprovalFailsClosedForNamespaceSignatureAndScopeMismatch()
     {
         const string secret = "cross-language-rollback-secret";
@@ -340,7 +424,7 @@ public sealed class BridgeRequestRouterTests
                         ["checkpoint_id"] = "checkpoint-1",
                         ["current_revision"] = "sha256:current",
                         ["rollback_approval_token"] = "rb1.opaque.signature",
-                        ["undo_group"] = null,
+                        ["undo_group"] = "undo-group-typed",
                     },
                     jobId: "job-typed"),
                 token)).Status);
@@ -394,7 +478,7 @@ public sealed class BridgeRequestRouterTests
                 "checkpoint-1",
                 "sha256:current",
                 "rb1.opaque.signature",
-                null),
+                "undo-group-typed"),
             Assert.IsType<RollbackHostRequest>(host.Calls[6].Request));
         Assert.Equal(
             new ExportHostRequest("doc-1", "dxf", "C:/approved/out.dxf", false),
@@ -532,8 +616,98 @@ public sealed class BridgeRequestRouterTests
     }
 
     [Theory]
+    [InlineData(null, "checkpoint_restore")]
+    [InlineData("undo-group-1", "rollback_undo_group")]
+    public async Task RollbackSelectsCapabilityAfterParsingUndoGroup(
+        string? undoGroup,
+        string requiredCapability)
+    {
+        var host = new FakeBridgeHost(new BridgeHostDescriptor(
+            "AutoCAD",
+            "25.1",
+            [requiredCapability],
+            []));
+        var envelope = new JsonObject
+        {
+            ["schema_version"] = "1.12",
+            ["method"] = "rollback",
+            ["request_id"] = "request-rollback-route",
+            ["params"] = RollbackParameters("job-rollback-route", undoGroup),
+            ["job_id"] = "job-rollback-route",
+            ["idempotency_key"] = null,
+        };
+
+        var result = await new BridgeRequestRouter(host).HandleAsync(
+            JsonSerializer.SerializeToElement(envelope),
+            CancellationToken.None);
+
+        Assert.Equal(IpcResponseStatus.Ok, result.Status);
+        var call = Assert.Single(host.Calls);
+        Assert.Equal("rollback", call.Route);
+        Assert.Equal(
+            new RollbackHostRequest(
+                "job-rollback-route",
+                "doc-1",
+                "checkpoint-1",
+                "sha256:current",
+                "rb1.opaque.signature",
+                undoGroup),
+            Assert.IsType<RollbackHostRequest>(call.Request));
+    }
+
+    [Theory]
+    [InlineData(null, "rollback_undo_group")]
+    [InlineData("undo-group-1", "checkpoint_restore")]
+    public async Task RollbackMissingSelectedCapabilityNeverCallsHost(
+        string? undoGroup,
+        string otherCapability)
+    {
+        var host = new FakeBridgeHost(new BridgeHostDescriptor(
+            "AutoCAD",
+            "25.1",
+            [otherCapability],
+            []));
+
+        var result = await new BridgeRequestRouter(host).HandleAsync(
+            Request(
+                "rollback",
+                RollbackParameters("job-rollback-missing-capability", undoGroup),
+                jobId: "job-rollback-missing-capability"),
+            CancellationToken.None);
+
+        Assert.Equal(IpcResponseStatus.Rejected, result.Status);
+        Assert.Equal("ADAPTER_CAPABILITY_MISSING", result.Error!.Code);
+        Assert.Empty(host.Calls);
+    }
+
+    [Theory]
+    [InlineData("wrong-envelope-job", "undo-group-1")]
+    [InlineData("job-rollback-invalid", 42)]
+    public async Task InvalidRollbackBindingOrUndoGroupIsRejectedBeforeCapabilityOrHost(
+        string envelopeJobId,
+        object undoGroup)
+    {
+        var host = new FakeBridgeHost(new BridgeHostDescriptor(
+            "AutoCAD",
+            "25.1",
+            [],
+            []));
+        var parameters = RollbackParameters("job-rollback-invalid", "undo-group-1");
+        parameters["undo_group"] = JsonValue.Create(undoGroup);
+
+        var result = await new BridgeRequestRouter(host).HandleAsync(
+            Request("rollback", parameters, jobId: envelopeJobId),
+            CancellationToken.None);
+
+        Assert.Equal(IpcResponseStatus.Rejected, result.Status);
+        Assert.Equal("INVALID_FEATURE_PARAMETERS", result.Error!.Code);
+        Assert.Empty(host.Calls);
+    }
+
+    [Theory]
     [InlineData(BridgeHostOutcome.StaleDocumentRevision, IpcResponseStatus.Conflict, "STALE_DOCUMENT_REVISION", "Read the document again and compile a new plan.", false)]
     [InlineData(BridgeHostOutcome.UnknownCommitState, IpcResponseStatus.Failed, "UNKNOWN_COMMIT_STATE", "Reconcile the job before any further commit attempt.", false)]
+    [InlineData(BridgeHostOutcome.RollbackRecoveryRequired, IpcResponseStatus.Failed, "ROLLBACK_RECOVERY_REQUIRED", "Retry the exact rollback with its original in-memory approval and scope.", true)]
     [InlineData(BridgeHostOutcome.Conflict, IpcResponseStatus.Conflict, "WRITER_LEASE_CONFLICT", null, true)]
     [InlineData(BridgeHostOutcome.IdempotencyKeyReused, IpcResponseStatus.Conflict, "IDEMPOTENCY_KEY_REUSED", null, false)]
     [InlineData(BridgeHostOutcome.Failed, IpcResponseStatus.Failed, "COM_CALL_FAILED", null, false)]
@@ -669,6 +843,16 @@ public sealed class BridgeRequestRouterTests
             ["approval_token"] = "approval-1",
             ["create_checkpoint"] = true,
         };
+
+    private static JsonObject RollbackParameters(string jobId, string? undoGroup) => new()
+    {
+        ["job_id"] = jobId,
+        ["document_id"] = "doc-1",
+        ["checkpoint_id"] = "checkpoint-1",
+        ["current_revision"] = "sha256:current",
+        ["rollback_approval_token"] = "rb1.opaque.signature",
+        ["undo_group"] = undoGroup,
+    };
 
     private static JsonObject SemanticParameters(
         string responseContract,

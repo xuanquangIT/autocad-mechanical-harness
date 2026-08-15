@@ -269,3 +269,72 @@ def test_audit_ignores_circle_path_endpoint_touch_but_reports_a_crossing() -> No
     assert all(
         finding.rule_id != "OVERLAPPING_ENTITY" for finding in boundary_inside_report.findings
     )
+
+
+def test_circular_part_outline_is_not_misclassified_as_a_hole_ligament() -> None:
+    profile = load_profile("demo-profile")
+
+    def circle(ref: str, center: tuple[float, float], radius: float) -> EntityRecord:
+        x, y = center
+        return EntityRecord(
+            entity_ref=ref,
+            entity_type="AcDbCircle",
+            layer="OBJECT",
+            visible=True,
+            space="model",
+            geometry=CircleGeometry(center_mm=center, radius_mm=radius),
+            bounding_box_mm=(x - radius, y - radius, x + radius, y + radius),
+        )
+
+    model = _model().model_copy(
+        update={
+            "entities": (
+                circle("outer", (0.0, 0.0), 100.0),
+                circle("hole-a", (-30.0, 0.0), 8.0),
+                circle("hole-b", (30.0, 0.0), 8.0),
+            )
+        }
+    )
+    report = DrawingAuditService(store=RecordingAuditStore(), audit=InMemoryAuditSink()).audit(
+        model, profile=profile, tolerance=profile.tolerance()
+    )
+
+    assert all(finding.rule_id != "HOLE_LIGAMENT_MIN" for finding in report.findings)
+
+
+def test_containing_circle_is_never_reported_as_a_negative_hole_ligament() -> None:
+    profile = load_profile("demo-profile")
+
+    def circle(ref: str, center: tuple[float, float], radius: float) -> EntityRecord:
+        x, y = center
+        return EntityRecord(
+            entity_ref=ref,
+            entity_type="AcDbCircle",
+            layer="OBJECT",
+            visible=True,
+            space="model",
+            geometry=CircleGeometry(center_mm=center, radius_mm=radius),
+            bounding_box_mm=(x - radius, y - radius, x + radius, y + radius),
+        )
+
+    model = _model().model_copy(
+        update={
+            "entities": (
+                circle("part-boundary", (0.0, 0.0), 100.0),
+                circle("contained-hole", (75.0, 0.0), 8.0),
+                circle("peer-hole", (-75.0, 0.0), 8.0),
+            )
+        }
+    )
+
+    report = DrawingAuditService(store=RecordingAuditStore(), audit=InMemoryAuditSink()).audit(
+        model, profile=profile, tolerance=profile.tolerance()
+    )
+
+    assert all(
+        not (
+            finding.rule_id == "HOLE_LIGAMENT_MIN"
+            and float(finding.actual.get("ligament_mm", 0.0)) < 0.0
+        )
+        for finding in report.findings
+    )

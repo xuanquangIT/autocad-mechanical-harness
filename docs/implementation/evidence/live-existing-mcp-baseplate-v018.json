@@ -1,0 +1,60 @@
+{
+  "attached_existing_document": true,
+  "export": {
+    "bytes": 55781,
+    "format": "dwg",
+    "sha256": "2923611c8b2e9c471354a27e381696a1860b4e13dd158ecbacb019f3263dbdeb"
+  },
+  "input_spec_sha256": "47da1970e9e21ca8e798eb0c1f2d82197be7150bba5b9259cf11058d58b9acd2",
+  "mcp_transport": "stdio",
+  "production_evidence": false,
+  "real_autocad_evidence": true,
+  "schema_version": "1.0",
+  "workflow": {
+    "adapter": {
+      "active_document_id": "doc_5FC9962FF5F4C8D50A66E1A366",
+      "adapter_type": "com",
+      "available": true,
+      "cad_application": "AutoCAD.Application",
+      "cad_version": "26.0s (LMS Tech)",
+      "capabilities": [
+        "commit",
+        "export",
+        "inspect_document",
+        "inspect_selection"
+      ],
+      "message": null,
+      "version_supported": true
+    },
+    "approval_id": "approval_01M02KE3A38Y0B4JMKYQ5EMQ7A",
+    "commit": {
+      "checkpoint_present": false,
+      "entity_count": 5,
+      "new_revision": "sha256:a5d508f5695b796f5d0f70c552fff7b48c9636354ffa0cf2b128d3b253e03539",
+      "status": "committed"
+    },
+    "document": {
+      "display_name": "Drawing1.dwg",
+      "document_id": "doc_5FC9962FF5F4C8D50A66E1A366",
+      "entity_count_after": 5,
+      "entity_count_before": 0,
+      "revision_after": "sha256:a5d508f5695b796f5d0f70c552fff7b48c9636354ffa0cf2b128d3b253e03539",
+      "revision_before": "sha256:2eb3cf16ec65c46b8f7aa9e1c5f2779bf2697e75ecfce54e834e07e67ecb1b92"
+    },
+    "export": {
+      "document_id": "doc_E4E2FF8EDE1CF44D11A8234EAB",
+      "format": "dwg",
+      "path_redacted": true,
+      "schema_version": "1.12"
+    },
+    "job_id": "job_01M02KE33S9PWBFD4F5HC8KQRB",
+    "operation_count": 2,
+    "plan_hash": "sha256:71e285b0fe87004f32e30c6a2d95fc1cd04367fdbdc5a6545ecf59a13a420462",
+    "preview_artifact_count": 2,
+    "tool_count": 22,
+    "validation": {
+      "blocking_count": 0,
+      "error_count": 0
+    }
+  }
+}

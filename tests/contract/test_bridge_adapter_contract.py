@@ -19,6 +19,7 @@ from cad_harness.domain.errors import (
     AdapterCapabilityMissingError,
     ComCallFailedError,
     IpcTimeoutError,
+    RollbackRecoveryRequiredError,
     StaleDocumentRevisionError,
     UnknownCommitStateError,
     UnsupportedSchemaVersionError,
@@ -197,6 +198,7 @@ def test_status_maps_live_bridge_fields_and_unavailable_status_never_throws() ->
     assert status.cad_application == "AutoCAD Mechanical"
     assert status.cad_version == "25.1"
     assert status.active_document_id == "doc_live"
+    assert status.process_id is None
     assert status.capabilities
     assert [call[0]["method"] for call in available_transport.calls] == ["handshake", "status"]
 
@@ -212,6 +214,28 @@ def test_status_maps_live_bridge_fields_and_unavailable_status_never_throws() ->
     assert unavailable.capabilities == ()
     assert "Start AutoCAD" in str(unavailable.message)
     assert "AdapterCapabilityMissingError" in str(unavailable.message)
+
+
+def test_status_reports_the_authenticated_named_pipe_server_process() -> None:
+    transport = FakeTransport(
+        [
+            _handshake(),
+            _ok(
+                {
+                    "available": True,
+                    "cad_application": "AutoCAD Mechanical",
+                    "cad_version": "26.0",
+                    "active_document_id": "doc_live",
+                    "message": "Ready",
+                }
+            ),
+        ]
+    )
+    transport.last_server_process_id = 9260
+
+    status = DotNetBridgeAdapter(transport=transport).status()
+
+    assert status.process_id == 9260
 
 
 @pytest.mark.parametrize("available", ["false", 0, 1, None])
@@ -268,16 +292,41 @@ def test_commit_capability_requires_every_atomic_write_guarantee() -> None:
     assert adapter.capabilities == frozenset()
 
 
-def test_rollback_requires_session_undo_capability_not_checkpoint_restore() -> None:
+def test_rollback_with_session_receipt_requires_undo_capability() -> None:
     capabilities = [
         capability.value
         for capability in DotNetBridgeAdapter.PRODUCTION_CAPABILITIES
         if capability is not AdapterCapability.ROLLBACK_UNDO_GROUP
     ]
-    capabilities.append(AdapterCapability.CHECKPOINT_RESTORE.value)
-    adapter = DotNetBridgeAdapter(transport=FakeTransport([_handshake(capabilities=capabilities)]))
+    transport = FakeTransport([_handshake(capabilities=capabilities)])
+    adapter = DotNetBridgeAdapter(transport=transport)
 
     with pytest.raises(AdapterCapabilityMissingError) as caught:
+        adapter.rollback(
+            RollbackRequest(
+                job_id="job_1",
+                document_id="doc_1",
+                checkpoint_id="checkpoint_1",
+                current_revision="sha256:current",
+                rollback_approval_token="rb1.opaque.signature",
+                undo_group="undo-exact-session",
+            )
+        )
+
+    assert "does not support 'rollback_undo_group'" in str(caught.value)
+    assert [call[0]["method"] for call in transport.calls] == ["handshake"]
+
+
+def test_rollback_without_session_receipt_requires_checkpoint_restore() -> None:
+    capabilities = [
+        capability.value
+        for capability in DotNetBridgeAdapter.PRODUCTION_CAPABILITIES
+        if capability is not AdapterCapability.CHECKPOINT_RESTORE
+    ]
+    transport = FakeTransport([_handshake(capabilities=capabilities)])
+    adapter = DotNetBridgeAdapter(transport=transport)
+
+    with pytest.raises(AdapterCapabilityMissingError):
         adapter.rollback(
             RollbackRequest(
                 job_id="job_1",
@@ -288,8 +337,42 @@ def test_rollback_requires_session_undo_capability_not_checkpoint_restore() -> N
             )
         )
 
-    assert "outside the production contract" in str(caught.value)
-    assert [call[0]["method"] for call in adapter._transport.calls] == ["handshake"]
+    assert [call[0]["method"] for call in transport.calls] == ["handshake"]
+
+
+def test_checkpoint_restore_routes_only_when_capability_is_advertised() -> None:
+    capabilities = [capability.value for capability in DotNetBridgeAdapter.PRODUCTION_CAPABILITIES]
+    transport = FakeTransport(
+        [
+            _handshake(capabilities=capabilities),
+            _ok(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "job_id": "job_1",
+                    "restored_revision": "sha256:restored",
+                    "checkpoint_id": "checkpoint_1",
+                    "method": "checkpoint_restore",
+                }
+            ),
+        ]
+    )
+    adapter = DotNetBridgeAdapter(transport=transport)
+
+    result = adapter.rollback(
+        RollbackRequest(
+            job_id="job_1",
+            document_id="doc_1",
+            checkpoint_id="checkpoint_1",
+            current_revision="sha256:current",
+            rollback_approval_token="rb1.opaque.signature",
+        )
+    )
+
+    assert result.method == "checkpoint_restore"
+    assert [call[0]["method"] for call in transport.calls] == [
+        "handshake",
+        "rollback",
+    ]
 
 
 def test_rollback_rejects_unrecognised_recovery_method() -> None:
@@ -318,6 +401,7 @@ def test_rollback_rejects_unrecognised_recovery_method() -> None:
                 checkpoint_id="checkpoint_1",
                 current_revision="sha256:current",
                 rollback_approval_token="rb1.opaque.signature",
+                undo_group="undo-exact-session",
             )
         )
 
@@ -430,6 +514,7 @@ def test_every_adapter_method_maps_exact_request_and_typed_response() -> None:
                 checkpoint_id="checkpoint_1",
                 current_revision="sha256:current",
                 rollback_approval_token="rb1.opaque.signature",
+                undo_group="CADHARNESS_job_1",
             )
         ).restored_revision
         == "sha256:restored"
@@ -492,6 +577,34 @@ def test_remote_known_error_maps_type_and_strips_sensitive_details() -> None:
         "actual_revision": "sha256:new",
     }
     assert caught.value.retryable is False
+
+
+def test_typed_durable_recovery_error_is_retryable_and_never_generic() -> None:
+    response = {
+        "schema_version": SCHEMA_VERSION,
+        "request_id": "ignored",
+        "status": "failed",
+        "error": {
+            "code": "ROLLBACK_RECOVERY_REQUIRED",
+            "message": "Exact journal retry required",
+            "retryable": True,
+            "required_action": "Retry the exact rollback",
+        },
+    }
+    adapter = DotNetBridgeAdapter(transport=FakeTransport([_handshake(), response]))
+
+    with pytest.raises(RollbackRecoveryRequiredError) as caught:
+        adapter.rollback(
+            RollbackRequest(
+                job_id="job-recovery",
+                document_id="doc-recovery",
+                checkpoint_id="checkpoint-recovery",
+                current_revision="sha256:post",
+                rollback_approval_token="rb1.opaque.signature",
+            )
+        )
+
+    assert caught.value.retryable is True
 
 
 @pytest.mark.parametrize(

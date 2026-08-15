@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from cad_harness.annotation.engine import AnnotationEngine
 from cad_harness.company_rules.loader import CompanyProfile
-from cad_harness.domain.errors import AdapterCapabilityMissingError
+from cad_harness.domain.errors import AdapterCapabilityMissingError, InvalidFeatureParametersError
 from cad_harness.domain.models.drawing_spec import (
     Assumption,
     DefaultRecord,
@@ -78,6 +78,7 @@ class PlanCompilerService:
             tolerance=self.tolerance,
             datum=self._resolve_datum(spec),
         )
+        self._reject_redundant_standalone_keyways(spec)
 
         # Pass 1: collect every missing input so the client can fix them in one round trip.
         missing: list[MissingInput] = []
@@ -159,6 +160,53 @@ class PlanCompilerService:
             defaults_applied=defaults,
             assumptions=assumptions,
         )
+
+    def _reject_redundant_standalone_keyways(self, spec: DrawingSpec) -> None:
+        """A keyed flange owns one bore contour; a second standalone contour is ambiguous."""
+        flanges = tuple(feature for feature in spec.features if feature.type == "flange")
+        keyways = tuple(feature for feature in spec.features if feature.type == "keyway")
+        for flange in flanges:
+            flange_center = self._parameter_point(flange.parameters.get("datum"))
+            flange_bore = self._parameter_number(flange.parameters.get("bore_diameter_mm"))
+            if flange_center is None or flange_bore is None:
+                continue
+            for keyway in keyways:
+                keyway_center = self._parameter_point(keyway.parameters.get("center_mm"))
+                keyway_bore = self._parameter_number(keyway.parameters.get("bore_diameter_mm"))
+                if keyway_center is None or keyway_bore is None:
+                    continue
+                if not self.tolerance.length_close(flange_bore, keyway_bore):
+                    continue
+                if not self.tolerance.is_coincident(flange_center.distance_to(keyway_center)):
+                    continue
+                raise InvalidFeatureParametersError(
+                    "A standalone keyway duplicates this flange bore contour",
+                    required_action=(
+                        "Put keyway_width_mm and keyway_depth_mm on the flange, then remove "
+                        "the standalone keyway feature"
+                    ),
+                    details={
+                        "flange_feature_id": flange.feature_id,
+                        "keyway_feature_id": keyway.feature_id,
+                    },
+                )
+
+    @staticmethod
+    def _parameter_number(value: object) -> float | None:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return None
+        return float(value)
+
+    @staticmethod
+    def _parameter_point(value: object) -> Point2D | None:
+        if not isinstance(value, (list, tuple)) or len(value) != 2:
+            return None
+        x, y = value
+        if not isinstance(x, (int, float)) or isinstance(x, bool):
+            return None
+        if not isinstance(y, (int, float)) or isinstance(y, bool):
+            return None
+        return Point2D(float(x), float(y))
 
     def preflight(self, plan: OperationPlan) -> None:
         """Reject an incomplete write mapping before preview or job state advancement."""

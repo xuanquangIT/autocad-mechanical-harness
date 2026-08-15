@@ -63,9 +63,13 @@ function Get-DotNetExecutable {
         $candidates.Add($bundledSdk)
     }
 
-    $command = Get-Command 'dotnet' -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
-        $candidates.Add($command.Source)
+    $commands = @(
+        Get-Command 'dotnet' -CommandType Application -All -ErrorAction SilentlyContinue
+    )
+    foreach ($command in $commands) {
+        if (-not [string]::IsNullOrWhiteSpace($command.Source)) {
+            $candidates.Add($command.Source)
+        }
     }
 
     foreach ($candidate in $candidates | Select-Object -Unique) {

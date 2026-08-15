@@ -166,6 +166,12 @@ class Win32NamedPipeDriver:
         self._cancel_io_ex: Any = kernel32.CancelIoEx
         self._cancel_io_ex.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
         self._cancel_io_ex.restype = ctypes.c_int
+        self._get_named_pipe_server_process_id: Any = kernel32.GetNamedPipeServerProcessId
+        self._get_named_pipe_server_process_id.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_ulong),
+        ]
+        self._get_named_pipe_server_process_id.restype = ctypes.c_int
         self._ctypes = ctypes
         self._pending: dict[int, list[_PendingIo]] = {}
 
@@ -337,6 +343,18 @@ class Win32NamedPipeDriver:
     def close(self, handle: object) -> None:
         self._win32file.CloseHandle(handle)
 
+    def server_process_id(self, handle: object) -> int:
+        """Return the exact process serving this connected pipe handle."""
+        value = self._ctypes.c_ulong()
+        if not self._get_named_pipe_server_process_id(
+            self._ctypes.c_void_p(int(cast(Any, handle))), self._ctypes.byref(value)
+        ):
+            error = self._ctypes.get_last_error()
+            raise OSError(error, "GetNamedPipeServerProcessId failed")
+        if value.value <= 0:
+            raise OSError("Named Pipe server returned an invalid process id")
+        return int(value.value)
+
 
 class NamedPipeTransport:
     """One-request-per-connection bridge transport with terminal cancellation."""
@@ -368,6 +386,7 @@ class NamedPipeTransport:
         self._cancellation_retry_seconds = cancellation_retry_seconds
         self._sleeper = sleeper
         self._max_frame_bytes = max_frame_bytes
+        self.last_server_process_id: int | None = None
 
     @staticmethod
     def _validate_local_pipe_name(pipe_name: str) -> None:
@@ -395,6 +414,7 @@ class NamedPipeTransport:
             raise ValueError("IPC request requires a non-empty request_id")
         if envelope.get("schema_version") != SCHEMA_VERSION:
             raise ValueError(f"IPC request schema_version must be {SCHEMA_VERSION}")
+        self.last_server_process_id = None
 
         request_frame = self._encode_checked(envelope)
         # FastMCP STDIO on Windows has already prestarted a bounded local broker. Route
@@ -410,6 +430,13 @@ class NamedPipeTransport:
             max_frame_bytes=self._max_frame_bytes,
         )
         if broker_result is not None:
+            server_process_id = broker_result.get("server_process_id")
+            if (
+                isinstance(server_process_id, int)
+                and not isinstance(server_process_id, bool)
+                and server_process_id > 0
+            ):
+                self.last_server_process_id = server_process_id
             return self._unwrap_broker_result(broker_result, request_id=request_id)
         driver = self._get_driver()
         deadline = self._clock() + timeout_seconds
@@ -417,6 +444,16 @@ class NamedPipeTransport:
         transport_stage = "connect"
         try:
             handle = driver.connect(self.pipe_name, deadline=deadline, clock=self._clock)
+            server_process_id_reader = getattr(driver, "server_process_id", None)
+            if callable(server_process_id_reader):
+                server_process_id = server_process_id_reader(handle)
+                if (
+                    not isinstance(server_process_id, int)
+                    or isinstance(server_process_id, bool)
+                    or server_process_id <= 0
+                ):
+                    raise OSError("Named Pipe server returned an invalid process id")
+                self.last_server_process_id = server_process_id
             self._check_deadline(deadline)
             transport_stage = "write"
             driver.write(handle, request_frame, deadline=deadline, clock=self._clock)

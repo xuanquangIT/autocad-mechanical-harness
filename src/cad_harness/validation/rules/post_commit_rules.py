@@ -83,17 +83,29 @@ class MeasurementMatchesExpectationRule:
 
             for key, expected_value in operation.expected.items():
                 if key not in entity.measurements:
+                    # Raster geometry has no independent design source beyond the
+                    # reviewed trace. Requirement 29.10 therefore makes actual CAD
+                    # readback the pass/fail authority instead of a capability warning.
+                    severity = (
+                        Severity.BLOCKING
+                        if operation.feature_id.startswith("raster-candidate-")
+                        else Severity.WARNING
+                    )
                     findings.append(
                         finding(
                             self.rule_id,
-                            Severity.WARNING,
+                            severity,
                             f"Adapter did not measure '{key}'",
                             feature_id=operation.feature_id,
                             operation_id=operation.operation_id,
                             entity_ref=entity.entity_ref,
                             expected=expected_value,
                             actual=None,
-                            suggested_fix="Declare the capability gap or implement the read-back",
+                            suggested_fix=(
+                                "Implement raster geometry read-back and reconcile the commit"
+                                if severity is Severity.BLOCKING
+                                else "Declare the capability gap or implement the read-back"
+                            ),
                         )
                     )
                     continue

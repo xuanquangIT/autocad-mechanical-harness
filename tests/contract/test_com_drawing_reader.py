@@ -18,7 +18,12 @@ from cad_harness.domain.models.document import (
     EntitySummary,
     SelectionSnapshot,
 )
-from cad_harness.domain.models.drawing_model import ReadScope
+from cad_harness.domain.models.drawing_model import (
+    CircleGeometry,
+    DrawingModel,
+    EntityRecord,
+    ReadScope,
+)
 from cad_harness.domain.ports.autocad_adapter import InspectRequest, SelectionRequest
 from cad_harness.domain.ports.drawing_source import (
     DrawingReadRequest,
@@ -46,6 +51,21 @@ class InspectionOnlyAdapter:
         return self.selection
 
 
+@dataclass(slots=True)
+class SemanticInspectionAdapter(InspectionOnlyAdapter):
+    model: DrawingModel = field(default_factory=lambda: _model())
+    semantic_deadline: object | None = None
+
+    def inspect_semantic_drawing(
+        self,
+        request: DrawingReadRequest,
+        deadline: object | None = None,
+    ) -> DrawingModel:
+        assert request.source.ref == self.model.document_id
+        self.semantic_deadline = deadline
+        return self.model
+
+
 def _document(*, entity_count: int = 2) -> DocumentSnapshot:
     return DocumentSnapshot(
         document_id=DOCUMENT_ID,
@@ -66,6 +86,30 @@ def _selection() -> SelectionSnapshot:
             EntitySummary(entity_ref="acad:handle:A1", entity_type="AcDbLine", layer="PART"),
             EntitySummary(entity_ref="acad:handle:B2", entity_type="AcDbCircle", layer="HOLE"),
         ),
+    )
+
+
+def _model() -> DrawingModel:
+    return DrawingModel(
+        document_id=DOCUMENT_ID,
+        revision=REVISION,
+        display_name="fixture.dwg",
+        source_unit_code="mm",
+        to_mm_factor=1.0,
+        geometry_normalized=True,
+        scope=ReadScope(),
+        entities=(
+            EntityRecord(
+                entity_ref="acad:handle:B2",
+                entity_type="AcDbCircle",
+                layer="HOLE",
+                visible=True,
+                space="model",
+                geometry=CircleGeometry(center_mm=(5.0, 5.0), radius_mm=2.0),
+                bounding_box_mm=(3.0, 3.0, 7.0, 7.0),
+            ),
+        ),
+        arc_chord_tolerance_mm=0.01,
     )
 
 
@@ -126,6 +170,20 @@ def test_com_reader_refuses_to_invent_detailed_geometry() -> None:
         "missing_capability": "semantic_geometry_read",
         "available_inspection": ["document_metadata", "active_selection_summary"],
     }
+    assert adapter.calls == []
+
+
+def test_com_reader_delegates_bounded_semantic_model_without_mutation() -> None:
+    adapter = SemanticInspectionAdapter(_document(), _selection())
+    reader = ComDrawingReader(adapter)
+    deadline = OperationDeadline(1.0, "read")
+
+    model = reader.read_cancellable(_request(ReadScope()), deadline)
+
+    assert model == adapter.model
+    assert model.revision == REVISION
+    assert model.entities[0].entity_ref == "acad:handle:B2"
+    assert adapter.semantic_deadline is deadline
     assert adapter.calls == []
 
 

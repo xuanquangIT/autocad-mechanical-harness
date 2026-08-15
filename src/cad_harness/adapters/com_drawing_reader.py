@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Protocol
+from collections.abc import Callable
+from typing import Protocol, cast
 
 from cad_harness.domain.errors import (
     AdapterCapabilityMissingError,
@@ -31,15 +32,20 @@ class _ComInspectionPort(Protocol):
 
     def inspect_selection(self, request: SelectionRequest) -> SelectionSnapshot: ...
 
+    def inspect_semantic_drawing(
+        self,
+        request: DrawingReadRequest,
+        deadline: CancellationTokenPort | None = None,
+    ) -> DrawingModel: ...
+
 
 class ComDrawingReader:
     """Expose only semantics the current ActiveX inspection contract can prove.
 
-    The COM adapter publishes document metadata and active-selection summaries, but
-    not entity geometry or bounding boxes.  This facade therefore returns honest,
-    incomplete summaries and refuses detailed models instead of manufacturing
-    geometry.  It cannot write because its dependency protocol contains read methods
-    only; COM imports remain confined to ``autocad_com.py``.
+    The COM adapter publishes document metadata, active-selection summaries and a
+    bounded model-space geometry subset. Unsupported geometry remains explicit and
+    is never manufactured. It cannot write because its dependency protocol contains
+    read methods only; COM imports remain confined to ``autocad_com.py``.
     """
 
     def __init__(self, adapter: _ComInspectionPort) -> None:
@@ -79,14 +85,29 @@ class ComDrawingReader:
         self._require_supported_source(request)
         if request.scope is None:
             raise ValueError("Detailed reads require an explicit scope; use summarize otherwise")
-        raise self._geometry_gap()
+        semantic_read = cast(
+            Callable[[DrawingReadRequest], DrawingModel] | None,
+            getattr(self._adapter, "inspect_semantic_drawing", None),
+        )
+        if not callable(semantic_read):
+            raise self._geometry_gap()
+        return semantic_read(request)
 
     def read_cancellable(
         self, request: DrawingReadRequest, deadline: CancellationTokenPort
     ) -> DrawingModel:
         deadline.checkpoint()
-        model = self.read(request)
-        deadline.checkpoint()  # pragma: no cover - ``read`` currently always refuses
+        self._require_supported_source(request)
+        if request.scope is None:
+            raise ValueError("Detailed reads require an explicit scope; use summarize otherwise")
+        semantic_read = cast(
+            Callable[[DrawingReadRequest, CancellationTokenPort], DrawingModel] | None,
+            getattr(self._adapter, "inspect_semantic_drawing", None),
+        )
+        if not callable(semantic_read):
+            raise self._geometry_gap()
+        model = semantic_read(request, deadline)
+        deadline.checkpoint()
         return model
 
     def _snapshot(self, document_id: str) -> DocumentSnapshot:
@@ -198,7 +219,7 @@ class ComDrawingReader:
     @staticmethod
     def _geometry_gap() -> AdapterCapabilityMissingError:
         return AdapterCapabilityMissingError(
-            "COM inspection does not expose bounded semantic geometry",
+            "This COM inspection port does not expose bounded semantic geometry",
             required_action="Use the .NET bridge or export a local DXF for semantic reading",
             details={
                 "adapter_type": "com",

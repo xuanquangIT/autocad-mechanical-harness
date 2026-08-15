@@ -98,6 +98,9 @@ class ReadSettings(_Section):
     #: How deep a block reference is followed. Children past this depth are counted only.
     max_block_nesting_depth: int = Field(default=3, ge=1, le=10)
     read_timeout_seconds: float = Field(default=20.0, gt=0.0, le=600.0)
+    #: Optional semantic reader independent of the write adapter. COM can therefore
+    #: keep its narrow write surface while the loaded bridge supplies bounded geometry.
+    semantic_adapter: Literal["auto", "dotnet_bridge"] = "auto"
 
 
 class TakeoffSettings(_Section):
@@ -208,6 +211,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, str]] = {
     "CAD_HARNESS_BRIDGE_MAX_REQUEST_BYTES": ("bridge", "max_request_bytes"),
     "CAD_HARNESS_BRIDGE_MAX_REQUEST_DEPTH": ("bridge", "max_request_depth"),
     "CAD_HARNESS_BRIDGE_IPC_TIMEOUT_SECONDS": ("bridge", "ipc_timeout_seconds"),
+    "CAD_HARNESS_READ_SEMANTIC_ADAPTER": ("read", "semantic_adapter"),
     "CAD_HARNESS_LOG_LEVEL": ("observability", "log_level"),
     "CAD_HARNESS_PILOT_RUN_ID": ("pilot", "run_id"),
 }

@@ -32,6 +32,7 @@ New decisions get their own file here: `NNN-short-title.md`.
 | 018 | Session-bound undo rollback and activity fence | [018-session-undo-rollback-fence.md](018-session-undo-rollback-fence.md) |
 | 019 | Schema 1.11: explicit cross-layer take-off contours | [019-explicit-takeoff-contours.md](019-explicit-takeoff-contours.md) |
 | 020 | Schema 1.12: remediation submission and restart evidence | [020-schema-1-12-remediation-submission.md](020-schema-1-12-remediation-submission.md) |
+| 021 | Trust-anchored production evidence attestations | [021-production-evidence-attestations.md](021-production-evidence-attestations.md) |
 
 ## Template
 

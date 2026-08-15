@@ -55,6 +55,9 @@ class BaseAdapter:
     capabilities: frozenset[AdapterCapability] = frozenset()
     supported_operations: frozenset[OperationType] = frozenset()
     job_store: JobStore | None = None
+    #: Only the real .NET bridge can hand an expired rb1 token to its authenticated
+    #: durable-restore journal.  COM, FakeCAD and session undo must remain false.
+    allows_expired_checkpoint_recovery: bool = False
 
     def bind_job_store(self, store: JobStore) -> None:
         """Bind persistence needed by operations that target previously mapped entities."""

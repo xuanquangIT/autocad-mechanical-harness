@@ -36,6 +36,7 @@ def build_adapter(
     pipe_name: str | None = None,
     timeout_seconds: float = 30.0,
     max_request_bytes: int = MAX_FRAME_BYTES,
+    write_enabled: bool = False,
 ) -> BaseAdapter:
     """Instantiate an adapter by name.
 
@@ -51,7 +52,7 @@ def build_adapter(
     if normalized == "com":
         from cad_harness.adapters.autocad_com import ComAutoCADAdapter
 
-        return ComAutoCADAdapter(autocad_prog_id)
+        return ComAutoCADAdapter(autocad_prog_id, write_enabled=write_enabled)
     if normalized == "dotnet_bridge":
         from cad_harness.adapters.dotnet_bridge import DEFAULT_PIPE_NAME
         from cad_harness.adapters.named_pipe_transport import resolve_current_user_pipe_name
@@ -66,6 +67,7 @@ def build_adapter(
             resolved_pipe_name,
             timeout_seconds=timeout_seconds,
             max_frame_bytes=max_request_bytes,
+            write_authorized=write_enabled,
         )
 
     raise ValueError(

@@ -1,21 +1,142 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import os
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
+import scripts.live_mcp_r26_acceptance as live_acceptance
 from scripts.live_mcp_r26_acceptance import (
+    DurableAcceptanceState,
     ProcessIdentity,
     TrackedProcess,
     _cleanup_acceptance_processes,
     _close_owned_session_preserving_failure,
+    _configure_acceptance_bundle_environment,
+    _configure_durable_restore_environment,
+    _durable_artifact_proof,
+    _run_durable_commit_session,
+    _run_durable_rollback_session,
     _run_remediation_acceptance,
+    _save_owned_active_dwg,
+    _save_owned_as_native_dwg,
     _track_acceptance_processes,
+    _trigger_owned_bridge_load,
     _wait_for_owned_com_readiness,
 )
 
 from cad_harness.adapters.autocad_com import ComAutoCADAdapter
+
+
+def test_acceptance_bundle_environment_is_workspace_exact_before_spawn(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    plugins_root = tmp_path / "data" / "live-r26" / "ApplicationPlugins"
+    bundle = plugins_root / "AutoCADHarness.bundle"
+    bundle.mkdir(parents=True)
+    monkeypatch.setattr(
+        live_acceptance,
+        "_workspace_acceptance_plugins_root",
+        lambda: plugins_root.resolve(strict=True),
+    )
+    monkeypatch.delenv("CAD_HARNESS_ACCEPTANCE_BUNDLE_ROOT", raising=False)
+
+    assert _configure_acceptance_bundle_environment() == bundle.resolve(strict=True)
+    assert os.environ["CAD_HARNESS_ACCEPTANCE_BUNDLE_ROOT"] == str(bundle.resolve(strict=True))
+
+    poisoned = tmp_path / "poisoned" / "AutoCADHarness.bundle"
+    poisoned.mkdir(parents=True)
+    monkeypatch.setenv("CAD_HARNESS_ACCEPTANCE_BUNDLE_ROOT", str(poisoned))
+    with pytest.raises(OSError, match="does not match the workspace install"):
+        _configure_acceptance_bundle_environment()
+
+
+def test_durable_restore_environment_is_explicit_and_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    case_root = (tmp_path / "case").resolve()
+    monkeypatch.setenv("CAD_HARNESS_DURABLE_RESTORE_VERIFIED", "1")
+
+    checkpoint_root = _configure_durable_restore_environment(case_root, enabled=False)
+
+    assert checkpoint_root == case_root / "bridge-checkpoints"
+    assert "CAD_HARNESS_DURABLE_RESTORE_VERIFIED" not in os.environ
+    assert os.environ["CAD_HARNESS_CHECKPOINT_ROOT"] == str(checkpoint_root)
+    assert os.environ["CAD_HARNESS_COMMIT_JOURNAL_ROOT"] == str(case_root / "commit-journal")
+
+    _configure_durable_restore_environment(case_root, enabled=True)
+    assert os.environ["CAD_HARNESS_DURABLE_RESTORE_VERIFIED"] == "1"
+
+
+def test_native_dwg_helpers_never_accept_or_save_a_different_document(tmp_path: Path) -> None:
+    target = tmp_path / "owned.dwg"
+
+    class _Document:
+        FullName = ""
+
+        def SaveAs(self, value: str) -> None:  # noqa: N802
+            Path(value).write_bytes(b"native-seed")
+            self.FullName = value
+
+        def Save(self) -> None:  # noqa: N802
+            Path(self.FullName).write_bytes(b"committed-native")
+
+    document = _Document()
+
+    class _Adapter:
+        def _require_document(self) -> Any:
+            return document
+
+    adapter = cast(ComAutoCADAdapter, _Adapter())
+    _save_owned_as_native_dwg(adapter, target)
+    assert target.read_bytes() == b"native-seed"
+    _save_owned_active_dwg(adapter, target)
+    assert target.read_bytes() == b"committed-native"
+
+    document.FullName = str(tmp_path / "different.dwg")
+    (tmp_path / "different.dwg").write_bytes(b"preexisting")
+    with pytest.raises(AssertionError, match="outside the durable acceptance target"):
+        _save_owned_active_dwg(adapter, target)
+
+
+def test_bridge_loader_uses_only_the_adapter_fixed_netload_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    command = '_.NETLOAD\n"D:\\workspace\\fixed\\AutoCADHarness.dll"\n'
+    monkeypatch.setattr(live_acceptance, "_expected_acceptance_netload_command", lambda: command)
+
+    class _Document:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, Any]] = []
+
+        def SetVariable(self, name: str, value: Any) -> None:  # noqa: N802
+            self.calls.append(("SetVariable", (name, value)))
+
+        def SendCommand(self, value: str) -> None:  # noqa: N802
+            self.calls.append(("SendCommand", value))
+
+    document = _Document()
+    application = type("Application", (), {"Visible": False})()
+
+    class _Adapter:
+        def require_owned_application(self) -> Any:
+            return application
+
+        def _require_document(self) -> Any:
+            return document
+
+    _trigger_owned_bridge_load(cast(ComAutoCADAdapter, _Adapter()))
+
+    assert application.Visible is True
+    assert document.calls == [
+        ("SetVariable", ("FILEDIA", 0)),
+        ("SendCommand", command),
+    ]
 
 
 class _McpResult:
@@ -295,6 +416,211 @@ def test_cleanup_leaves_unknown_concurrent_autocad_process_untouched() -> None:
 
     assert terminated == [200]
     assert adapter.active_pids == {100, 400}
+
+
+def _durable_status() -> dict[str, Any]:
+    return {
+        "adapter": {
+            "adapter_type": "dotnet_bridge",
+            "available": True,
+            "active_document_id": "doc-live",
+            "capabilities": ["inspect_document", "commit", "checkpoint_restore"],
+        }
+    }
+
+
+def _semantic_model(revision: str, entities: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "document_id": "doc-live",
+        "revision": revision,
+        "display_name": "owned.dwg",
+        "entities": entities,
+    }
+
+
+def test_durable_commit_session_captures_checkpoint_then_saves_without_leaking_token() -> None:
+    initial = _semantic_model("sha256:initial", [])
+    committed = _semantic_model("sha256:committed", [{"entity_ref": "new-1", "layer": "OBJECT"}])
+    transcript = [
+        ("cad_status", _durable_status()),
+        (
+            "cad_document_inspect",
+            {
+                "document_id": "doc-live",
+                "revision": "sha256:initial",
+                "display_name": "owned.dwg",
+                "path_hash": "sha256:path",
+            },
+        ),
+        ("cad_drawing_read", initial),
+        ("cad_job_create", {"job_id": "job-live", "expected_revision": "sha256:initial"}),
+        ("cad_spec_submit", {"plan_hash": "sha256:plan", "operation_count": 1}),
+        ("cad_preview", {"artifacts": []}),
+        ("cad_validate", {"commit_allowed": True}),
+        (
+            "cad_commit",
+            {
+                "status": "committed",
+                "checkpoint_id": "checkpoint-live",
+                "undo_group": "undo-session-a",
+                "new_revision": "sha256:committed",
+            },
+        ),
+        ("cad_drawing_read", committed),
+    ]
+    session = _TranscriptSession(transcript)
+    saves: list[str] = []
+
+    evidence, state = asyncio.run(
+        _run_durable_commit_session(
+            cast(Any, session),
+            spec={"features": [{"feature_type": "base_plate"}]},
+            case_name="durable",
+            expected_display_name="owned.dwg",
+            expected_path_hash="sha256:path",
+            approve_job=lambda *_args: ("approval-live", "secret-commit-token"),
+            persist_document=lambda: saves.append("saved"),
+        )
+    )
+
+    assert session.transcript == []
+    assert saves == ["saved"]
+    assert state == DurableAcceptanceState(
+        job_id="job-live",
+        document_id="doc-live",
+        checkpoint_id="checkpoint-live",
+        initial_revision="sha256:initial",
+        current_revision="sha256:committed",
+        initial_model=initial,
+    )
+    assert "secret-commit-token" not in json.dumps(evidence, sort_keys=True)
+
+
+def test_durable_rollback_session_uses_exact_rb1_and_requires_semantic_restore() -> None:
+    initial = _semantic_model("sha256:initial", [])
+    state = DurableAcceptanceState(
+        job_id="job-live",
+        document_id="doc-live",
+        checkpoint_id="checkpoint-live",
+        initial_revision="sha256:initial",
+        current_revision="sha256:committed",
+        initial_model=initial,
+    )
+    transcript = [
+        ("cad_status", _durable_status()),
+        (
+            "cad_rollback",
+            {
+                "job_id": "job-live",
+                "checkpoint_id": "checkpoint-live",
+                "restored_revision": "sha256:initial",
+                "method": "checkpoint_restore",
+            },
+        ),
+        (
+            "cad_document_inspect",
+            {
+                "document_id": "doc-live",
+                "revision": "sha256:initial",
+                "display_name": "owned.dwg",
+                "path_hash": "sha256:path",
+            },
+        ),
+        ("cad_drawing_read", initial),
+    ]
+    session = _TranscriptSession(transcript)
+
+    evidence = asyncio.run(
+        _run_durable_rollback_session(
+            cast(Any, session),
+            state=state,
+            rollback_approval_token="rb1.secret-rollback-token",
+            expected_display_name="owned.dwg",
+            expected_path_hash="sha256:path",
+        )
+    )
+
+    rollback_arguments = next(args for name, args in session.calls if name == "cad_rollback")
+    assert rollback_arguments == {
+        "job_id": "job-live",
+        "checkpoint_id": "checkpoint-live",
+        "current_revision": "sha256:committed",
+        "rollback_approval_token": "rb1.secret-rollback-token",
+    }
+    assert evidence["method"] == "checkpoint_restore"
+    assert "secret-rollback-token" not in json.dumps(evidence, sort_keys=True)
+
+
+def test_durable_artifact_proof_requires_consumed_catalog_and_clean_committed_journal(
+    tmp_path: Path,
+) -> None:
+    checkpoint_root = tmp_path / "bridge-checkpoints"
+    durable_root = checkpoint_root / "whole-dwg-checkpoints-v1"
+    journal_root = checkpoint_root / "whole-dwg-restore-journal-v1"
+    durable_root.mkdir(parents=True)
+    journal_root.mkdir()
+    target = tmp_path / "owned.dwg"
+    checkpoint = durable_root / "checkpoint-live-job.dwg"
+    checkpoint_bytes = b"AC1032-restored-checkpoint"
+    checkpoint.write_bytes(checkpoint_bytes)
+    target.write_bytes(checkpoint_bytes)
+    checkpoint_sha = hashlib.sha256(checkpoint_bytes).hexdigest()
+    (durable_root / "checkpoint-catalog.v1.json").write_text(
+        json.dumps(
+            {
+                "payload": {
+                    "records": [
+                        {
+                            "checkpoint_id": "checkpoint-live",
+                            "checkpoint_file_name": checkpoint.name,
+                            "sha256": checkpoint_sha,
+                            "byte_length": len(checkpoint_bytes),
+                            "state": "consumed",
+                        }
+                    ]
+                },
+                "authentication_tag": "a" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (journal_root / "approval.restore.json").write_text(
+        json.dumps(
+            {
+                "payload": {
+                    "state": "committed",
+                    "checkpoint_sha256": checkpoint_sha,
+                    "protected_target_locator": "ciphertext-only",
+                    "stage_file_name": ".cad-harness-restore-a.stage.dwg",
+                    "backup_file_name": ".cad-harness-restore-a.backup.dwg",
+                },
+                "authentication_tag": "b" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    state = DurableAcceptanceState(
+        job_id="job-live",
+        document_id="doc-live",
+        checkpoint_id="checkpoint-live",
+        initial_revision="sha256:initial",
+        current_revision="sha256:committed",
+        initial_model={},
+    )
+
+    evidence = _durable_artifact_proof(
+        checkpoint_root,
+        state=state,
+        target=target,
+        rollback_approval_token="rb1.never-persist-this",
+    )
+
+    assert evidence["catalog_state"] == "consumed"
+    assert evidence["restore_journal_state"] == "committed"
+    assert evidence["stage_or_backup_leftover_count"] == 0
+    serialized = json.dumps(evidence, sort_keys=True)
+    assert str(target) not in serialized
+    assert "never-persist-this" not in serialized
 
 
 def test_remediation_acceptance_replays_exact_fake_mcp_transcript() -> None:

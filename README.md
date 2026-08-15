@@ -44,19 +44,43 @@ into safety-sensitive desktop engineering workflows.
 | Area | Current state |
 |---|---|
 | Deterministic creation | Ten mechanical feature families, modifiers, annotations, title blocks, and multi-view planning |
-| Drawing comprehension | Bounded DXF/bridge reads, recognition, takeoff, audit, remediation, measurement, and calibrated raster tracing |
+| Drawing comprehension | Bounded DXF/bridge reads plus a bounded COM 2D semantic subset, recognition, takeoff, audit, remediation, measurement, and calibrated raster tracing |
 | Safety gates | Exact plan-hash approval, stale-revision rejection, writer leases, idempotency, preview, validation, and readback |
 | Interfaces | CLI, 22 typed MCP tools, and a PySide6 engineer approval desktop |
 | Persistence | SQLite-backed jobs, audits, leases, reports, evidence, and restart-safe remediation selection |
 | AutoCAD integration | Python COM reader plus a C# named-pipe bridge with bounded inspection and atomic execution |
 | Verification | Unit, property, contract, compatibility, fault-injection, integration, golden, and performance gates |
 
-CI builds the pure C# bridge tests and an AutoCAD 2025 plugin target. A PID-owned disposable
-drawing has also passed documented AutoCAD Mechanical 2027/R26 read, atomic commit, metadata
-readback, takeoff, remediation, and session-undo acceptance. These results do **not** certify
-all AutoCAD versions or production drawings. See the
+CI builds the pure C# bridge tests and an AutoCAD 2025 plugin target. PID-owned disposable
+drawings have passed documented AutoCAD Mechanical 2027/R26 read, atomic commit, metadata
+readback, takeoff, remediation, and session-undo acceptance. An explicitly user-authorized
+existing-document COM/MCP run also committed and read back a five-entity base plate in AutoCAD
+2027. On that same already-open drawing, MCP later created a keyed flange and bracket, detected
+and removed a redundant bore through an audit-selected remediation, and proved the corrected
+COM delete receipt with a closed add/delete round trip. The real C# bridge then read 20 entities
+without mutation and independently reported 24,595.165918 mm2 net area, 1,300.548286 mm cut
+length, eight holes, ten pierces, and 3.861 kg unit mass. A calibrated PNG was also traced through
+the real MCP pipeline into one reviewed line, committed, read back, audit-selected for cleanup,
+and deleted; entity count and revision returned exactly to their pre-test values. These results do **not** certify all
+AutoCAD versions or production drawings. See the
 [acceptance evidence](docs/implementation/acceptance-and-evidence.md) and
 [roadmap](ROADMAP.md) for the remaining gates.
+
+The private development intake now contains exactly 30 hash-bound drawing candidates: six
+user-supplied DWG/DXF files and 24 pinned, licensed-public DXFs. A separate raster corpus and five
+analytically checked AL6061 takeoffs extend development coverage. The generated engineer review
+packet v3 uses opaque filenames, preserves development-source classification, and provides blank
+human-review forms; none of this material is labelled
+engineer-selected, company-approved, independently reviewed, or production evidence.
+
+Current local verification (2026-08-15): 1,355 Python tests pass with 13 explicit skips
+(12 live-only gates and one unavailable symlink fixture), the golden suite passes 247/247,
+the pure C# bridge passes 201/201, 27
+schemas are current, and the R26/.NET 10 plug-in builds with zero warnings. The installed
+workspace acceptance bundle is development-unsigned; a fresh AutoCAD bridge reload therefore
+requires an approved signing identity or approved trusted deployment. The harness does not
+weaken AutoCAD `SECURELOAD` or alter `TRUSTEDPATHS`. Existing-document COM attachment is a
+separate explicit engineer-authorized development path, not a bypass for bridge deployment.
 
 ## Quick start without AutoCAD
 
@@ -70,6 +94,7 @@ Requirements:
 ```powershell
 git clone https://github.com/xuanquangIT/autocad-mechanical-harness.git
 cd autocad-mechanical-harness
+git checkout v0.2.0
 uv sync --frozen
 uv run cad-harness status
 uv run cad-harness demo
@@ -117,6 +142,10 @@ Register it in an MCP-capable client using an absolute repository path:
 `config/codex-local.yaml` grants a local STDIO client planning and preview permissions while
 pinning the adapter to `fake`. It is the recommended first connection for Codex or another
 MCP client.
+
+For AutoCAD 2027/R26, bridge packaging, safe install/upgrade, Codex registration, and
+verification commands, follow the [complete installation guide](docs/installation.md).
+Do not install or replace a bridge while AutoCAD is running.
 
 The repository also includes a project-specific
 [Codex skill](.codex/skills/implement-autocad-harness/SKILL.md) that teaches coding agents the

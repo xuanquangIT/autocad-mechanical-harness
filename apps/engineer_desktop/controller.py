@@ -18,7 +18,11 @@ from cad_harness.application.services.harness_service import HarnessService
 from cad_harness.application.services.metrics_service import MetricsService
 from cad_harness.application.services.plan_compiler import CompilationResult
 from cad_harness.diff.semantic_diff import build_semantic_diff
-from cad_harness.domain.errors import ApprovalRequiredError, DocumentNotFoundError
+from cad_harness.domain.errors import (
+    ApprovalRequiredError,
+    DocumentNotFoundError,
+    RollbackRecoveryRequiredError,
+)
 from cad_harness.domain.models.job import JobState
 from cad_harness.domain.models.metrics import EffortRecord, FailureReason
 from cad_harness.domain.models.result import CommitResult, PreviewArtifact, RollbackResult
@@ -404,14 +408,25 @@ class EngineerDesktopController:
                 required_action="Review and approve the exact rollback checkpoint",
             )
         try:
-            return self._service.rollback(
+            result = self._service.rollback(
                 scope.job_id,
                 checkpoint_id=scope.checkpoint_id,
                 current_revision=scope.current_revision,
                 rollback_approval_token=token.get_secret_value(),
             )
-        finally:
+        except RollbackRecoveryRequiredError as error:
+            # Only this typed, retryable durable-journal outcome retains the exact
+            # SecretStr and reviewed scope.  A reissued token cannot match the C#
+            # journal's original token digest.
+            if error.retryable:
+                raise
             self.clear_rollback_approval()
+            raise
+        except BaseException:
+            self.clear_rollback_approval()
+            raise
+        self.clear_rollback_approval()
+        return result
 
     def clear_rollback_approval(self) -> None:
         self._rollback_approval_token = None

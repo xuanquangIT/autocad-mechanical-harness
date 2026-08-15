@@ -23,7 +23,7 @@ mechanical CAD automation. This roadmap communicates direction, not delivery dat
 - Add independently calculated takeoff references and approved material/profile evidence
 - Exercise representative workflows on more supported AutoCAD versions
 - Complete production drawing pilots with explicit organizational approval
-- Resolve the durable checkpoint-file replacement gap
+- Live-prove durable whole-DWG checkpoint replacement, restart recovery, and crash-point handling
 - Document compatibility and migration policy for public contracts
 
 ## Community priorities

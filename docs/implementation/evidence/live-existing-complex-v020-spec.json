@@ -1,0 +1,41 @@
+{
+  "_comment": "Development acceptance layout: an eight-bolt keyed flange, a separate obround mounting slot, and an L-bracket profile. Coordinates keep every component clear of the existing 160 x 100 mm base plate.",
+  "units": "mm",
+  "features": [
+    {
+      "feature_id": "live-keyed-flange-v020",
+      "type": "flange",
+      "parameters": {
+        "outer_diameter_mm": 200.0,
+        "bore_diameter_mm": 80.0,
+        "bolt_hole_count": 8,
+        "bolt_hole_diameter_mm": 16.0,
+        "pcd_mm": 150.0,
+        "datum": [350.0, 100.0],
+        "keyway_width_mm": 22.0,
+        "keyway_depth_mm": 8.0
+      }
+    },
+    {
+      "feature_id": "live-slot-v020",
+      "type": "slot",
+      "parameters": {
+        "length_mm": 80.0,
+        "width_mm": 24.0,
+        "center_mm": [350.0, -50.0],
+        "angle_deg": 0.0
+      }
+    },
+    {
+      "feature_id": "live-bracket-v020",
+      "type": "l_bracket",
+      "parameters": {
+        "leg_a_mm": 150.0,
+        "leg_b_mm": 120.0,
+        "thickness_mm": 15.0,
+        "origin_mm": [500.0, 0.0],
+        "inner_fillet_radius_mm": 6.0
+      }
+    }
+  ]
+}

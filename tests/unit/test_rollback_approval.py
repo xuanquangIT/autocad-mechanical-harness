@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -15,7 +15,9 @@ from cad_harness.security.approval import issue_approval
 from cad_harness.security.rollback_approval import (
     issue_rollback_approval,
     make_rollback_approval_token,
+    rollback_approval_token_digest,
     verify_rollback_approval_token,
+    verify_rollback_recovery_token,
 )
 
 SECRET = "rollback-test-secret"
@@ -147,4 +149,54 @@ def test_previous_contract_version_cannot_authorize_rollback() -> None:
             checkpoint_id=approval.checkpoint_id,
             current_revision=approval.current_revision,
             now=approval.approved_at,
+        )
+
+
+def test_recovery_verifier_accepts_only_expired_exact_original_token() -> None:
+    issued_at = datetime(2026, 8, 15, tzinfo=UTC)
+    approval, token = issue_rollback_approval(
+        job_id="job_recovery",
+        document_id="doc_recovery",
+        checkpoint_id="checkpoint_recovery",
+        current_revision="sha256:post",
+        approved_by="engineer-1",
+        secret=SECRET,
+        ttl=timedelta(minutes=5),
+        now=issued_at,
+    )
+    after_expiry = approval.expires_at + timedelta(microseconds=1)
+
+    assert (
+        verify_rollback_recovery_token(
+            token,
+            SECRET,
+            job_id=approval.job_id,
+            document_id=approval.document_id,
+            checkpoint_id=approval.checkpoint_id,
+            current_revision=approval.current_revision,
+            now=after_expiry,
+        )
+        == approval
+    )
+    assert len(rollback_approval_token_digest(token)) == 64
+
+    with pytest.raises(ApprovalScopeMismatchError, match="requires the expired"):
+        verify_rollback_recovery_token(
+            token,
+            SECRET,
+            job_id=approval.job_id,
+            document_id=approval.document_id,
+            checkpoint_id=approval.checkpoint_id,
+            current_revision=approval.current_revision,
+            now=approval.expires_at,
+        )
+    with pytest.raises(ApprovalScopeMismatchError):
+        verify_rollback_recovery_token(
+            token,
+            SECRET,
+            job_id=approval.job_id,
+            document_id=approval.document_id,
+            checkpoint_id=f"{approval.checkpoint_id}-changed",
+            current_revision=approval.current_revision,
+            now=after_expiry,
         )

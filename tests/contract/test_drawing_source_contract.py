@@ -50,6 +50,28 @@ def _semantic_signature(model: DrawingModel) -> tuple[tuple[str, str, str], ...]
     return tuple((entity.entity_ref, entity.entity_type, entity.layer) for entity in model.entities)
 
 
+def _nested_unsupported_dxf(path: Path, *, cyclic: bool = False) -> None:
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    outer = document.blocks.new("OUTER")
+    inner = document.blocks.new("INNER")
+    outer.add_blockref("INNER", (0, 0))
+    inner.add_spline([(0, 0), (1, 1), (2, 0)])
+    if cyclic:
+        inner.add_blockref("OUTER", (0, 0))
+    document.modelspace().add_blockref("OUTER", (0, 0))
+    document.saveas(path)
+
+
+def _request(path: Path, *, scope: ReadScope | None, depth: int) -> DrawingReadRequest:
+    return DrawingReadRequest(
+        source=DrawingSourceRef(kind="file", format="dxf", ref=str(path)),
+        scope=scope,
+        max_entities=100,
+        max_block_nesting_depth=depth,
+    )
+
+
 def test_dxf_reader_satisfies_drawing_source_contract(tmp_path: Path) -> None:
     path = tmp_path / "contract.dxf"
     _contract_dxf(path)
@@ -79,6 +101,40 @@ def test_dxf_reader_satisfies_drawing_source_contract(tmp_path: Path) -> None:
         "AcDbHatch",
         "AcDbBlockReference",
     }
+
+
+def test_summary_reports_nested_unsupported_at_the_detailed_read_depth(tmp_path: Path) -> None:
+    path = tmp_path / "nested-unsupported.dxf"
+    _nested_unsupported_dxf(path)
+    reader = DxfDrawingReader()
+
+    shallow = reader.summarize(_request(path, scope=None, depth=1))
+    deep = reader.summarize(_request(path, scope=None, depth=2))
+    model = reader.read(_request(path, scope=ReadScope(), depth=2))
+
+    assert shallow.counts_by_entity_type == deep.counts_by_entity_type == {"AcDbBlockReference": 1}
+    assert shallow.unsupported == ()
+    assert shallow.coverage_complete
+    assert [(item.entity_type, item.count) for item in deep.unsupported] == [("spline", 1)]
+    assert deep.unsupported == model.unsupported
+    assert not deep.coverage_complete
+    assert not model.coverage_complete
+
+
+def test_summary_traversal_of_cyclic_blocks_is_depth_bounded_and_deterministic(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "cyclic-blocks.dxf"
+    _nested_unsupported_dxf(path, cyclic=True)
+    reader = DxfDrawingReader()
+
+    first = reader.summarize(_request(path, scope=None, depth=10))
+    second = reader.summarize(_request(path, scope=None, depth=10))
+
+    assert first == second
+    assert first.counts_by_entity_type == {"AcDbBlockReference": 1}
+    assert [(item.entity_type, item.count) for item in first.unsupported] == [("spline", 5)]
+    assert not first.coverage_complete
 
 
 def test_dxf_cancellable_reader_passes_only_json_to_worker(

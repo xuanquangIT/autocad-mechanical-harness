@@ -298,6 +298,52 @@ def test_fillet_requires_only_radius_then_derives_all_coordinates_in_geometry() 
     )
 
 
+def test_overlap_requires_explicit_delete_selected_strategy() -> None:
+    model = _model()
+    finding = _finding(
+        "OVERLAPPING_ENTITY",
+        "duplicate",
+        expected="non-overlapping geometry",
+        actual={"other_entity_ref": "open"},
+    )
+    service = _service(model, _report(finding))
+
+    with pytest.raises(MissingRequiredInputsError) as missing:
+        service.compile_plan(
+            job_id="job-remediation",
+            model=model,
+            audit_id="audit-remediation",
+            selected_rule_findings=((finding.rule_id, "duplicate"),),
+        )
+    assert missing.value.details["missing_paths"] == ["remediation.overlap.strategy"]
+
+    with pytest.raises(MissingRequiredInputsError):
+        service.compile_plan(
+            job_id="job-remediation",
+            model=model,
+            audit_id="audit-remediation",
+            selected_rule_findings=((finding.rule_id, "duplicate"),),
+            technical_inputs={"OVERLAPPING_ENTITY:duplicate": {"strategy": "delete_other"}},
+        )
+
+    result = service.compile_plan(
+        job_id="job-remediation",
+        model=model,
+        audit_id="audit-remediation",
+        selected_rule_findings=((finding.rule_id, "duplicate"),),
+        technical_inputs={"OVERLAPPING_ENTITY:duplicate": {"strategy": "delete_selected"}},
+    )
+
+    assert len(result.plan.operations) == 1
+    operation = result.plan.operations[0]
+    assert operation.type is OperationType.DELETE_ENTITY
+    assert operation.target_entity_ref == "duplicate"
+    assert operation.expected == {
+        "remediates_rule_id": "OVERLAPPING_ENTITY",
+        "strategy": "delete_selected",
+    }
+
+
 def test_stale_or_unknown_findings_are_rejected_before_a_plan_exists() -> None:
     model = _model()
     finding = AUTOMATIC_FINDINGS[1]

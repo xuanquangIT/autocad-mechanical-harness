@@ -1,9 +1,9 @@
-"""Build a release bundle with checksums.
+"""Build the Python engineering-preview release bundle with checksums.
 
     uv run python scripts/package_release.py --out dist/
 
-Produces the MVP release contents from architecture section 26.2. The C# bundle and
-code signing belong to the production release (26.3) and are not handled here.
+The AutoCAD bridge is built separately by ``Package-BridgeBundle.ps1`` because every
+AutoCAD/runtime target has a distinct manifest and signing boundary.
 """
 
 from __future__ import annotations
@@ -20,8 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 #: Files and directories shipped alongside the wheel.
 PAYLOAD: tuple[str, ...] = (
     "config/base.yaml",
+    "config/compatibility.yaml",
+    "config/codex-local.yaml",
+    "config/live-r26-acceptance.yaml",
     ".env.example",
+    "LICENSE",
+    "NOTICE",
     "README.md",
+    "docs/installation.md",
+    "docs/operations.md",
     "docs/AUTOCAD_MECHANICAL_HARNESS_ARCHITECTURE.vn.md",
     "docs/AUTOCAD_MECHANICAL_HARNESS_ARCHITECTURE.en.md",
     "contracts",
@@ -38,7 +45,7 @@ def sha256_file(path: Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Package an MVP release bundle")
+    parser = argparse.ArgumentParser(description="Package the Python engineering preview")
     parser.add_argument("--out", type=Path, default=ROOT / "dist")
     parser.add_argument("--skip-build", action="store_true", help="Reuse an existing wheel")
     args = parser.parse_args()
@@ -79,7 +86,7 @@ def main() -> int:
 
     print(f"bundle: {staging}")
     print(f"files:  {len(lines)}")
-    print("Reminder: production releases additionally require the signed C# .bundle.")
+    print("Reminder: live AutoCAD use additionally requires the target-specific C# bundle.")
     return 0
 
 

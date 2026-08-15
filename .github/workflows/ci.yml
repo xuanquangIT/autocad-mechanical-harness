@@ -44,7 +44,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Restore and test pure bridge assemblies
         run: |
@@ -55,3 +57,8 @@ jobs:
         run: |
           dotnet restore dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj --configfile dotnet/AutoCADBridge/NuGet.Config -p:AutoCADManagedApiVersion=25.0.1
           dotnet build dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj -c Release --no-restore --nologo -warnaserror -p:AutoCADManagedApiVersion=25.0.1
+
+      - name: Build AutoCAD 2027 plugin
+        run: |
+          dotnet restore dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj --configfile dotnet/AutoCADBridge/NuGet.Config -p:CadBridgeTargetFramework=net10.0-windows -p:AutoCADManagedApiVersion=26.0.0
+          dotnet build dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj -c Release --framework net10.0-windows --no-restore --nologo -warnaserror -p:CadBridgeTargetFramework=net10.0-windows -p:AutoCADManagedApiVersion=26.0.0

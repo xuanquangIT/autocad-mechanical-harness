@@ -129,6 +129,10 @@ class EventDriver:
     def close(self, handle: object) -> None:
         self.events.append(f"close:{handle}")
 
+    def server_process_id(self, handle: object) -> int:
+        assert str(handle).startswith("handle-")
+        return 9260
+
 
 def _request(request_id: str = "request-1") -> dict[str, Any]:
     return {
@@ -182,6 +186,7 @@ def test_strict_monotonic_deadline_boundary(duration: float, times_out: bool) ->
 
     if not times_out:
         assert transport.request(_request(), timeout_seconds=1.0)["status"] == "ok"
+        assert transport.last_server_process_id == 9260
         assert not any(event.startswith("cancel:") for event in driver.events)
         return
 

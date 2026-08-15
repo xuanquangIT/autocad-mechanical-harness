@@ -7,9 +7,11 @@ than assuming all adapters can do everything.
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
+from cad_harness.adapters.base import BaseAdapter
 from cad_harness.adapters.dotnet_bridge import (
     DotNetBridgeAdapter,
     build_request,
@@ -60,25 +62,33 @@ def sample_plan(job_id: str = "job_1", document_id: str = "doc_1") -> OperationP
     ).with_hash()
 
 
+def unavailable_bridge() -> DotNetBridgeAdapter:
+    """Return a bridge isolated from any real AutoCAD pipe on the test machine."""
+    return DotNetBridgeAdapter(
+        rf"\\.\pipe\cad-harness-test-unavailable-{uuid4().hex}",
+        timeout_seconds=0.1,
+    )
+
+
 @pytest.fixture(params=["fake", "dxf_preview", "dotnet_bridge"])
-def any_adapter(request: pytest.FixtureRequest, tmp_path: Path):
+def any_adapter(request: pytest.FixtureRequest, tmp_path: Path) -> BaseAdapter:
     if request.param == "fake":
         return FakeAutoCADAdapter()
     if request.param == "dxf_preview":
         return DxfPreviewAdapter(tmp_path / "previews")
-    return DotNetBridgeAdapter()
+    return unavailable_bridge()
 
 
 class TestPortConformance:
-    def test_adapters_satisfy_the_port(self, any_adapter) -> None:
+    def test_adapters_satisfy_the_port(self, any_adapter: BaseAdapter) -> None:
         assert isinstance(any_adapter, AutoCADAdapter)
 
-    def test_status_declares_capabilities_honestly(self, any_adapter) -> None:
+    def test_status_declares_capabilities_honestly(self, any_adapter: BaseAdapter) -> None:
         status = any_adapter.status()
         assert status.adapter_type
         assert set(status.capabilities) == set(any_adapter.capabilities)
 
-    def test_unsupported_operations_fail_loudly(self, any_adapter) -> None:
+    def test_unsupported_operations_fail_loudly(self, any_adapter: BaseAdapter) -> None:
         """A missing capability raises; it never silently does nothing."""
         if not any_adapter.supports(AdapterCapability.INSPECT_DOCUMENT):
             with pytest.raises(AdapterCapabilityMissingError):
@@ -166,7 +176,7 @@ class TestBridgeIpcContract:
             decode_frame(frame[:-1])
 
     def test_bridge_is_declared_unavailable(self) -> None:
-        status = DotNetBridgeAdapter().status()
+        status = unavailable_bridge().status()
         assert status.available is False
         assert status.capabilities == ()
         assert "Phase 5" in str(status.message)

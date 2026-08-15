@@ -19,7 +19,7 @@ cannot commit anything without a human-issued approval token it does not have ac
 
 | Control | Where |
 |---|---|
-| No primitive drawing tools exposed | `apps/mcp_server/tools/` — 13 high-level tools only |
+| No primitive drawing tools exposed | `apps/mcp_server/tools/` — 22 high-level tools only |
 | HMAC-signed approval tokens scoped to `(job_id, plan_hash, revision)` | `security/approval.py` |
 | Short-lived approvals (15 min default) | `config.security.approval_ttl_minutes` |
 | Approval revoked on any spec or plan change | `HarnessService.submit_spec` |
@@ -34,6 +34,11 @@ cannot commit anything without a human-issued approval token it does not have ac
 | No `eval`, shell, AutoLISP, or business `SendCommand` | enforced by review; COM adapter uses the object API |
 | COM confined to one module | Ruff banned-api rule on `win32com` / `pythoncom` |
 | Local-only by default | `config.app.local_only` |
+| Per-client tool allowlist enforced on every MCP call | `apps/mcp_server/tools/permissions.py`, `security/client_profiles.py` |
+| Cross-process writer lease with heartbeat and atomic terminal release | `persistence/sql_lease_store.py`, `application/services/lease_service.py` |
+| Current-user-only Named Pipe endpoint | `CadBridge.Ipc/WindowsNamedPipeFactory.cs` |
+| Durable SQLite audit chain verification | `persistence/sql_audit_sink.py::verify_chain` |
+| Crash-recoverable bundle install/uninstall journal | `dotnet/AutoCADBridge/Install-BridgeBundle.ps1` |
 
 ## Prompt injection
 
@@ -65,12 +70,11 @@ entity database into a model's context.
 
 | Item | Phase | Note |
 |---|---|---|
-| Named-pipe ACL | 5 | Contract defined; the installer must restrict the pipe to one account |
 | Code signing for plug-in and installer | 5 | Required before any production deployment |
-| Writer lease enforcement across processes | 4 | `WRITER_LEASE_CONFLICT` exists; the lease store does not |
-| Per-client tool allowlist | 4 | Groups exist (`READ_ONLY_TOOLS`, `APPROVAL_REQUIRED_TOOLS`); enforcement is not wired |
-| Checkpoint encryption and quota | 4 | Checkpoints hold full drawing copies |
-| SQLite audit sink with chain verification on read | 2 | In-memory sink implements the chain; the durable one does not yet |
+| Approval-secret provisioning | 5 | Production install must inject a workstation secret without storing it in client config |
+| Manual-gate evidence binding | 5 | Stored confirmation IDs must be replaced by evidence bound to the current PID, document, revision and expiry |
+| Checkpoint artifact encryption and quota | 4 | Catalog/journal integrity is authenticated, but full DWG checkpoint bytes still require the deployment encryption/quota policy |
+| Single verified active bundle | 5 | Deployment must reject duplicate active bundle versions and unsigned/version-drifted installs |
 
 ## Reporting
 

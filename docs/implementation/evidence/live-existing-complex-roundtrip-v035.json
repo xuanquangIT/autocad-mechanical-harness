@@ -1,0 +1,58 @@
+{
+  "attached_existing_document": true,
+  "input_spec_sha256": "fe1ced311ad215e8aced73e012cafd5db9ffa333fb7441753f93ad187a7b4f3e",
+  "mcp_transport": "stdio",
+  "production_evidence": false,
+  "real_autocad_evidence": true,
+  "schema_version": "1.0",
+  "workflow": {
+    "adapter": {
+      "adapter_type": "com",
+      "available": true,
+      "cad_application": "AutoCAD.Application",
+      "cad_version": "26.0s (LMS Tech)",
+      "capabilities": [
+        "commit",
+        "export",
+        "inspect_document",
+        "inspect_selection"
+      ],
+      "process_id": 9260,
+      "version_supported": true
+    },
+    "approval_id_sha256": "326034e8d2e9db2224645c43d0f5e5a7e3bc7c2ccf36c05be9b6476c2f5120da",
+    "cleanup": {
+      "approval_id_sha256": "020fc48d1869b3d744ade3403a4075bbe334d342f1a5d3043bb3289ee28b1a41",
+      "deleted_count": 15,
+      "job_id_sha256": "c3fddd0da7285cfe65e711ab41cb7c6b00951c46d3864161efb3d475e43a2e5b",
+      "method": "audited_duplicate_remediation",
+      "restored_revision": "sha256:d372ae0042d96c9247dc9e6187c194c584663baaa5c6fb958f10719224f30295"
+    },
+    "commit": {
+      "checkpoint_present": false,
+      "entity_count": 15,
+      "new_revision": "sha256:4b01227997af474dd549ab99c3047b51d5df4e1bb30b11cc2a03e0e4054a1edd",
+      "status": "committed"
+    },
+    "document": {
+      "display_name_sha256": "cc5c8eec5e527842654368916a9af94f159732d871cc58486c5c80a631690e82",
+      "document_id_sha256": "aabacf908d5be878342cd9a80d59e4818bf05ea403ff7060e253074f453eaa47",
+      "entity_count_after": 35,
+      "entity_count_before": 20,
+      "entity_count_restored": 20,
+      "revision_after": "sha256:4b01227997af474dd549ab99c3047b51d5df4e1bb30b11cc2a03e0e4054a1edd",
+      "revision_before": "sha256:d372ae0042d96c9247dc9e6187c194c584663baaa5c6fb958f10719224f30295",
+      "revision_restored": "sha256:d372ae0042d96c9247dc9e6187c194c584663baaa5c6fb958f10719224f30295"
+    },
+    "drawing_restored": true,
+    "job_id_sha256": "29899cf252274a07b11795a8f385791ef823bbe468bc2b6dfd11c372f3a73856",
+    "operation_count": 8,
+    "plan_hash": "sha256:fd011ac17a180ec7be4ba0985b521dc464e325ac47c187ecb5ccf3bd31d37192",
+    "preview_artifact_count": 2,
+    "tool_count": 22,
+    "validation": {
+      "blocking_count": 0,
+      "error_count": 0
+    }
+  }
+}

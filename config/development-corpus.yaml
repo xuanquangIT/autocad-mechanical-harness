@@ -1,0 +1,320 @@
+schema_version: "1.0"
+corpus_id: cad-harness-development-public-v1
+purpose: Lawfully sourced, reproducible development fixtures; not production acceptance evidence.
+customer_inputs_allowed: false
+production_evidence: false
+sources:
+  - source_id: qcad-flange-dxf
+    expected_sha256: df469e7e91e38c901fced51c9621c8d2b6b6568678803e563b29c9ecf8dec84b
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/flange.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/flange.dxf
+    max_bytes: 8388608
+    intended_use: Paired vector reference for deterministic raster-to-vector development checks.
+
+  - source_id: qcad-projection-dxf
+    expected_sha256: 11da9ea18f4c15a1bd34385d13b9346b747492692cc1cd0f6be3559b14a0eef5
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/projection.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/projection.dxf
+    max_bytes: 8388608
+    intended_use: Multi-view projection read and audit development fixture.
+
+  - source_id: qcad-entities-dxf
+    expected_sha256: fa0b296dc6c060ce8d79c61dd6461c9e1523a15ae33cdc650175ee8b9270d1d8
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/entities.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/entities.dxf
+    max_bytes: 8388608
+    intended_use: Broad DXF entity read and unsupported-entity development fixture.
+
+  - source_id: qcad-calibration-dxf
+    expected_sha256: 052f89afa57820f7c14ecf71adb4935ac98fcef1652f2188e22f95e1b11c6904
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/calibration.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/calibration.dxf
+    max_bytes: 8388608
+    intended_use: Scale and calibration development fixture.
+
+  - source_id: qcad-example00-dxf
+    expected_sha256: d6e89c4b74639a488cd5d6384a5aeeebaccafef138cb2a1a8c632cef0cdf1484
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/example00.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/example00.dxf
+    max_bytes: 8388608
+    intended_use: General DXF read and audit development fixture.
+
+  - source_id: qcad-example01-dxf
+    expected_sha256: a816c31d7d9f661c941f6004d2b78861f8ff598b638fed7c8ec9e3fe54276c66
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/example01.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/example01.dxf
+    max_bytes: 8388608
+    intended_use: General DXF read and audit development fixture.
+
+  - source_id: qcad-isometric-grid-dxf
+    expected_sha256: 8cf9691a9d6eae38cce648b123e8e9878cbc4ca95e61051ba20f55fd11db1057
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/isometric_grid.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/isometric_grid.dxf
+    max_bytes: 8388608
+    intended_use: Isometric-grid and construction-layer development fixture.
+
+  - source_id: qcad-linetypes-dxf
+    expected_sha256: 7f45ac1a1305ea724d1508eae5567840fc132244d5a405288b03b7454227848e
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/linetypes.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/linetypes.dxf
+    max_bytes: 8388608
+    intended_use: Linetype and style preservation development fixture.
+
+  - source_id: qcad-lineweights-dxf
+    expected_sha256: 9ad30375df5b66afac4eb4f19f13e2b63fddf32c9847927d88071f0d29768f6a
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/lineweights.dxf
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/lineweights.dxf
+    max_bytes: 8388608
+    intended_use: Lineweight and style preservation development fixture.
+
+  - source_id: ezdxf-dimension-in-block-dxf
+    expected_sha256: 923cc1d0d86bf6738139dbec26b66e299fbfa2c16a49ed206ad06cf719c6e6f2
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/dimension_in_block.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/dimension_in_block.dxf
+    max_bytes: 8388608
+    intended_use: Dimension-in-block read and provenance development fixture.
+
+  - source_id: ezdxf-dimension-in-nested-blocks-dxf
+    expected_sha256: 03b50bf9a29513147d2b66f6ec1a4377494ced38437082c979639dfa42d613ea
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/dimension_in_nested_blocks.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/dimension_in_nested_blocks.dxf
+    max_bytes: 8388608
+    intended_use: Nested-block dimension read and provenance development fixture.
+
+  - source_id: ezdxf-multi-insert-with-attribs-dxf
+    expected_sha256: 14951dbef1c750fefc0a452e0bd4fb5b281dc092820d5b6da31b3855dddb4411
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/multi_insert_with_attribs.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/multi_insert_with_attribs.dxf
+    max_bytes: 8388608
+    intended_use: Array insert and attribute read development fixture.
+
+  - source_id: ezdxf-hatches-1-dxf
+    expected_sha256: 2dc2930b4f7d5fb16698437e4f6972986e580a81b2b5d36a780b4311f85fb326
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/hatches_1.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/hatches_1.dxf
+    max_bytes: 8388608
+    intended_use: Hatch parsing and audit development fixture.
+
+  - source_id: ezdxf-text-alignments-dxf
+    expected_sha256: cacf3083c17c8d3836c23c6356edcb6f70db2949ed61875c2572911719a61353
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/text_alignments.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/text_alignments.dxf
+    max_bytes: 8388608
+    intended_use: Text alignment and annotation read development fixture.
+
+  - source_id: ezdxf-uncommon-dxf
+    expected_sha256: 5efdd671e3b6d8c45bd0688b1d6479d523f2290f0b390f1584348bf46e34c965
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/uncommon.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/uncommon.dxf
+    max_bytes: 8388608
+    intended_use: Uncommon and unsupported DXF entity development fixture.
+
+  - source_id: ezdxf-3dface-dxf
+    expected_sha256: c9447d342e267052354bede75028a934da35bd2bb1a96c1c084bdf7e5f0abc2a
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/3dface.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/3dface.dxf
+    max_bytes: 8388608
+    intended_use: Unsupported 3D entity rejection and coverage reporting development fixture.
+
+  - source_id: ezdxf-acad-table-simple-dxf
+    expected_sha256: 2fc8d0e9517b36dd13db95740b37bc2f534005f16abc222faab036c3407d9e8d
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/acad_table_simple.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/acad_table_simple.dxf
+    max_bytes: 8388608
+    intended_use: AutoCAD table unsupported-entity and annotation coverage fixture.
+
+  - source_id: ezdxf-columns-r2018-dxf
+    expected_sha256: 0110c42731224a851baca4fd93209a40ebcd19b18d98e75201715d3cd3baa649
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/columns_R2018.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/columns_R2018.dxf
+    max_bytes: 8388608
+    intended_use: R2018 MTEXT column and annotation parsing fixture.
+
+  - source_id: ezdxf-hatches-2-dxf
+    expected_sha256: a50f02abbbafb0fedef5140e3f99691012bcffa192ecb298470fe8c5b2b9aad6
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/hatches_2.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/hatches_2.dxf
+    max_bytes: 8388608
+    intended_use: Complex hatch boundary and unsupported coverage fixture.
+
+  - source_id: ezdxf-insert-bricscad-level-1-dxf
+    expected_sha256: c2597f95c007852db2ba82dedd9558f9318981115dda82fccfc0267ca60e5a56
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/insert_bricscad_level_1.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/insert_bricscad_level_1.dxf
+    max_bytes: 8388608
+    intended_use: Block insertion and transformation development fixture.
+
+  - source_id: ezdxf-text-dxf
+    expected_sha256: 303f8a23596ad94e084f6bdf2b60350a7ae32795c77c63f67945c83ae6f5d64c
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/text.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/text.dxf
+    max_bytes: 8388608
+    intended_use: Text style, alignment, and annotation read fixture.
+
+  - source_id: ezdxf-visibility-dxf
+    expected_sha256: b67896731e038949e6c11f21a90ea8d345009226f8ec82f24c22d11565be8275
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/visibility.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/visibility.dxf
+    max_bytes: 8388608
+    intended_use: Hidden-entity filtering and visibility provenance fixture.
+
+  - source_id: ezdxf-wipeout-door-dxf
+    expected_sha256: 26794284e4e52db626b889fbbaf847fabb3c6ac85603096af244d7b6d95448bb
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/wipeout_door.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/wipeout_door.dxf
+    max_bytes: 8388608
+    intended_use: Wipeout and block-boundary unsupported coverage fixture.
+
+  - source_id: ezdxf-xclip-dxf
+    expected_sha256: cc1e5ffd5c88bd4b11f74324dc397a45f337471267a6458d5b8a2a213e6f7551
+    url: https://raw.githubusercontent.com/mozman/ezdxf/b3eb37b942acb4c7e2d2487706e614aa29b7f9b2/examples_dxf/xclip.dxf
+    source_index_url: https://github.com/mozman/ezdxf/tree/master/examples_dxf
+    license_id: MIT
+    license_url: https://github.com/mozman/ezdxf/blob/master/LICENSE
+    license_notice: Copyright (c) 2020 Manfred Moitzi; retain the MIT copyright and permission notice.
+    attribution: Manfred Moitzi and ezdxf contributors
+    output: ezdxf/xclip.dxf
+    max_bytes: 8388608
+    intended_use: Clipped block and unsupported-boundary reporting fixture.
+
+  - source_id: qcad-flange-png
+    expected_sha256: 26d730aa0a758adbe9cab8e2b05a17266a715649442c49452f53f5098e3cea36
+    url: https://raw.githubusercontent.com/qcad/qcad/3e49b22539a35af9b461a2438c080219e8f0dbd3/examples/flange.png
+    source_index_url: https://github.com/qcad/qcad/tree/master/examples
+    license_id: GPL-3.0-only
+    license_url: https://github.com/qcad/qcad/blob/master/LICENSE.txt
+    license_notice: QCAD 3 source code is GPL version 3 with optional exceptions; retain the repository license terms.
+    attribution: QCAD contributors
+    output: qcad/flange.png
+    max_bytes: 8388608
+    intended_use: Paired raster reference for deterministic raster-to-vector development checks.
+    paired_with: qcad-flange-dxf
+
+  - source_id: loc-practical-problems-mechanical-drawing-pdf
+    expected_sha256: 42933f9870409360f19f2350d801516fcc45b21bf57636179594f414da9dbfed
+    url: https://archive.org/download/practicalproblem00stur/practicalproblem00stur.pdf
+    source_index_url: https://www.loc.gov/item/22002448/
+    license_id: Public-Domain-US
+    license_url: https://www.loc.gov/item/22002448/
+    rights_url: https://www.loc.gov/item/22002448/
+    license_notice: Public domain in the United States; credit line Library of Congress.
+    attribution: Walter W. Sturtevant, Practical Problems in Mechanical Drawing and Blueprint Reading, 1921; Library of Congress
+    output: public-domain/practical-problems-mechanical-drawing-1921.pdf
+    max_bytes: 67108864
+    intended_use: Selected-page raster derivation only when a direct page JPEG is unavailable.
+    selected_page_raster_derivation_only: true

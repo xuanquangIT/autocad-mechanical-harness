@@ -19,6 +19,7 @@ htmlcov/
 
 # Runtime data - never commit drawings, previews or job databases
 data/
+/evidence/
 *.db
 *.db-journal
 *.log

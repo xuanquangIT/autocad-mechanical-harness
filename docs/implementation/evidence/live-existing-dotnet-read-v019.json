@@ -1,0 +1,58 @@
+{
+  "attached_existing_document": true,
+  "drawing_mutated": false,
+  "mcp_transport": "stdio",
+  "production_evidence": false,
+  "read_only_workflow": true,
+  "real_autocad_evidence": true,
+  "schema_version": "1.0",
+  "workflow": {
+    "adapter": {
+      "adapter_type": "dotnet_bridge",
+      "available": true,
+      "cad_application": "AutoCAD",
+      "cad_version": "26.0",
+      "capabilities": [
+        "inspect_document",
+        "inspect_selection"
+      ],
+      "version_supported": true
+    },
+    "audit": {
+      "blocking_count": 0,
+      "finding_count": 6
+    },
+    "document": {
+      "display_name_sha256": "cc5c8eec5e527842654368916a9af94f159732d871cc58486c5c80a631690e82",
+      "document_id_sha256": "898e93f90df9e0c078187fe4002dfdd661d0f9114f0307a8e41bbb2a739757f8",
+      "entity_count_after": 5,
+      "entity_count_before": 5,
+      "revision_after": "sha256:d7541221764f4020a7097403de542559ac29790214c6d97d78e2e1a09470aa26",
+      "revision_before": "sha256:d7541221764f4020a7097403de542559ac29790214c6d97d78e2e1a09470aa26"
+    },
+    "measurement": {
+      "kind": "contour_perimeter",
+      "unit": "mm",
+      "value": 520.0
+    },
+    "read": {
+      "coverage_complete": true,
+      "entity_count": 5,
+      "geometry_normalized": true,
+      "source_unit_code": "mm"
+    },
+    "recognition": {
+      "ambiguous_group_count": 0,
+      "feature_count": 6
+    },
+    "takeoff": {
+      "company_approved": false,
+      "cut_length_mm": 695.9291886010284,
+      "hole_count": 4,
+      "net_area_mm2": 15384.247839896401,
+      "pierce_count": 5,
+      "unit_mass_kg": 1.208
+    },
+    "tool_count": 22
+  }
+}

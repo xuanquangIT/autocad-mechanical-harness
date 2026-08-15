@@ -10,10 +10,13 @@ from typing import Any, cast
 import cv2
 import numpy as np
 import pytest
+from apps.engineer_desktop.controller import EngineerDesktopController
 from apps.mcp_server.server import create_server
 
 from cad_harness.domain.models.drawing_spec import DrawingSpec
+from cad_harness.domain.models.job import JobState
 from cad_harness.domain.models.raster import PixelPoint, RasterCalibration, RasterTraceReport
+from cad_harness.domain.models.validation import Severity
 
 
 @pytest.fixture
@@ -23,7 +26,17 @@ def server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any]:
     monkeypatch.setenv("CAD_HARNESS_PREVIEW_DIR", str(tmp_path / "previews"))
     monkeypatch.setenv("CAD_HARNESS_SQLITE_PATH", str(tmp_path / "harness.db"))
     monkeypatch.setenv("CAD_HARNESS_LOG_LEVEL", "ERROR")
-    return create_server(tmp_path / "missing-config.yaml")
+    config = tmp_path / "raster-mcp.yaml"
+    config.write_text(
+        "mcp:\n"
+        "  client_profiles:\n"
+        "    default: read_only\n"
+        "    clients:\n"
+        "      anonymous:\n"
+        "        mode: approval_required\n",
+        encoding="utf-8",
+    )
+    return create_server(config)
 
 
 def _line_image_base64() -> str:
@@ -65,8 +78,8 @@ def test_signed_raster_draft_compiles_through_the_ordinary_job_pipeline(
 ) -> None:
     mcp, context = server
     calibration = RasterCalibration(
-        pixel_a=PixelPoint(x=20.0, y=60.0),
-        pixel_b=PixelPoint(x=180.0, y=60.0),
+        pixel_a=PixelPoint(x=19.0, y=60.0),
+        pixel_b=PixelPoint(x=181.0, y=60.0),
         reference_distance_mm=160.0,
     )
     traced = _payload(
@@ -91,9 +104,7 @@ def test_signed_raster_draft_compiles_through_the_ordinary_job_pipeline(
 
     acceptance_service = context.raster_trace_service
     assert acceptance_service is not None
-    acceptance, token = acceptance_service.accept(
-        report, proposed, "engineer:test", layer="TRACE_REVIEWED"
-    )
+    acceptance, token = acceptance_service.accept(report, proposed, "engineer:test", layer="OBJECT")
     document = context.service.inspect_document()
     drafted = _payload(
         asyncio.run(
@@ -104,7 +115,7 @@ def test_signed_raster_draft_compiles_through_the_ordinary_job_pipeline(
                     "report": report.model_dump(mode="json"),
                     "acceptance": acceptance.model_dump(mode="json"),
                     "acceptance_token": token,
-                    "layer": "TRACE_REVIEWED",
+                    "layer": "OBJECT",
                 },
             )
         )
@@ -113,16 +124,70 @@ def test_signed_raster_draft_compiles_through_the_ordinary_job_pipeline(
     spec = DrawingSpec.model_validate(drafted["data"])
     assert spec.features[0].type == "_accepted_raster_trace"
 
-    job = context.service.create_job(document.document_id)
-    submitted = context.service.submit_spec(
-        job.job_id,
-        spec.model_dump(mode="json", exclude={"spec_id", "document_id"}),
+    created = _payload(
+        asyncio.run(
+            mcp.call_tool(
+                "cad_job_create",
+                {"document_id": document.document_id},
+            )
+        )
+    )
+    job_id = cast(str, created["data"]["job_id"])
+    submitted = _payload(
+        asyncio.run(
+            mcp.call_tool(
+                "cad_spec_submit",
+                {"job_id": job_id, "spec": spec.model_dump(mode="json")},
+            )
+        )
     )
     assert submitted["status"] == "ok"
-    plan = context.service.store.get_plan(job.job_id)
+    assert _payload(asyncio.run(mcp.call_tool("cad_preview", {"job_id": job_id})))["status"] == "ok"
+    validated = _payload(
+        asyncio.run(
+            mcp.call_tool(
+                "cad_validate",
+                {"job_id": job_id, "stage": "pre_commit"},
+            )
+        )
+    )
+    assert validated["status"] == "ok"
+    assert validated["data"]["commit_allowed"] is True
+
+    plan = context.service.store.get_plan(job_id)
     assert plan is not None and plan.operations
-    assert {operation.layer for operation in plan.operations} == {"TRACE_REVIEWED"}
+    assert {operation.layer for operation in plan.operations} == {"OBJECT"}
     assert all(operation.feature_id in proposed for operation in plan.operations)
+
+    persisted_spec = context.service.store.get_spec(job_id)
+    assert persisted_spec is not None
+    persisted_parameters = persisted_spec.features[0].parameters
+    assert "acceptance_token" not in persisted_parameters
+    assert persisted_parameters["acceptance_token_redacted"] is True
+    assert token not in persisted_spec.model_dump_json()
+
+    # Desktop reopens the immutable stored plan without needing the now-redacted
+    # short-lived raster token, then owns the final approval and commit boundary.
+    controller = EngineerDesktopController(context.service)
+    controller.refresh(job_id)
+    validation_report = context.service.store.get_validation(job_id)
+    assert validation_report is not None
+    warnings = frozenset(
+        finding.rule_id
+        for finding in validation_report.findings
+        if finding.severity is Severity.WARNING
+    )
+    assert controller.approve(
+        approved_by="engineer:test",
+        acknowledged_warning_rule_ids=warnings,
+    ).approved
+    commit = controller.commit_approved(idempotency_key="raster-cross-surface")
+    assert commit.status.value == "committed"
+    assert commit.entity_results[0].measurements["length_mm"] == pytest.approx(160.0)
+    committed_job = context.service.store.get_job(job_id)
+    assert committed_job is not None and committed_job.state is JobState.COMMITTED
+    post_commit = context.service.store.get_validation(job_id)
+    assert post_commit is not None and post_commit.blocking_count == 0
 
     # Raster tool calls emit no audit event containing raw bytes or candidate geometry.
     event_text = str(getattr(context.service.audit, "events", ()))

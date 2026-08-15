@@ -345,6 +345,11 @@ def _infinite_intersection(first: LineEdge, second: LineEdge) -> Point2D | None:
 def _chamfer_features(
     contour: AssembledContour, tolerance: ToleranceProfile
 ) -> list[RecognizedFeature]:
+    # A real chamfer replaces a corner with an edge that is materially shorter
+    # than both adjacent legs.  Merely requiring it to be infinitesimally shorter
+    # misclassifies tessellated arcs/circles, whose nearly equal chord lengths
+    # differ only by floating-point noise, as dozens of tiny chamfers.
+    maximum_adjacent_length_ratio = 0.75
     results: list[RecognizedFeature] = []
     edges = contour.edges
     for index, record in enumerate(edges):
@@ -358,10 +363,12 @@ def _chamfer_features(
         assert isinstance(previous, LineEdge)
         assert isinstance(chamfer, LineEdge)
         assert isinstance(following, LineEdge)
-        if chamfer.start.distance_to(chamfer.end) >= min(
+        chamfer_length = chamfer.start.distance_to(chamfer.end)
+        adjacent_length = min(
             previous.start.distance_to(previous.end),
             following.start.distance_to(following.end),
-        ):
+        )
+        if chamfer_length >= maximum_adjacent_length_ratio * adjacent_length:
             continue
         vertex = _infinite_intersection(previous, following)
         if vertex is None or _point_on_contour(vertex, contour, tolerance):

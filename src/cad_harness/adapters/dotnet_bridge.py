@@ -38,6 +38,7 @@ from cad_harness.domain.errors import (
     PostCommitValidationFailedError,
     ReadScopeTooLargeError,
     RollbackNotAvailableError,
+    RollbackRecoveryRequiredError,
     StaleDocumentRevisionError,
     StandardProfileNotFoundError,
     ToolNotAllowedError,
@@ -324,6 +325,7 @@ _ERROR_TYPES: dict[ErrorCode, type[HarnessError]] = {
     ErrorCode.UNKNOWN_COMMIT_STATE: UnknownCommitStateError,
     ErrorCode.EXPORT_PATH_NOT_ALLOWED: ExportPathNotAllowedError,
     ErrorCode.ROLLBACK_NOT_AVAILABLE: RollbackNotAvailableError,
+    ErrorCode.ROLLBACK_RECOVERY_REQUIRED: RollbackRecoveryRequiredError,
     ErrorCode.INVALID_JOB_TRANSITION: InvalidJobTransitionError,
     ErrorCode.TOOL_NOT_ALLOWED: ToolNotAllowedError,
     ErrorCode.UNSUPPORTED_INPUT_FORMAT: UnsupportedInputFormatError,
@@ -373,6 +375,7 @@ class DotNetBridgeAdapter(BaseAdapter):
     """AutoCAD adapter backed by the per-user local C# Named Pipe bridge."""
 
     adapter_type = "dotnet_bridge"
+    allows_expired_checkpoint_recovery = True
     capabilities: frozenset[AdapterCapability] = frozenset()
     supported_operations: frozenset[OperationType] = frozenset()
 
@@ -388,11 +391,24 @@ class DotNetBridgeAdapter(BaseAdapter):
             AdapterCapability.UNDO_GROUP,
             AdapterCapability.STABLE_METADATA,
             AdapterCapability.ROLLBACK_UNDO_GROUP,
+            AdapterCapability.CHECKPOINT_RESTORE,
             AdapterCapability.IN_VIEWPORT_PREVIEW,
         }
     )
     # Compatibility alias retained for callers that displayed the old roadmap state.
     PLANNED_CAPABILITIES = PRODUCTION_CAPABILITIES
+    WRITE_CAPABILITIES: frozenset[AdapterCapability] = frozenset(
+        {
+            AdapterCapability.COMMIT,
+            AdapterCapability.ATOMIC_TRANSACTION,
+            AdapterCapability.DOCUMENT_LOCK,
+            AdapterCapability.UNDO_GROUP,
+            AdapterCapability.STABLE_METADATA,
+            AdapterCapability.ROLLBACK_UNDO_GROUP,
+            AdapterCapability.CHECKPOINT_RESTORE,
+            AdapterCapability.IN_VIEWPORT_PREVIEW,
+        }
+    )
 
     def __init__(
         self,
@@ -401,6 +417,7 @@ class DotNetBridgeAdapter(BaseAdapter):
         timeout_seconds: float = 30.0,
         max_frame_bytes: int = MAX_FRAME_BYTES,
         transport: BridgeTransport | None = None,
+        write_authorized: bool = True,
     ) -> None:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -422,6 +439,7 @@ class DotNetBridgeAdapter(BaseAdapter):
             self.pipe_name = resolved_pipe_name
             transport = NamedPipeTransport(resolved_pipe_name, max_frame_bytes=max_frame_bytes)
         self._transport = transport
+        self._write_authorized = write_authorized
         self.capabilities = frozenset()
         self.supported_operations = frozenset()
         self._handshake_data: dict[str, Any] | None = None
@@ -622,8 +640,10 @@ class DotNetBridgeAdapter(BaseAdapter):
                     )
                 },
             )
-        self.capabilities = capabilities
-        self.supported_operations = operations
+        self.capabilities = (
+            capabilities if self._write_authorized else capabilities - self.WRITE_CAPABILITIES
+        )
+        self.supported_operations = operations if self._write_authorized else frozenset()
         self._handshake_data = dict(data)
         return dict(data)
 
@@ -670,6 +690,7 @@ class DotNetBridgeAdapter(BaseAdapter):
                 cad_application=data["cad_application"],
                 cad_version=data["cad_version"],
                 active_document_id=data["active_document_id"],
+                process_id=getattr(self._transport, "last_server_process_id", None),
                 message=data["message"],
             )
         except Exception as error:
@@ -749,8 +770,13 @@ class DotNetBridgeAdapter(BaseAdapter):
 
     def rollback(self, request: RollbackRequest) -> RollbackResult:
         self._ensure_handshake()
-        self.require(AdapterCapability.ROLLBACK_UNDO_GROUP)
-        return self._model(
+        expected_method = "undo_group" if request.undo_group is not None else "checkpoint_restore"
+        self.require(
+            AdapterCapability.ROLLBACK_UNDO_GROUP
+            if expected_method == "undo_group"
+            else AdapterCapability.CHECKPOINT_RESTORE
+        )
+        result = self._model(
             RollbackResult,
             self._request(
                 "rollback",
@@ -758,6 +784,13 @@ class DotNetBridgeAdapter(BaseAdapter):
                 job_id=request.job_id,
             ),
         )
+        if result.method != expected_method:
+            raise ComCallFailedError(
+                "Bridge returned a rollback method that does not match the approved recovery path",
+                required_action="Reconcile the document revision before any rollback retry",
+                details={"expected_method": expected_method},
+            )
+        return result
 
     def export(self, request: ExportRequest) -> ExportResult:
         self._ensure_handshake()

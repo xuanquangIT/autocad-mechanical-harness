@@ -539,7 +539,14 @@ class HoleLigamentRule:
         analysis = _analysis(model, context)
         if analysis is None:
             return []
-        circles = _circles(analysis, model)
+        # Only odd-depth circular contours remove material. A circular part outline
+        # is a depth-zero boundary, not a hole; comparing it to every contained hole
+        # produces a negative, meaningless "ligament".
+        circles = [
+            (index, geometry)
+            for index, geometry in _circles(analysis, model)
+            if analysis.forest.nodes[index].depth % 2 == 1
+        ]
         findings: list[Finding] = []
         for position, (first_index, first) in enumerate(circles):
             for second_index, second in circles[position + 1 :]:
@@ -547,6 +554,16 @@ class HoleLigamentRule:
                     continue
                 first_circle, second_circle = _circle(first), _circle(second)
                 if first_circle is None or second_circle is None:
+                    continue
+                center_distance = first_circle.center.distance_to(second_circle.center)
+                # A containing circle is a boundary/parent contour, not a peer
+                # hole with a negative ligament.  Contour parity is normally
+                # enough, but intersecting nested geometry can make the forest
+                # deliberately conservative; keep this rule geometrically
+                # fail-closed as well.
+                if center_distance + min(first_circle.radius_mm, second_circle.radius_mm) <= max(
+                    first_circle.radius_mm, second_circle.radius_mm
+                ) + (context.tolerance.absolute_length_mm):
                     continue
                 if not circles_overlap(
                     first_circle.center,
@@ -556,9 +573,7 @@ class HoleLigamentRule:
                     minimum_ligament_mm=minimum,
                 ):
                     continue
-                ligament = first_circle.center.distance_to(second_circle.center) - (
-                    first_circle.radius_mm + second_circle.radius_mm
-                )
+                ligament = center_distance - (first_circle.radius_mm + second_circle.radius_mm)
                 findings.append(
                     finding(
                         self.rule_id,

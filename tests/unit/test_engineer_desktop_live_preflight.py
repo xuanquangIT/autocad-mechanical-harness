@@ -8,7 +8,6 @@ from apps.mcp_server.context import build_context
 
 from cad_harness.application.manual_gate import MANUAL_STEP_INSTRUCTIONS, ManualStepId
 from cad_harness.config import AdapterSettings, Settings
-from cad_harness.domain.errors import ApprovalRequiredError
 
 _SETUP_STEP_IDS = tuple(step.value for step in tuple(ManualStepId)[:5])
 
@@ -81,17 +80,30 @@ def test_offline_adapters_do_not_prompt(adapter_type: str) -> None:
     assert prompts == []
 
 
-def test_noninteractive_live_context_fails_before_adapter_construction(
+def test_noninteractive_read_only_bridge_does_not_require_persisted_confirmations(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     config_path = tmp_path / "live.yaml"
-    config_path.write_text("adapter:\n  type: com\n", encoding="utf-8")
+    config_path.write_text(
+        "\n".join(
+            (
+                "adapter:",
+                "  type: dotnet_bridge",
+                "storage:",
+                f"  sqlite_path: {tmp_path / 'harness.db'}",
+                f"  preview_directory: {tmp_path / 'previews'}",
+                f"  checkpoint_directory: {tmp_path / 'checkpoints'}",
+            )
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.delenv("CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS", raising=False)
+    monkeypatch.delenv("CAD_HARNESS_LIVE_WRITE_VERIFIED", raising=False)
+    monkeypatch.delenv("CAD_HARNESS_LIVE_SESSION_PROOF", raising=False)
 
-    with pytest.raises(ApprovalRequiredError) as error:
-        build_context(config_path)
+    context = build_context(config_path)
 
-    assert ManualStepId.OPEN_TARGET_DRAWING.value in str(error.value.required_action)
+    assert context.settings.adapter.type == "dotnet_bridge"
 
 
 def test_unsigned_bridge_instruction_is_limited_to_owned_disposable_acceptance() -> None:

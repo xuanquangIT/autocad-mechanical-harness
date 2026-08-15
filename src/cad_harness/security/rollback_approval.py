@@ -84,6 +84,11 @@ def make_rollback_approval_token(approval: RollbackApprovalRecord, secret: str) 
     return f"{_TOKEN_VERSION}.{payload}.{digest}"
 
 
+def rollback_approval_token_digest(token: str) -> str:
+    """Return the domain-separated digest used to bind one durable restore attempt."""
+    return sha256(("cad-harness-rb1-token-v1\0" + token).encode("utf-8")).hexdigest()
+
+
 def issue_rollback_approval(
     *,
     job_id: str,
@@ -126,6 +131,66 @@ def verify_rollback_approval_token(
     now: datetime | None = None,
 ) -> RollbackApprovalRecord:
     """Verify signature, exact restore scope and expiry, returning signed identity."""
+    approval = _verify_rollback_approval_claims(
+        token,
+        secret,
+        job_id=job_id,
+        document_id=document_id,
+        checkpoint_id=checkpoint_id,
+        current_revision=current_revision,
+    )
+    if approval.is_expired(now):
+        raise ApprovalExpiredError(
+            "Rollback approval has expired",
+            required_action="Review the current revision and approve rollback again",
+            details={"expires_at": approval.expires_at.isoformat()},
+        )
+    return approval
+
+
+def verify_rollback_recovery_token(
+    token: str,
+    secret: str,
+    *,
+    job_id: str,
+    document_id: str,
+    checkpoint_id: str,
+    current_revision: str,
+    now: datetime | None = None,
+) -> RollbackApprovalRecord:
+    """Authenticate an expired rb1 token for an already-journaled restore only.
+
+    The caller must restrict this path to the real .NET bridge checkpoint-restore
+    adapter.  The C# authenticated journal proves the exact token digest and scope,
+    including after a Python restart, and cannot start a new replacement from this
+    expired token.
+    """
+    approval = _verify_rollback_approval_claims(
+        token,
+        secret,
+        job_id=job_id,
+        document_id=document_id,
+        checkpoint_id=checkpoint_id,
+        current_revision=current_revision,
+    )
+    if not approval.is_expired(now):
+        raise ApprovalScopeMismatchError(
+            "Rollback recovery verification requires the expired original approval",
+            required_action="Use normal rollback verification for an unexpired approval",
+        )
+    return approval
+
+
+def _verify_rollback_approval_claims(
+    token: str,
+    secret: str,
+    *,
+    job_id: str,
+    document_id: str,
+    checkpoint_id: str,
+    current_revision: str,
+) -> RollbackApprovalRecord:
+    """Verify rb1 namespace, HMAC, schema and exact scope without expiry policy."""
     if not secret:
         raise ApprovalRequiredError(
             "No rollback approval signing secret is configured",
@@ -166,12 +231,6 @@ def verify_rollback_approval_token(
             "Rollback approval contract version is not current",
             required_action="Request a fresh rollback approval in the engineer desktop",
             details={"approved_schema_version": approval.schema_version},
-        )
-    if approval.is_expired(now):
-        raise ApprovalExpiredError(
-            "Rollback approval has expired",
-            required_action="Review the current revision and approve rollback again",
-            details={"expires_at": approval.expires_at.isoformat()},
         )
     if not approval.matches(
         job_id=job_id,

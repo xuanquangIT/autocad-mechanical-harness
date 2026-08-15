@@ -1,0 +1,49 @@
+{
+  "attached_existing_document": true,
+  "input_spec_sha256": "879e0c0f5ce792a8801a302f551d655657df7f3a3761990f283f0071a4b8a544",
+  "mcp_transport": "stdio",
+  "production_evidence": false,
+  "real_autocad_evidence": true,
+  "schema_version": "1.0",
+  "workflow": {
+    "adapter": {
+      "active_document_id": "doc_E4E2FF8EDE1CF44D11A8234EAB",
+      "adapter_type": "com",
+      "available": true,
+      "cad_application": "AutoCAD.Application",
+      "cad_version": "26.0s (LMS Tech)",
+      "capabilities": [
+        "commit",
+        "export",
+        "inspect_document",
+        "inspect_selection"
+      ],
+      "message": null,
+      "version_supported": true
+    },
+    "approval_id": "approval_01M02PXAX29YA9DJR4QDHDEXZW",
+    "commit": {
+      "checkpoint_present": false,
+      "entity_count": 1,
+      "new_revision": "sha256:ba2272812b9f960b915f13dafa4caa086901785a673017816728bdbaa5447600",
+      "status": "committed"
+    },
+    "document": {
+      "display_name": "existing-drawing-baseplate-v018-6ee6bd6e97ebf74b.dwg",
+      "document_id": "doc_E4E2FF8EDE1CF44D11A8234EAB",
+      "entity_count_after": 21,
+      "entity_count_before": 20,
+      "revision_after": "sha256:ba2272812b9f960b915f13dafa4caa086901785a673017816728bdbaa5447600",
+      "revision_before": "sha256:d372ae0042d96c9247dc9e6187c194c584663baaa5c6fb958f10719224f30295"
+    },
+    "job_id": "job_01M02PXAP29M1BR657ACTM86FP",
+    "operation_count": 1,
+    "plan_hash": "sha256:7f5f6a02ec8dabc542240ca81c2ac4aae21374a88277aa3dd179dbd0877e30ff",
+    "preview_artifact_count": 2,
+    "tool_count": 22,
+    "validation": {
+      "blocking_count": 0,
+      "error_count": 0
+    }
+  }
+}

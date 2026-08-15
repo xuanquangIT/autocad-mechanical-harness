@@ -24,6 +24,7 @@ If the change touches a public model, operation, tool, error code, schema, or pe
 - For image conversion, treat raster inference as untrusted intake. Preserve the source image hash, units/scale evidence, confidence, unresolved ambiguities, and traced primitives. Never commit inferred geometry directly; require deterministic normalization, preview, validation, and engineer approval.
 - For MCP work, expose high-level engineering operations only. Return the common envelope and contain exceptions at the boundary. Do not add primitive drawing tools.
 - For COM or bridge work, keep AutoCAD dependencies out of the domain. Require document revision checks, one writer lease, atomic transaction semantics, stable entity metadata, readback, and post-commit measurement.
+- Never authorize live writes from persisted manual-confirmation strings. Require a short-lived `lsp1` proof bound to the exact adapter, AutoCAD PID, document id, and revision; keep ordinary MCP registration read-only.
 - For packaging or installation, keep the default adapter non-writing. Require an explicit configured AutoCAD session before any real-DWG integration test.
 
 ## Implement in dependency order

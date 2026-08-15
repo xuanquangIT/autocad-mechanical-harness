@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -52,6 +54,24 @@ def _recognized(case: RecognitionCase) -> RecognizedFeature:
     report = recognize(case.model, tolerance=TOLERANCE, profile=PROFILE)
     return next(
         feature for feature in _all_features(report) if feature.feature_type is case.expected_type
+    )
+
+
+def test_polygonized_circle_is_not_misclassified_as_many_chamfers() -> None:
+    vertices = tuple(
+        (
+            100.0 + 40.0 * math.cos(2.0 * math.pi * index / 128),
+            75.0 + 40.0 * math.sin(2.0 * math.pi * index / 128),
+        )
+        for index in range(128)
+    )
+    model = _drawing_model((_polyline_record("tessellated-circle", vertices, closed=True),))
+
+    report = recognize(model, tolerance=TOLERANCE, profile=PROFILE)
+
+    assert all(
+        feature.feature_type is not RecognizedFeatureType.CHAMFER_CORNER
+        for feature in _all_features(report)
     )
 
 

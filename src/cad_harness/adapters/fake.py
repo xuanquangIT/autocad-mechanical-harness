@@ -449,4 +449,44 @@ class FakeAutoCADAdapter(BaseAdapter):
                 "area_mm2": polyline.area() if closed else 0.0,
                 "perimeter_mm": polyline.perimeter(),
             }
+        if operation.type is OperationType.CREATE_LINE:
+            start = Point2D(*map(float, operation.geometry.get("start_mm", ())))
+            end = Point2D(*map(float, operation.geometry.get("end_mm", ())))
+            return {
+                "start_mm": list(start.as_tuple()),
+                "end_mm": list(end.as_tuple()),
+                "length_mm": start.distance_to(end),
+            }
+        if operation.type is OperationType.CREATE_CIRCLE:
+            center = [float(value) for value in operation.geometry.get("center_mm", ())]
+            if "radius_mm" in operation.geometry:
+                radius = float(operation.geometry["radius_mm"])
+                measurements: dict[str, Any] = {"center_mm": center, "radius_mm": radius}
+            else:
+                diameter = float(operation.geometry.get("diameter_mm", 0.0))
+                radius = diameter / 2.0
+                measurements = {"center_mm": center, "diameter_mm": diameter}
+            if "radius_mm" in operation.expected and "radius_mm" not in measurements:
+                measurements["radius_mm"] = radius
+            if "diameter_mm" in operation.expected and "diameter_mm" not in measurements:
+                measurements["diameter_mm"] = radius * 2.0
+            if "area_mm2" in operation.expected:
+                measurements["area_mm2"] = math.pi * radius * radius
+            return measurements
+        if operation.type is OperationType.CREATE_ARC:
+            center = [float(value) for value in operation.geometry.get("center_mm", ())]
+            radius = float(operation.geometry.get("radius_mm", 0.0))
+            start_angle = float(operation.geometry.get("start_angle_deg", 0.0))
+            end_angle = float(operation.geometry.get("end_angle_deg", 0.0))
+            measurements = {
+                "center_mm": center,
+                "radius_mm": radius,
+                "start_angle_deg": start_angle,
+                "end_angle_deg": end_angle,
+            }
+            if "arc_length_mm" in operation.expected:
+                measurements["arc_length_mm"] = radius * math.radians(
+                    (end_angle - start_angle) % 360.0
+                )
+            return measurements
         return dict(operation.geometry)

@@ -1,0 +1,27 @@
+{
+  "attached_existing_document": true,
+  "mcp_transport": "stdio",
+  "opened_or_created_autocad_document": false,
+  "production_evidence": false,
+  "real_autocad_evidence": true,
+  "schema_version": "1.0",
+  "workflow": {
+    "adapter_type": "com",
+    "approval_id_sha256": "42abddeca071c4531b0289bf6ead76631c9beb8936a06665d57c52f45a04b4b7",
+    "audit_id_sha256": "e7181c79bd8fd7dc153413cb8e8fb803a3a3ffbb689eff5eee7c197241954219",
+    "cad_version": "26.0s (LMS Tech)",
+    "display_name_sha256": "cc5c8eec5e527842654368916a9af94f159732d871cc58486c5c80a631690e82",
+    "document_id_sha256": "aabacf908d5be878342cd9a80d59e4818bf05ea403ff7060e253074f453eaa47",
+    "entity_count_after": 20,
+    "entity_count_before": 21,
+    "job_id_sha256": "2798ba26fe4a311966b5b9281eb2b2c8f6d90a66c6b920989d217b3d1ed327f0",
+    "operation_count": 1,
+    "plan_hash": "sha256:ba946d14ddb79766312cc8520712cf5d6197a6cc19bc20212020b722170e6e2b",
+    "post_audit_selected_finding_present": false,
+    "preview_deleted": 1,
+    "revision_after": "sha256:d372ae0042d96c9247dc9e6187c194c584663baaa5c6fb958f10719224f30295",
+    "revision_before": "sha256:ba2272812b9f960b915f13dafa4caa086901785a673017816728bdbaa5447600",
+    "selected_entity_ref_sha256": "111ddeece631c42f9daca7d08ad4a0f91f02067bbc5a2f1ab0d52100df4fad3d",
+    "selected_rule": "DUPLICATE_ENTITY"
+  }
+}

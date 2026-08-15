@@ -231,6 +231,30 @@ class TestPostCommitRules:
         report = run(context_factory(plan, result), ValidationStage.POST_COMMIT)
         assert "POST-MEASUREMENT-MATCH" in rule_ids(report, Severity.WARNING)
 
+    def test_missing_raster_measurement_is_blocking(self, context_factory) -> None:
+        raster = outline(PLATE).model_copy(update={"feature_id": "raster-candidate-reviewed-line"})
+        plan = build_plan((raster,))
+        result = CommitResult(
+            job_id="job_1",
+            plan_hash="sha256:plan",
+            status=CommitStatus.COMMITTED,
+            entity_results=(
+                EntityResult(
+                    operation_id="op-outline",
+                    feature_id="raster-candidate-reviewed-line",
+                    entity_ref="fake:handle:1",
+                    entity_type="AcDbPolyline",
+                    measurements={"closed": True},
+                ),
+            ),
+            previous_revision="sha256:a",
+            new_revision="sha256:b",
+        )
+
+        report = run(context_factory(plan, result), ValidationStage.POST_COMMIT)
+
+        assert "POST-MEASUREMENT-MATCH" in rule_ids(report, Severity.BLOCKING)
+
     def test_operation_without_an_entity_is_blocking(self, context_factory) -> None:
         plan = build_plan((outline(PLATE), holes([[20.0, 20.0]])), expectations=PARENT_LINK)
         result = self._commit_result({"closed": True, "vertex_count": 4, "area_mm2": 16000.0})

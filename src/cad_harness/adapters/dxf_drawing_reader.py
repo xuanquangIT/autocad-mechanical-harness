@@ -164,6 +164,7 @@ class DxfDrawingReader:
         by_layer: Counter[str] = Counter()
         by_space: Counter[str] = Counter()
         unsupported: Counter[str] = Counter()
+        block_unsupported_cache: dict[tuple[str, int], Counter[str]] = {}
         for entity, space in self._entities_in_scope(document, request):
             if deadline is not None:
                 deadline.checkpoint()
@@ -175,6 +176,17 @@ class DxfDrawingReader:
             by_space[space] += 1
             if unsupported_name is not None or raw_type not in _SUPPORTED_TYPES:
                 unsupported[unsupported_name or raw_type.lower()] += 1
+            elif raw_type == "INSERT":
+                unsupported.update(
+                    self._block_unsupported_descendants(
+                        document,
+                        str(entity.dxf.name),
+                        remaining_depth=request.max_block_nesting_depth,
+                        deadline=deadline,
+                        cache=block_unsupported_cache,
+                        visiting=set(),
+                    )
+                )
         return DrawingSummary(
             document_id=self._document_id(path),
             revision=revision,
@@ -609,6 +621,54 @@ class DxfDrawingReader:
                     document, str(child.dxf.name), nested_visiting
                 )
         return count
+
+    def _block_unsupported_descendants(
+        self,
+        document: Any,
+        block_name: str,
+        *,
+        remaining_depth: int,
+        deadline: CancellationTokenPort | None,
+        cache: dict[tuple[str, int], Counter[str]],
+        visiting: set[tuple[str, int]],
+    ) -> Counter[str]:
+        """Count unsupported block children at the same depth observed by ``read()``."""
+        if remaining_depth <= 0:
+            return Counter()
+        key = (block_name, remaining_depth)
+        if key in cache:
+            return cache[key].copy()
+        if key in visiting:
+            return Counter()
+        if deadline is not None:
+            deadline.checkpoint()
+        try:
+            block = document.blocks.get(block_name)
+        except KeyError:
+            return Counter()
+
+        counts: Counter[str] = Counter()
+        nested_visiting = {*visiting, key}
+        for child in block:
+            if deadline is not None:
+                deadline.checkpoint()
+            raw_type = child.dxftype()
+            unsupported_name = self._unsupported_name(document, child)
+            if unsupported_name is not None or raw_type not in _SUPPORTED_TYPES:
+                counts[unsupported_name or raw_type.lower()] += 1
+            elif raw_type == "INSERT" and remaining_depth > 1:
+                counts.update(
+                    self._block_unsupported_descendants(
+                        document,
+                        str(child.dxf.name),
+                        remaining_depth=remaining_depth - 1,
+                        deadline=deadline,
+                        cache=cache,
+                        visiting=nested_visiting,
+                    )
+                )
+        cache[key] = counts.copy()
+        return counts
 
     def _bounding_box(
         self, entity: Any, geometry: EntityGeometry, scale: float

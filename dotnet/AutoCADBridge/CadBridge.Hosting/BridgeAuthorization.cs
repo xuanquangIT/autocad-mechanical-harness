@@ -32,7 +32,8 @@ public sealed record BridgeRollbackApprovalClaims(
     string CurrentRevision,
     string ApprovedBy,
     DateTimeOffset ApprovedAt,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    string ApprovalTokenDigest);
 
 /// <summary>
 /// Cross-language authorization primitives shared by the strict router host. The canonical plan
@@ -221,6 +222,68 @@ public static class BridgeAuthorization
         DateTimeOffset now,
         out BridgeRollbackApprovalClaims? claims)
     {
+        return TryValidateRollbackAuthorizationCore(
+            rollbackApprovalToken,
+            secret,
+            jobId,
+            documentId,
+            checkpointId,
+            currentRevision,
+            now,
+            enforceExpiry: true,
+            out claims);
+    }
+
+    /// <summary>
+    /// Validates an expired rollback token only when an authenticated durable journal proves that
+    /// the exact approval and scope already crossed the Prepared boundary. This path can resume or
+    /// replay that recorded attempt; it cannot authorize a new replacement.
+    /// </summary>
+    public static bool TryValidateRollbackRecoveryAuthorization(
+        string rollbackApprovalToken,
+        string secret,
+        string jobId,
+        string documentId,
+        string checkpointId,
+        string currentRevision,
+        DateTimeOffset now,
+        Func<BridgeRollbackApprovalClaims, bool> canResumeExactRecordedAttempt,
+        out BridgeRollbackApprovalClaims? claims)
+    {
+        ArgumentNullException.ThrowIfNull(canResumeExactRecordedAttempt);
+        claims = null;
+        if (!TryValidateRollbackAuthorizationCore(
+                rollbackApprovalToken,
+                secret,
+                jobId,
+                documentId,
+                checkpointId,
+                currentRevision,
+                now,
+                enforceExpiry: false,
+                out var candidate) ||
+            candidate is null ||
+            now <= candidate.ExpiresAt ||
+            !canResumeExactRecordedAttempt(candidate))
+        {
+            return false;
+        }
+
+        claims = candidate;
+        return true;
+    }
+
+    private static bool TryValidateRollbackAuthorizationCore(
+        string rollbackApprovalToken,
+        string secret,
+        string jobId,
+        string documentId,
+        string checkpointId,
+        string currentRevision,
+        DateTimeOffset now,
+        bool enforceExpiry,
+        out BridgeRollbackApprovalClaims? claims)
+    {
         claims = null;
         if (string.IsNullOrEmpty(secret) ||
             string.IsNullOrEmpty(rollbackApprovalToken) ||
@@ -295,7 +358,7 @@ public static class BridgeAuthorization
                 !FixedEquals(claimDocumentId, documentId) ||
                 !FixedEquals(claimCheckpointId, checkpointId) ||
                 !FixedEquals(claimRevision, currentRevision) ||
-                now > expiresAt)
+                (enforceExpiry && now > expiresAt))
             {
                 return false;
             }
@@ -309,7 +372,8 @@ public static class BridgeAuthorization
                 claimRevision,
                 approvedBy,
                 approvedAt,
-                expiresAt);
+                expiresAt,
+                ComputeRollbackApprovalTokenDigest(rollbackApprovalToken));
             return true;
         }
         catch (JsonException)
@@ -432,4 +496,8 @@ public static class BridgeAuthorization
         CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(left),
             Encoding.UTF8.GetBytes(right));
+
+    private static string ComputeRollbackApprovalTokenDigest(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            "cad-harness-rb1-token-v1\0" + token))).ToLowerInvariant();
 }

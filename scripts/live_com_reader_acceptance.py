@@ -15,7 +15,6 @@ from cad_harness.adapters.com_drawing_reader import ComDrawingReader
 from cad_harness.domain.errors import (
     AdapterCapabilityMissingError,
     AutoCADBusyError,
-    ComCallFailedError,
 )
 from cad_harness.domain.models.drawing_model import ReadScope
 from cad_harness.domain.ports.drawing_source import DrawingReadRequest, DrawingSourceRef
@@ -101,7 +100,7 @@ def _stable_state(document: Any, adapter: ComAutoCADAdapter) -> dict[str, Any]:
         try:
             adapter._wait_until_quiescent(timeout_seconds=1.0)
             return _state(document, adapter)
-        except Exception as exc:
+        except AutoCADBusyError as exc:
             last_error = exc
             time.sleep(0.2)
     raise AssertionError("AutoCAD did not expose a stable read-only state") from last_error
@@ -115,13 +114,21 @@ def _stable_read(adapter: ComAutoCADAdapter, action: Any) -> Any:
         try:
             adapter._wait_until_quiescent(timeout_seconds=1.0)
             return action()
-        except (AutoCADBusyError, ComCallFailedError) as exc:
+        except AutoCADBusyError as exc:
             last_error = exc
             time.sleep(0.2)
     raise AssertionError("AutoCAD did not complete the read-only COM operation") from last_error
 
 
-def run_acceptance(source: Path, scratch: Path, evidence_path: Path) -> dict[str, Any]:
+def run_acceptance(
+    source: Path,
+    scratch: Path,
+    evidence_path: Path,
+    *,
+    startup_wait_seconds: float = 180.0,
+) -> dict[str, Any]:
+    if startup_wait_seconds <= 0:
+        raise ValueError("startup_wait_seconds must be positive")
     source = source.resolve(strict=True)
     scratch = scratch.resolve(strict=False)
     evidence_path = evidence_path.resolve(strict=False)
@@ -130,7 +137,7 @@ def run_acceptance(source: Path, scratch: Path, evidence_path: Path) -> dict[str
     shutil.copy2(source, scratch)
     source_hash = _sha256(scratch)
 
-    adapter = ComAutoCADAdapter("autocad")
+    adapter = ComAutoCADAdapter("autocad", startup_wait_seconds=startup_wait_seconds)
     preexisting_pids = adapter._acad_process_ids()
     session = adapter.connect_isolated(versioned_prog_id="AutoCAD.Application.26")
     if session.pid in preexisting_pids:
@@ -240,8 +247,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--scratch", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--startup-wait-seconds", type=float, default=180.0)
     args = parser.parse_args(argv)
-    run_acceptance(args.source, args.scratch, args.evidence)
+    run_acceptance(
+        args.source,
+        args.scratch,
+        args.evidence,
+        startup_wait_seconds=args.startup_wait_seconds,
+    )
     return 0
 
 

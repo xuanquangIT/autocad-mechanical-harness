@@ -49,9 +49,10 @@ Autodesk's [Managed .NET compatibility table](https://help.autodesk.com/cloudhel
 | AutoCAD | COM release prefix | .NET runtime | Bridge bundle | Verification |
 |---|---:|---:|---:|---|
 | 2024 | 24.3 | 4.8 | separate bundle required | provisional; writer disabled |
-| 2025 | 25.0 | 8.0 | 0.1.0 | provisional; live acceptance pending |
+| 2025 | 25.0 | 8.0 | 0.2.0 | provisional; live acceptance pending |
 | 2026 through Update 1.1 | 25.1 | 8.0 | separate verified build required | provisional; live acceptance pending |
 | 2026 Update 1.2+ | 25.1 | 10.0 | separate verified build required | not packaged by the current net8 bundle |
+| 2027 | 26.0 | 10.0 | 0.2.0 engineering-preview bundle | live development acceptance passed; signed release still required |
 
 An unlisted or unparseable version is visible in `cad_status` with
 `version_supported=false` and is denied at the writer boundary. “Provisional” means the
@@ -65,9 +66,46 @@ uv run cad-harness status                 # adapter, profile, capabilities
 uv run cad-harness features               # what the catalog supports
 uv run cad-harness demo                   # reference case, preview only
 uv run cad-harness demo --commit          # fake adapter only; never self-approves live CAD
+uv run cad-harness raster-review report.json  # resolve the exact local overlay and SHA-256
 uv run cad-harness raster-accept --help   # human acceptance for calibrated image candidates
 uv run cad-harness-mcp                    # MCP server on stdio
+uv run python scripts/check_codex_mcp_installation.py  # redacted local registration/bundle doctor
 ```
+
+Raster acceptance is intentionally two-step. First run `raster-review`, open the printed local SVG,
+and compare its candidate IDs to the source image. Then pass the printed digest back with
+`--reviewed-overlay-sha256 sha256:...` together with `--confirm-reviewed-overlay`. A stale or replaced
+overlay is rejected; neither review nor acceptance is exposed as an MCP tool.
+
+## Codex and ChatGPT connection checks
+
+Codex desktop/CLI can register the local STDIO command directly. Before relying on that registration,
+run `check_codex_mcp_installation.py`; it fails closed on a fake/wrong config, missing secret injection,
+persisted write authority, duplicate or unsigned development bundles, reparse points, and
+workspace/global version drift. Marker absence is deliberately reported as
+`BUNDLE_AUTHENTICODE_UNVERIFIED`, not as proof of signing; the hardened installer remains the authority
+for certificate, publisher and timestamp verification. The doctor's JSON contains counts and versions
+only, never paths or secrets.
+
+ChatGPT web cannot connect directly to a local MCP process. For private developer testing, use
+[OpenAI Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels):
+
+1. Obtain a `tunnel_id`, Tunnels Read + Use permission, a runtime API key, and ChatGPT developer-mode
+   access from the appropriate Platform/workspace administrators.
+2. Download `tunnel-client` from the current link in Platform tunnel settings; do not vendor a stale
+   binary or place the runtime API key in this repository.
+3. Initialize a named STDIO profile whose command is the same absolute `uv --directory ... run
+   cad-harness-mcp` registration validated by the local doctor.
+4. Run `tunnel-client doctor --profile <profile> --explain`, then keep `tunnel-client run --profile
+   <profile>` healthy while scanning tools in the ChatGPT developer-mode app.
+5. Keep write tools disabled until the signed single-bundle, engineer corpus, pilot and clean-workstation
+   gates pass. ChatGPT confirmation does not replace the harness's plan/revision-bound Engineer Desktop
+   approval.
+
+The tunnel is outbound-only transport; it does not turn development evidence into production approval.
+Full write-capable MCP apps currently require an eligible Business or Enterprise/Edu workspace and its
+admin controls. See the official
+[developer-mode requirements](https://help.openai.com/en/articles/12584461-developer-mode-apps-and-full-mcp-connectors-in-chatgpt-beta).
 
 ## Database
 
@@ -141,12 +179,17 @@ step before running its next action. The ordered steps are:
 6. Review the exact preview, findings, plan hash and revision in Engineer Desktop, then
    approve commit.
 
-Engineer Desktop collects the first five confirmations interactively before constructing
-the live adapter. A non-interactive MCP host must receive equivalent explicit startup
-evidence through `CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS`, containing the exact first five
-step ids in the order above, comma-separated. Missing, reordered, unknown, or extra ids
-fail before COM/Named Pipe construction. This evidence never confirms step 6; commit still
-requires the human approval UI, bound token, plan hash, and revision.
+Engineer Desktop collects the first five confirmations interactively. For a write-capable
+launch it then inspects the actual adapter and issues an `lsp1` live-session proof, valid for
+at most 15 minutes and bound to the exact adapter type, AutoCAD PID, document id and revision.
+The proof may be passed to one non-interactive child through
+`CAD_HARNESS_LIVE_SESSION_PROOF`; it must never be stored in Codex configuration, a database,
+logs, evidence, or source control. `CAD_HARNESS_LIVE_WRITE_VERIFIED=1` only requests write
+mode and grants no authority by itself. A normal registered MCP process remains read-only and
+does not require either the signing secret or setup proof. The old
+`CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS` string is unbound, is not trusted by server startup,
+and is rejected by the installation doctor. None of these setup steps confirms step 6;
+every commit still requires the human approval UI, bound token, plan hash, and revision.
 
 For an integration test, begin with the disposable DWG closed everywhere except the one
 declared AutoCAD session, no active command, the expected revision recorded, and a backup

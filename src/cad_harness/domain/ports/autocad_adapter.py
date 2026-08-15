@@ -57,6 +57,9 @@ class AdapterStatus(ContractModel):
     #: CAD must not claim a version is supported (Requirement 28.2).
     version_supported: bool | None = None
     active_document_id: str | None = None
+    #: OS process hosting the proven live adapter session.  ``None`` for adapters
+    #: that cannot establish this identity (fake/offline transports must not guess).
+    process_id: int | None = None
     message: str | None = None
 
 

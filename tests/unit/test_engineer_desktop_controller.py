@@ -15,10 +15,13 @@ from cad_harness.application.services.metrics_service import MetricsService
 from cad_harness.domain.errors import (
     ApprovalRequiredError,
     PlanHashMismatchError,
+    RollbackNotAvailableError,
+    RollbackRecoveryRequiredError,
     StaleDocumentRevisionError,
 )
 from cad_harness.domain.models.job import JobState
 from cad_harness.domain.models.metrics import FailureReason
+from cad_harness.domain.models.result import RollbackResult
 from cad_harness.domain.models.validation import Severity, ValidationStage
 from cad_harness.metrics.collector import load_pilot_thresholds
 
@@ -180,6 +183,70 @@ def test_controller_keeps_separate_rollback_token_memory_only(
 
     result = controller.rollback_approved()
     assert result.checkpoint_id == scope.checkpoint_id
+    assert not controller.has_in_memory_rollback_approval
+
+
+def test_controller_retains_exact_rollback_secret_only_for_typed_recovery(
+    service: HarnessService,
+    base_plate_spec: dict[str, Any],
+    monkeypatch,
+) -> None:
+    job_id, warnings = _prepared(service, base_plate_spec)
+    controller = EngineerDesktopController(service)
+    controller.refresh(job_id)
+    assert controller.approve(
+        approved_by="engineer-1",
+        acknowledged_warning_rule_ids=warnings,
+    ).approved
+    controller.commit_approved(idempotency_key="desktop-recovery-commit")
+    scope = controller.prepare_rollback(job_id)
+    assert controller.approve_rollback(approved_by="engineer-rollback").approved
+
+    calls: list[dict[str, str]] = []
+
+    def recovery_then_success(_job_id: str, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise RollbackRecoveryRequiredError("journal retry required")
+        return RollbackResult(
+            job_id=job_id,
+            restored_revision="sha256:restored",
+            checkpoint_id=scope.checkpoint_id,
+            method="checkpoint_restore",
+        )
+
+    monkeypatch.setattr(service, "rollback", recovery_then_success)
+    with pytest.raises(RollbackRecoveryRequiredError):
+        controller.rollback_approved()
+    assert controller.has_in_memory_rollback_approval
+
+    assert controller.rollback_approved().method == "checkpoint_restore"
+    assert not controller.has_in_memory_rollback_approval
+    assert calls[0] == calls[1]
+
+
+def test_controller_erases_rollback_secret_for_nonretryable_failure(
+    service: HarnessService,
+    base_plate_spec: dict[str, Any],
+    monkeypatch,
+) -> None:
+    job_id, warnings = _prepared(service, base_plate_spec)
+    controller = EngineerDesktopController(service)
+    controller.refresh(job_id)
+    assert controller.approve(
+        approved_by="engineer-1",
+        acknowledged_warning_rule_ids=warnings,
+    ).approved
+    controller.commit_approved(idempotency_key="desktop-recovery-clear-commit")
+    controller.prepare_rollback(job_id)
+    assert controller.approve_rollback(approved_by="engineer-rollback").approved
+
+    def rejected(*_args, **_kwargs):
+        raise RollbackNotAvailableError("checkpoint quarantined")
+
+    monkeypatch.setattr(service, "rollback", rejected)
+    with pytest.raises(RollbackNotAvailableError):
+        controller.rollback_approved()
     assert not controller.has_in_memory_rollback_approval
 
 

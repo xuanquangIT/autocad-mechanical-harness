@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -14,9 +15,13 @@ from cad_harness.adapters import (
     build_adapter,
 )
 from cad_harness.adapters.dotnet_bridge import DotNetBridgeAdapter
+from cad_harness.application.live_session_proof import (
+    LIVE_SESSION_PROOF_ENV,
+    issue_live_session_proof,
+    verify_live_session_proof,
+)
 from cad_harness.application.manual_gate import (
     ManualStepId,
-    load_live_setup_confirmations_from_environment,
     require_live_setup_confirmations,
 )
 from cad_harness.application.services.drawing_audit_service import DrawingAuditService
@@ -48,6 +53,10 @@ from cad_harness.domain.errors import (
 )
 from cad_harness.domain.models.drawing_model import DrawingModel, ReadScope
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
+from cad_harness.domain.ports.autocad_adapter import (
+    AdapterCapability,
+    InspectRequest,
+)
 from cad_harness.domain.ports.drawing_source import (
     DrawingReadRequest,
     DrawingSourcePort,
@@ -113,12 +122,7 @@ def build_context(
 ) -> ServerContext:
     """Load settings, configure logging, wire the adapter and the service."""
     settings = load_settings(config_path)
-    confirmations = (
-        load_live_setup_confirmations_from_environment()
-        if manual_confirmations is None
-        else manual_confirmations
-    )
-    require_live_setup_confirmations(settings.adapter.type, confirmations)
+    write_requested = os.environ.get("CAD_HARNESS_LIVE_WRITE_VERIFIED") == "1"
     configure_local_only_network_guard(enabled=settings.app.local_only)
     configure_logging(
         level=settings.observability.log_level,
@@ -159,6 +163,7 @@ def build_context(
         pipe_name=settings.bridge.pipe_name_template,
         timeout_seconds=settings.bridge.ipc_timeout_seconds,
         max_request_bytes=settings.bridge.max_request_bytes,
+        write_enabled=write_requested,
     )
 
     # COM needs an explicit attach. Failing here is better than failing on first write.
@@ -167,6 +172,43 @@ def build_context(
 
         assert isinstance(adapter, ComAutoCADAdapter)
         adapter.connect(launch_if_missing=settings.adapter.launch_autocad_if_missing)
+
+    if settings.adapter.type in {"com", "dotnet_bridge"} and write_requested:
+        status = adapter.status()
+        if not status.available or status.process_id is None or status.active_document_id is None:
+            raise AdapterCapabilityMissingError(
+                "Live write setup cannot prove the active AutoCAD process and document",
+                required_action="Load the verified bridge or attach COM to the intended drawing",
+            )
+        snapshot = adapter.inspect_document(InspectRequest(document_id=status.active_document_id))
+        if AdapterCapability.COMMIT not in adapter.capabilities:
+            raise AdapterCapabilityMissingError(
+                "The live adapter does not advertise a verified commit capability",
+                required_action="Complete the adapter-specific atomic write acceptance gate",
+            )
+        secret = settings.approval_secret()
+        if manual_confirmations is not None:
+            confirmations = require_live_setup_confirmations(
+                settings.adapter.type, manual_confirmations
+            )
+            session_proof = issue_live_session_proof(
+                adapter_type=settings.adapter.type,
+                process_id=status.process_id,
+                document_id=snapshot.document_id,
+                revision=snapshot.revision,
+                setup_steps=confirmations,
+                secret=secret,
+            )
+        else:
+            session_proof = os.environ.get(LIVE_SESSION_PROOF_ENV, "")
+        verify_live_session_proof(
+            session_proof,
+            secret,
+            adapter_type=settings.adapter.type,
+            process_id=status.process_id,
+            document_id=snapshot.document_id,
+            revision=snapshot.revision,
+        )
 
     get_logger(__name__).info(
         "server_configured",
@@ -221,7 +263,19 @@ def build_context(
         minimum_remaining_seconds=settings.lease.minimum_remaining_seconds,
     )
     drawing_source: DrawingSourcePort
-    if isinstance(adapter, DotNetBridgeAdapter):
+    if settings.read.semantic_adapter == "dotnet_bridge" and not isinstance(
+        adapter, DotNetBridgeAdapter
+    ):
+        semantic_adapter = build_adapter(
+            "dotnet_bridge",
+            pipe_name=settings.bridge.pipe_name_template,
+            timeout_seconds=settings.bridge.ipc_timeout_seconds,
+            max_request_bytes=settings.bridge.max_request_bytes,
+            write_enabled=False,
+        )
+        assert isinstance(semantic_adapter, DotNetBridgeAdapter)
+        drawing_source = BridgeDrawingReader(semantic_adapter)
+    elif isinstance(adapter, DotNetBridgeAdapter):
         drawing_source = BridgeDrawingReader(adapter)
     elif settings.adapter.type == "com":
         from cad_harness.adapters.autocad_com import ComAutoCADAdapter

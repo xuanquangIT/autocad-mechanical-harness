@@ -53,6 +53,20 @@ class TestReadBounds:
             settings_with("read", max_entities=0)
         assert excinfo.value.errors()[0]["loc"] == ("read", "max_entities")
 
+    @pytest.mark.parametrize("value", ["auto", "dotnet_bridge"])
+    def test_semantic_reader_is_closed_to_supported_local_adapters(self, value: str) -> None:
+        assert settings_with("read", semantic_adapter=value).read.semantic_adapter == value
+
+    def test_unknown_semantic_reader_is_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            settings_with("read", semantic_adapter="network_reader")
+
+    def test_semantic_reader_environment_override_is_explicit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CAD_HARNESS_READ_SEMANTIC_ADAPTER", "dotnet_bridge")
+        assert load_settings(Path(DEFAULT_CONFIG_PATH)).read.semantic_adapter == "dotnet_bridge"
+
 
 class TestTimeoutBounds:
     @pytest.mark.parametrize(

@@ -69,6 +69,8 @@ read:
   # Valid 1..10. Children deeper than this are counted, not read.
   max_block_nesting_depth: 3
   read_timeout_seconds: 20
+  # Set to dotnet_bridge when COM is the writer but the loaded bridge supplies geometry.
+  semantic_adapter: auto
 
 takeoff:
   timeout_seconds: 10

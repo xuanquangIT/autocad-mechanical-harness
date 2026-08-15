@@ -71,7 +71,7 @@ class TestHappyPath:
         assert len(provenance) == 1
         assert provenance[0].severity is Severity.WARNING
 
-    def test_precommit_blocks_styles_missing_from_live_drawing(
+    def test_precommit_blocks_resources_missing_from_live_drawing(
         self, service: HarnessService, base_plate_spec: dict[str, Any]
     ) -> None:
         job = service.create_job()
@@ -81,6 +81,8 @@ class TestHappyPath:
             update={
                 "dimension_styles": ("Standard",),
                 "text_styles": ("Standard",),
+                "layers": snapshot.layers[:1],
+                "units": "in",
             }
         )
 
@@ -89,7 +91,12 @@ class TestHappyPath:
         assert report.has_blocking
         assert {
             finding.rule_id for finding in report.findings if finding.rule_id.startswith("LIVE_")
-        } == {"LIVE_DIMSTYLE_MISSING", "LIVE_TEXTSTYLE_MISSING"}
+        } == {
+            "LIVE_DIMSTYLE_MISSING",
+            "LIVE_DOCUMENT_UNITS_MISMATCH",
+            "LIVE_LAYER_MISSING",
+            "LIVE_TEXTSTYLE_MISSING",
+        }
         assert not report.gate_allows_commit()
 
     def test_plan_hash_is_reproducible_across_jobs(

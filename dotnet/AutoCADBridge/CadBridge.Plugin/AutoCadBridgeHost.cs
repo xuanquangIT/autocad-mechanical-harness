@@ -26,6 +26,8 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
     private const bool VerifiedBuildTuple = false;
 #endif
     private const string LiveWriteGateEnvironmentVariable = "CAD_HARNESS_LIVE_WRITE_VERIFIED";
+    private const string DurableRestoreGateEnvironmentVariable =
+        "CAD_HARNESS_DURABLE_RESTORE_VERIFIED";
     private const string CheckpointRootEnvironmentVariable = "CAD_HARNESS_CHECKPOINT_ROOT";
     private const string CommitJournalRootEnvironmentVariable =
         "CAD_HARNESS_COMMIT_JOURNAL_ROOT";
@@ -36,6 +38,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
     private readonly AutoCadCommandContextMarshaller _commandContext;
     private readonly SemaphoreSlim _commitGate = new(1, 1);
     private readonly DurableCommitCoordinator? _commitCoordinator;
+    private readonly DurableRestoreSubsystem? _durableRestore;
     private readonly string _processEpoch = Guid.NewGuid().ToString("N");
     private readonly UndoRollbackRegistry _undoRollbackRegistry;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Document, string>
@@ -68,6 +71,12 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
             ? new DurableCommitCoordinator(
                 commitJournal ?? new DurableCommitJournal(GetCommitJournalRoot()))
             : null;
+        _durableRestore = _writeEnabled && VerifiedBuildTuple && string.Equals(
+            Environment.GetEnvironmentVariable(DurableRestoreGateEnvironmentVariable),
+            "1",
+            StringComparison.Ordinal)
+            ? TryCreateDurableRestoreSubsystem(documents)
+            : null;
 
         var capabilities = new List<string>
         {
@@ -85,6 +94,10 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
                 "stable_metadata",
                 "rollback_undo_group",
             ]);
+            if (_durableRestore is not null)
+            {
+                capabilities.Add("checkpoint_restore");
+            }
         }
 
         Descriptor = new BridgeHostDescriptor(
@@ -355,24 +368,142 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
         ThrowIfDisposed();
-        if (!_writeEnabled || request.UndoGroup is null ||
-            !BridgeAuthorization.TryValidateRollbackAuthorization(
-                request.RollbackApprovalToken,
-                Environment.GetEnvironmentVariable(ApprovalSecretEnvironmentVariable) ?? string.Empty,
-                request.JobId,
-                request.DocumentId,
-                request.CheckpointId,
-                request.CurrentRevision,
-                DateTimeOffset.UtcNow,
-                out var claims) ||
-            claims is null)
+        if (!_writeEnabled)
         {
             return new BridgeHostResult(BridgeHostOutcome.Rejected);
         }
 
+        await _commitGate.WaitAsync(cancellationToken);
+        try
+        {
+            var secret = Environment.GetEnvironmentVariable(
+                ApprovalSecretEnvironmentVariable) ?? string.Empty;
+            var now = DateTimeOffset.UtcNow;
+            if (!BridgeAuthorization.TryValidateRollbackAuthorization(
+                    request.RollbackApprovalToken,
+                    secret,
+                    request.JobId,
+                    request.DocumentId,
+                    request.CheckpointId,
+                    request.CurrentRevision,
+                    now,
+                    out var claims) ||
+                claims is null)
+            {
+                if (request.UndoGroup is not null)
+                {
+                    return new BridgeHostResult(BridgeHostOutcome.Rejected);
+                }
+
+                var recoveryAuthorization = ValidateDurableRecoveryAuthorization(
+                    request,
+                    secret,
+                    now,
+                    out claims);
+                if (recoveryAuthorization ==
+                    DurableRecoveryAuthorizationOutcome.RecoveryRequired)
+                {
+                    return new BridgeHostResult(
+                        BridgeHostOutcome.RollbackRecoveryRequired);
+                }
+
+                if (recoveryAuthorization != DurableRecoveryAuthorizationOutcome.Valid ||
+                    claims is null)
+                {
+                    return new BridgeHostResult(BridgeHostOutcome.Rejected);
+                }
+            }
+
+            return request.UndoGroup is null
+                ? await ExecuteDurableRollbackAsync(request, claims, cancellationToken)
+                : await ExecuteSessionRollbackAsync(request, claims, cancellationToken);
+        }
+        finally
+        {
+            _commitGate.Release();
+        }
+    }
+
+    private DurableRecoveryAuthorizationOutcome ValidateDurableRecoveryAuthorization(
+        RollbackHostRequest request,
+        string secret,
+        DateTimeOffset now,
+        out BridgeRollbackApprovalClaims? claims)
+    {
+        claims = null;
+        var subsystem = _durableRestore;
+        if (subsystem is null)
+        {
+            return DurableRecoveryAuthorizationOutcome.Rejected;
+        }
+
+        try
+        {
+            return BridgeAuthorization.TryValidateRollbackRecoveryAuthorization(
+                request.RollbackApprovalToken,
+                secret,
+                request.JobId,
+                request.DocumentId,
+                request.CheckpointId,
+                request.CurrentRevision,
+                now,
+                recoveryClaims =>
+                {
+                    // The callback is reached only after rb1 namespace, HMAC, schema,
+                    // exact public scope and expiry have all been validated.
+                    var checkpoint = subsystem.Catalog.GetRequired(request.CheckpointId);
+                    return string.Equals(
+                            checkpoint.JobId,
+                            request.JobId,
+                            StringComparison.Ordinal) &&
+                        string.Equals(
+                            checkpoint.DocumentId,
+                            request.DocumentId,
+                            StringComparison.Ordinal) &&
+                        subsystem.Coordinator.CanResumeExactRecordedAttempt(
+                            new ValidatedRollbackAuthorization(
+                                recoveryClaims.ApprovalId,
+                                recoveryClaims.ApprovalTokenDigest,
+                                request.JobId,
+                                request.DocumentId,
+                                request.CheckpointId,
+                                checkpoint.PreRevision,
+                                request.CurrentRevision));
+                },
+                out claims)
+                ? DurableRecoveryAuthorizationOutcome.Valid
+                : DurableRecoveryAuthorizationOutcome.Rejected;
+        }
+        catch (InvalidDataException)
+        {
+            TryQuarantineDurableCheckpoint(subsystem.Catalog, request.CheckpointId);
+            return DurableRecoveryAuthorizationOutcome.Rejected;
+        }
+        catch (IOException)
+        {
+            // An exact expired credential may already own a journal entry whose
+            // execution lock is temporarily held by another bridge process. Preserve
+            // the credential and retry; never collapse this into a plain rejection.
+            return DurableRecoveryAuthorizationOutcome.RecoveryRequired;
+        }
+        catch
+        {
+            return DurableRecoveryAuthorizationOutcome.Rejected;
+        }
+    }
+
+    private async ValueTask<BridgeHostResult> ExecuteSessionRollbackAsync(
+        RollbackHostRequest request,
+        BridgeRollbackApprovalClaims claims,
+        CancellationToken cancellationToken)
+    {
+        var undoGroup = request.UndoGroup
+            ?? throw new ArgumentException(
+                "A session rollback requires an undo group.",
+                nameof(request));
         var rollbackRequest = new UndoRollbackRequest(
-            request.UndoGroup,
-            request.UndoGroup,
+            undoGroup,
+            undoGroup,
             request.JobId,
             request.DocumentId,
             request.CheckpointId,
@@ -381,60 +512,269 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
             claims.ApprovalId,
             ComputeRollbackDigest(request));
 
-        await _commitGate.WaitAsync(cancellationToken);
+        var begin = _undoRollbackRegistry.Begin(rollbackRequest);
+        if (begin.Kind == UndoRollbackBeginKind.Replay && begin.Result is not null)
+        {
+            return BridgeHostResult.Success(
+                JsonNode.Parse(begin.Result.Data.GetRawText())?.AsObject()
+                ?? throw new InvalidDataException("Stored rollback result is invalid."));
+        }
+
+        if (begin.Kind == UndoRollbackBeginKind.Conflict)
+        {
+            return new BridgeHostResult(BridgeHostOutcome.IdempotencyKeyReused);
+        }
+
+        if (begin.Kind != UndoRollbackBeginKind.Execute || begin.Receipt is null)
+        {
+            return new BridgeHostResult(BridgeHostOutcome.Rejected);
+        }
+
+        var diagnostic = _operationDiagnostics.Begin("rollback.command_context");
         try
         {
-            var begin = _undoRollbackRegistry.Begin(rollbackRequest);
-            if (begin.Kind == UndoRollbackBeginKind.Replay && begin.Result is not null)
-            {
-                return BridgeHostResult.Success(
-                    JsonNode.Parse(begin.Result.Data.GetRawText())?.AsObject()
-                    ?? throw new InvalidDataException("Stored rollback result is invalid."));
-            }
+            var data = await ExecuteUndoRollbackAsync(
+                request,
+                begin.Receipt,
+                diagnostic.RecordStage,
+                cancellationToken);
+            var element = JsonSerializer.SerializeToElement(data);
+            _undoRollbackRegistry.CompleteSuccess(rollbackRequest, element);
+            return BridgeHostResult.Success(data);
+        }
+        catch (StaleRevisionException)
+        {
+            _undoRollbackRegistry.QuarantineAfterCommandUncertainty(rollbackRequest);
+            diagnostic.PublishFailure("rollback.precheck:StaleRevisionException");
+            return new BridgeHostResult(BridgeHostOutcome.StaleDocumentRevision);
+        }
+        catch (OperationCanceledException)
+        {
+            _undoRollbackRegistry.QuarantineAfterCommandUncertainty(rollbackRequest);
+            throw;
+        }
+        catch (Exception error)
+        {
+            _undoRollbackRegistry.QuarantineAfterCommandUncertainty(rollbackRequest);
+            diagnostic.PublishFailure(FailureLabel(diagnostic.Stage, error));
+            return new BridgeHostResult(BridgeHostOutcome.Failed);
+        }
+    }
 
-            if (begin.Kind == UndoRollbackBeginKind.Conflict)
-            {
-                return new BridgeHostResult(BridgeHostOutcome.IdempotencyKeyReused);
-            }
+    private async ValueTask<BridgeHostResult> ExecuteDurableRollbackAsync(
+        RollbackHostRequest request,
+        BridgeRollbackApprovalClaims claims,
+        CancellationToken cancellationToken)
+    {
+        var subsystem = _durableRestore;
+        if (subsystem is null)
+        {
+            return new BridgeHostResult(BridgeHostOutcome.Rejected);
+        }
 
-            if (begin.Kind != UndoRollbackBeginKind.Execute || begin.Receipt is null)
+        DurableCheckpointRecord checkpoint;
+        try
+        {
+            checkpoint = subsystem.Catalog.GetRequired(request.CheckpointId);
+            if (!string.Equals(checkpoint.JobId, request.JobId, StringComparison.Ordinal) ||
+                !string.Equals(checkpoint.DocumentId, request.DocumentId, StringComparison.Ordinal))
             {
                 return new BridgeHostResult(BridgeHostOutcome.Rejected);
             }
+        }
+        catch
+        {
+            return new BridgeHostResult(BridgeHostOutcome.Rejected);
+        }
 
-            var diagnostic = _operationDiagnostics.Begin("rollback.command_context");
-            try
-            {
-                var data = await ExecuteUndoRollbackAsync(
+        var authorization = new ValidatedRollbackAuthorization(
+            claims.ApprovalId,
+            claims.ApprovalTokenDigest,
+            request.JobId,
+            request.DocumentId,
+            request.CheckpointId,
+            checkpoint.PreRevision,
+            request.CurrentRevision);
+        string targetPath;
+        try
+        {
+            targetPath = subsystem.Coordinator.ResolveRecordedTarget(authorization)
+                ?? await ResolveUniqueDurableRollbackTargetAsync(
                     request,
-                    begin.Receipt,
-                    diagnostic.RecordStage,
+                    checkpoint,
                     cancellationToken);
-                var element = JsonSerializer.SerializeToElement(data);
-                _undoRollbackRegistry.CompleteSuccess(rollbackRequest, element);
-                return BridgeHostResult.Success(data);
-            }
-            catch (StaleRevisionException)
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (StaleRevisionException)
+        {
+            return new BridgeHostResult(BridgeHostOutcome.StaleDocumentRevision);
+        }
+        catch (InvalidDataException)
+        {
+            TryQuarantineDurableCheckpoint(subsystem.Catalog, request.CheckpointId);
+            return new BridgeHostResult(BridgeHostOutcome.Failed);
+        }
+        catch (IOException)
+        {
+            // Both a fresh authorized attempt and a post-proof recovery can race an
+            // authenticated coordinator holding the execution lock. No lifecycle call
+            // has occurred yet, so preserve the exact token for a typed retry.
+            return new BridgeHostResult(BridgeHostOutcome.RollbackRecoveryRequired);
+        }
+        catch
+        {
+            return new BridgeHostResult(BridgeHostOutcome.Rejected);
+        }
+
+        DurableCheckpointRestoreResult restore;
+        try
+        {
+            restore = await subsystem.Coordinator.RestoreAsync(
+                new DurableCheckpointRestoreRequest(
+                    authorization,
+                    targetPath),
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (InvalidDataException)
+        {
+            TryQuarantineDurableCheckpoint(subsystem.Catalog, request.CheckpointId);
+            return new BridgeHostResult(BridgeHostOutcome.Failed);
+        }
+        catch
+        {
+            return new BridgeHostResult(BridgeHostOutcome.Failed);
+        }
+
+        if ((restore.Outcome is DurableCheckpointRestoreOutcome.Completed or
+                DurableCheckpointRestoreOutcome.Replayed) &&
+            string.Equals(
+                restore.RestoredRevision,
+                checkpoint.PreRevision,
+                StringComparison.Ordinal))
+        {
+            return BridgeHostResult.Success(new JsonObject
             {
-                _undoRollbackRegistry.QuarantineAfterCommandUncertainty(rollbackRequest);
-                diagnostic.PublishFailure("rollback.precheck:StaleRevisionException");
-                return new BridgeHostResult(BridgeHostOutcome.StaleDocumentRevision);
-            }
-            catch (OperationCanceledException)
+                ["schema_version"] = "1.12",
+                ["job_id"] = request.JobId,
+                ["restored_revision"] = restore.RestoredRevision,
+                ["checkpoint_id"] = request.CheckpointId,
+                ["method"] = "checkpoint_restore",
+            });
+        }
+
+        if (restore.Outcome == DurableCheckpointRestoreOutcome.Quarantined ||
+            restore.Outcome is DurableCheckpointRestoreOutcome.Completed or
+                DurableCheckpointRestoreOutcome.Replayed)
+        {
+            // Completed/Replayed reaches this branch only when the independently returned
+            // revision disagrees with the authenticated checkpoint.
+            TryQuarantineDurableCheckpoint(subsystem.Catalog, request.CheckpointId);
+        }
+
+        return restore.Outcome switch
+        {
+            DurableCheckpointRestoreOutcome.Cancelled =>
+                new BridgeHostResult(BridgeHostOutcome.Rejected),
+            DurableCheckpointRestoreOutcome.Rejected =>
+                new BridgeHostResult(BridgeHostOutcome.Rejected),
+            DurableCheckpointRestoreOutcome.ScopeConflict =>
+                new BridgeHostResult(BridgeHostOutcome.Rejected),
+            DurableCheckpointRestoreOutcome.RecoveryRequired =>
+                new BridgeHostResult(BridgeHostOutcome.RollbackRecoveryRequired),
+            DurableCheckpointRestoreOutcome.Quarantined =>
+                new BridgeHostResult(BridgeHostOutcome.Failed),
+            DurableCheckpointRestoreOutcome.Completed =>
+                new BridgeHostResult(BridgeHostOutcome.Failed),
+            DurableCheckpointRestoreOutcome.Replayed =>
+                new BridgeHostResult(BridgeHostOutcome.Failed),
+            _ => new BridgeHostResult(BridgeHostOutcome.Failed),
+        };
+    }
+
+    private async ValueTask<string> ResolveUniqueDurableRollbackTargetAsync(
+        RollbackHostRequest request,
+        DurableCheckpointRecord checkpoint,
+        CancellationToken cancellationToken)
+    {
+        return await _commandContext.ExecuteAsync(
+            token =>
             {
-                _undoRollbackRegistry.QuarantineAfterCommandUncertainty(rollbackRequest);
-                throw;
-            }
-            catch (Exception error)
+                token.ThrowIfCancellationRequested();
+                string? exactPath = null;
+                var matchingDocuments = 0;
+                foreach (Document document in _documents)
+                {
+                    token.ThrowIfCancellationRequested();
+                    using var documentLock = document.LockDocument();
+                    using var bound = new AutoCadInspectionDocument(document, MaximumBlockDepth);
+                    var snapshot = new BridgeInspectionService(bound).InspectDocument(token);
+                    var isRequestedPostRevision = (checkpoint.State is
+                            DurableCheckpointState.Available or DurableCheckpointState.Restoring) &&
+                        string.Equals(
+                            snapshot.Revision,
+                            request.CurrentRevision,
+                            StringComparison.Ordinal);
+                    var isRecoverablePreRevision = (checkpoint.State is
+                            DurableCheckpointState.Restoring or DurableCheckpointState.Consumed) &&
+                        string.Equals(
+                            snapshot.Revision,
+                            checkpoint.PreRevision,
+                            StringComparison.Ordinal);
+                    if (!string.Equals(
+                            snapshot.DocumentId,
+                            request.DocumentId,
+                            StringComparison.Ordinal) ||
+                        (!isRequestedPostRevision && !isRecoverablePreRevision))
+                    {
+                        continue;
+                    }
+
+                    matchingDocuments++;
+                    var candidatePath = RequireCanonicalWritableLocalDwg(document);
+                    if (!string.Equals(
+                            DurableCheckpointCatalog.ComputeOriginalPathHash(candidatePath),
+                            checkpoint.OriginalPathHash,
+                            StringComparison.Ordinal))
+                    {
+                        throw new DocumentMismatchException();
+                    }
+
+                    exactPath = candidatePath;
+                }
+
+                if (matchingDocuments != 1 || exactPath is null)
+                {
+                    throw new StaleRevisionException();
+                }
+
+                return ValueTask.FromResult(exactPath);
+            },
+            cancellationToken);
+    }
+
+    private static void TryQuarantineDurableCheckpoint(
+        DurableCheckpointCatalog catalog,
+        string checkpointId)
+    {
+        try
+        {
+            var record = catalog.GetRequired(checkpointId);
+            if (record.State is DurableCheckpointState.Available or
+                DurableCheckpointState.Restoring)
             {
-                _undoRollbackRegistry.QuarantineAfterCommandUncertainty(rollbackRequest);
-                diagnostic.PublishFailure(FailureLabel(diagnostic.Stage, error));
-                return new BridgeHostResult(BridgeHostOutcome.Failed);
+                catalog.Quarantine(checkpointId);
             }
         }
-        finally
+        catch
         {
-            _commitGate.Release();
+            // A failed quarantine never permits another restore through this host call.
         }
     }
 
@@ -647,6 +987,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         }
 
         _rollbackDocuments.Clear();
+        _durableRestore?.Dispose();
         _commitGate.Dispose();
     }
 
@@ -742,9 +1083,13 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
                         "Atomic writes require a millimetre AutoCAD document.");
                 }
 
-                using var bound = new AutoCadInspectionDocument(document, MaximumBlockDepth);
-                var service = new BridgeInspectionService(bound);
-                var snapshot = service.InspectDocument(token);
+                DocumentInspectionSnapshot snapshot;
+                using (var bound = new AutoCadInspectionDocument(document, MaximumBlockDepth))
+                {
+                    var service = new BridgeInspectionService(bound);
+                    snapshot = service.InspectDocument(token);
+                }
+
                 previousRevision = snapshot.Revision;
                 if (!string.Equals(snapshot.DocumentId, documentId, StringComparison.Ordinal) ||
                     !string.Equals(snapshot.Revision, request.ExpectedRevision, StringComparison.Ordinal))
@@ -755,7 +1100,12 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
 
                 if (request.CreateCheckpoint)
                 {
-                    checkpointArtifact = CreateCheckpoint(document, request.JobId, token);
+                    checkpointArtifact = CreateCheckpoint(
+                        document,
+                        request.JobId,
+                        documentId,
+                        previousRevision,
+                        token);
                 }
 
                 return ValueTask.CompletedTask;
@@ -793,7 +1143,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         {
             diagnostic.PublishFailure(
                 $"commit.atomic.{execution.Trace.Stage}:{execution.FailureKind}");
-            DeleteCheckpointAfterProvenPreCommitFailure(checkpointArtifact);
+            RetireCheckpointAfterProvenPreCommitFailure(checkpointArtifact);
             return new BridgeHostResult(BridgeHostOutcome.Failed);
         }
 
@@ -1109,19 +1459,31 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
             : configured;
     }
 
-    private static CheckpointArtifact CreateCheckpoint(
+    private CheckpointArtifact CreateCheckpoint(
+        Document document,
+        string jobId,
+        string documentId,
+        string preRevision,
+        CancellationToken cancellationToken)
+    {
+        return _durableRestore is null
+            ? CreateSessionCheckpoint(document, jobId, cancellationToken)
+            : CreateDurableCheckpoint(
+                document,
+                jobId,
+                documentId,
+                preRevision,
+                _durableRestore,
+                cancellationToken);
+    }
+
+    private static CheckpointArtifact CreateSessionCheckpoint(
         Document document,
         string jobId,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var configuredRoot = Environment.GetEnvironmentVariable(CheckpointRootEnvironmentVariable);
-        var root = string.IsNullOrWhiteSpace(configuredRoot)
-            ? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "AutoCADMechanicalHarness",
-                "checkpoints")
-            : configuredRoot;
+        var root = GetCheckpointBaseRoot();
         if (!Path.IsPathFullyQualified(root))
         {
             throw new InvalidOperationException("The checkpoint root must be an absolute local path.");
@@ -1144,25 +1506,358 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
             using var checkpoint = document.Database.Wblock();
             checkpoint.SaveAs(target, DwgVersion.Current);
             cancellationToken.ThrowIfCancellationRequested();
-            return new CheckpointArtifact(checkpointId, target);
+            return new CheckpointArtifact(checkpointId, target, IsDurable: false);
         }
         catch
         {
-            if (File.Exists(target))
+            TryDeleteCheckpointArtifact(target);
+
+            throw;
+        }
+    }
+
+    private static CheckpointArtifact CreateDurableCheckpoint(
+        Document document,
+        string jobId,
+        string documentId,
+        string preRevision,
+        DurableRestoreSubsystem subsystem,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var originalPath = RequireCanonicalWritableLocalDwg(document);
+        var originalName = document.Name;
+        var originalDatabaseFileName = document.Database.Filename;
+        var originalFingerprint = document.Database.FingerprintGuid;
+        var checkpointId = $"checkpoint-{Guid.NewGuid():N}";
+        var jobDigest = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(jobId)))[..16].ToLowerInvariant();
+        var checkpointFileName = $"{checkpointId}-{jobDigest}.dwg";
+        var target = Path.GetFullPath(Path.Combine(
+            subsystem.CheckpointRoot,
+            checkpointFileName));
+        if (!string.Equals(
+                Path.GetDirectoryName(target),
+                subsystem.CheckpointRoot,
+                StringComparison.OrdinalIgnoreCase) ||
+            File.Exists(target))
+        {
+            throw new InvalidOperationException(
+                "The durable checkpoint target is not a new direct-child file.");
+        }
+
+        var registered = false;
+        try
+        {
+            var securityParameters = document.Database.SecurityParameters;
+            document.Database.SaveAs(
+                target,
+                bBakAndRename: false,
+                DwgVersion.Current,
+                securityParameters);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.Equals(document.Name, originalName, StringComparison.Ordinal) ||
+                !string.Equals(
+                    document.Database.Filename,
+                    originalDatabaseFileName,
+                    StringComparison.Ordinal) ||
+                !string.Equals(
+                    document.Database.FingerprintGuid,
+                    originalFingerprint,
+                    StringComparison.Ordinal))
             {
-                File.Delete(target);
+                throw new InvalidOperationException(
+                    "Creating a durable checkpoint changed the bound document identity.");
+            }
+
+            var artifact = new FileInfo(target);
+            if (!artifact.Exists || artifact.Length < 6 ||
+                (artifact.Attributes & (FileAttributes.Directory | FileAttributes.Device |
+                    FileAttributes.ReparsePoint)) != 0)
+            {
+                throw new InvalidDataException(
+                    "The durable checkpoint artifact was not created as a regular DWG file.");
+            }
+
+            subsystem.Catalog.RegisterCheckpoint(
+                checkpointId,
+                jobId,
+                documentId,
+                preRevision,
+                originalPath,
+                checkpointFileName,
+                DateTimeOffset.UtcNow);
+            registered = true;
+            return new CheckpointArtifact(checkpointId, target, IsDurable: true);
+        }
+        catch
+        {
+            if (!registered)
+            {
+                TryDeleteCheckpointArtifact(target);
+            }
+            else
+            {
+                TryQuarantineDurableCheckpoint(subsystem.Catalog, checkpointId);
             }
 
             throw;
         }
     }
 
-    private static void DeleteCheckpointAfterProvenPreCommitFailure(
+    private void RetireCheckpointAfterProvenPreCommitFailure(
         CheckpointArtifact? checkpoint)
     {
-        if (checkpoint is not null && File.Exists(checkpoint.Path))
+        if (checkpoint is null)
         {
-            File.Delete(checkpoint.Path);
+            return;
+        }
+
+        if (!checkpoint.IsDurable)
+        {
+            TryDeleteCheckpointArtifact(checkpoint.Path);
+            return;
+        }
+
+        var catalog = _durableRestore?.Catalog;
+        if (catalog is null)
+        {
+            return;
+        }
+
+        var retired = false;
+        try
+        {
+            var record = catalog.GetRequired(checkpoint.Id);
+            record = record.State switch
+            {
+                DurableCheckpointState.Available => catalog.Expire(checkpoint.Id),
+                DurableCheckpointState.Restoring => catalog.Quarantine(checkpoint.Id),
+                _ => record,
+            };
+            retired = record.State is DurableCheckpointState.Expired or
+                DurableCheckpointState.Quarantined;
+        }
+        catch
+        {
+            TryQuarantineDurableCheckpoint(catalog, checkpoint.Id);
+            try
+            {
+                var record = catalog.GetRequired(checkpoint.Id);
+                retired = record.State == DurableCheckpointState.Quarantined;
+            }
+            catch
+            {
+                // Retain the artifact whenever catalog retirement is not proven.
+            }
+        }
+
+        if (retired)
+        {
+            TryDeleteCheckpointArtifact(checkpoint.Path);
+        }
+    }
+
+    private static void TryDeleteCheckpointArtifact(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // A retained artifact is safer than replacing the primary commit outcome.
+        }
+    }
+
+    private static string GetCheckpointBaseRoot()
+    {
+        var configuredRoot = Environment.GetEnvironmentVariable(
+            CheckpointRootEnvironmentVariable);
+        return string.IsNullOrWhiteSpace(configuredRoot)
+            ? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "AutoCADMechanicalHarness",
+                "checkpoints")
+            : configuredRoot;
+    }
+
+    private static DurableRestoreSubsystem? TryCreateDurableRestoreSubsystem(
+        DocumentCollection documents)
+    {
+        DurableCheckpointCatalog? catalog = null;
+        DurableCheckpointRestoreCoordinator? coordinator = null;
+        byte[]? catalogKey = null;
+        byte[]? journalKey = null;
+        try
+        {
+            var secret = Environment.GetEnvironmentVariable(
+                ApprovalSecretEnvironmentVariable) ?? string.Empty;
+            if (Encoding.UTF8.GetByteCount(secret) < 32)
+            {
+                return null;
+            }
+
+            catalogKey = DeriveDurableAuthenticationKey(
+                secret,
+                "whole-dwg-checkpoint-catalog-v1");
+            journalKey = DeriveDurableAuthenticationKey(
+                secret,
+                "whole-dwg-restore-journal-v1");
+            var baseRoot = GetCheckpointBaseRoot();
+            if (!Path.IsPathFullyQualified(baseRoot) ||
+                !baseRoot.IsNormalized(NormalizationForm.FormC))
+            {
+                throw new InvalidOperationException(
+                    "The durable checkpoint base root must be a canonical absolute path.");
+            }
+
+            var canonicalBaseRoot = Path.GetFullPath(baseRoot).Normalize(
+                NormalizationForm.FormC);
+            if (!string.Equals(baseRoot, canonicalBaseRoot, StringComparison.Ordinal) ||
+                File.Exists(canonicalBaseRoot))
+            {
+                throw new InvalidOperationException(
+                    "The durable checkpoint base root is not a direct local directory path.");
+            }
+
+            RejectNetworkOrDevicePath(canonicalBaseRoot);
+            RejectExistingReparseComponents(canonicalBaseRoot);
+            var checkpointRoot = Path.GetFullPath(Path.Combine(
+                canonicalBaseRoot,
+                "whole-dwg-checkpoints-v1"));
+            var journalRoot = Path.GetFullPath(Path.Combine(
+                canonicalBaseRoot,
+                "whole-dwg-restore-journal-v1"));
+            catalog = new DurableCheckpointCatalog(checkpointRoot, catalogKey);
+            coordinator = new DurableCheckpointRestoreCoordinator(
+                catalog,
+                checkpointRoot,
+                journalRoot,
+                journalKey,
+                new AutoCadDurableRestoreDocumentLifecycle(documents));
+            return new DurableRestoreSubsystem(catalog, coordinator, checkpointRoot);
+        }
+        catch
+        {
+            coordinator?.Dispose();
+            catalog?.Dispose();
+            return null;
+        }
+        finally
+        {
+            if (catalogKey is not null)
+            {
+                CryptographicOperations.ZeroMemory(catalogKey);
+            }
+
+            if (journalKey is not null)
+            {
+                CryptographicOperations.ZeroMemory(journalKey);
+            }
+        }
+    }
+
+    private static byte[] DeriveDurableAuthenticationKey(string secret, string purpose)
+    {
+        var secretBytes = Encoding.UTF8.GetBytes(secret);
+        var context = Encoding.UTF8.GetBytes(
+            "cad-harness-durable-key-derivation-v1\0" + purpose);
+        try
+        {
+            return HMACSHA256.HashData(secretBytes, context);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(secretBytes);
+            CryptographicOperations.ZeroMemory(context);
+        }
+    }
+
+    private static string RequireCanonicalWritableLocalDwg(Document document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (!document.IsNamedDrawing || document.IsReadOnly ||
+            string.IsNullOrWhiteSpace(document.Name) ||
+            !Path.IsPathFullyQualified(document.Name) ||
+            !document.Name.IsNormalized(NormalizationForm.FormC))
+        {
+            throw new InvalidOperationException(
+                "A durable checkpoint requires a saved, named, writable drawing.");
+        }
+
+        RejectNetworkOrDevicePath(document.Name);
+        var canonicalPath = Path.GetFullPath(document.Name).Normalize(NormalizationForm.FormC);
+        if (!string.Equals(document.Name, canonicalPath, StringComparison.Ordinal) ||
+            !string.Equals(
+                Path.GetExtension(canonicalPath),
+                ".dwg",
+                StringComparison.OrdinalIgnoreCase) ||
+            !File.Exists(canonicalPath))
+        {
+            throw new InvalidOperationException(
+                "A durable checkpoint requires an exact canonical DWG path.");
+        }
+
+        RejectNetworkOrDevicePath(canonicalPath);
+        RejectExistingReparseComponents(canonicalPath);
+        var attributes = File.GetAttributes(canonicalPath);
+        if ((attributes & (FileAttributes.Directory | FileAttributes.Device |
+                FileAttributes.ReadOnly | FileAttributes.ReparsePoint)) != 0)
+        {
+            throw new InvalidOperationException(
+                "The durable checkpoint source must be a regular writable local DWG.");
+        }
+
+        return canonicalPath;
+    }
+
+    private static void RejectNetworkOrDevicePath(string path)
+    {
+        if (path.StartsWith("\\\\", StringComparison.Ordinal) ||
+            path.StartsWith("//", StringComparison.Ordinal) ||
+            path.StartsWith("\\??\\", StringComparison.Ordinal) ||
+            path.StartsWith("\\\\?\\", StringComparison.Ordinal) ||
+            path.StartsWith("\\\\.\\", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Durable checkpoints require a direct local path.");
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var root = Path.GetPathRoot(path);
+            if (!string.IsNullOrEmpty(root) && new DriveInfo(root).DriveType == DriveType.Network)
+            {
+                throw new InvalidOperationException(
+                    "Durable checkpoints do not allow mapped network drives.");
+            }
+        }
+    }
+
+    private static void RejectExistingReparseComponents(string path)
+    {
+        var current = path;
+        while (!string.IsNullOrEmpty(current))
+        {
+            if ((File.Exists(current) || Directory.Exists(current)) &&
+                (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidOperationException(
+                    "Durable checkpoint paths must not contain reparse points.");
+            }
+
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrEmpty(parent) ||
+                string.Equals(parent, current, StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            current = parent;
         }
     }
 
@@ -1188,7 +1883,47 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
 
     private sealed class DocumentMismatchException : Exception;
 
-    private sealed record CheckpointArtifact(string Id, string Path);
+    private enum DurableRecoveryAuthorizationOutcome
+    {
+        Valid,
+        Rejected,
+        RecoveryRequired,
+    }
+
+    private sealed record CheckpointArtifact(string Id, string Path, bool IsDurable);
+
+    private sealed class DurableRestoreSubsystem : IDisposable
+    {
+        private bool _disposed;
+
+        public DurableRestoreSubsystem(
+            DurableCheckpointCatalog catalog,
+            DurableCheckpointRestoreCoordinator coordinator,
+            string checkpointRoot)
+        {
+            Catalog = catalog;
+            Coordinator = coordinator;
+            CheckpointRoot = checkpointRoot;
+        }
+
+        public DurableCheckpointCatalog Catalog { get; }
+
+        public DurableCheckpointRestoreCoordinator Coordinator { get; }
+
+        public string CheckpointRoot { get; }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            Coordinator.Dispose();
+            Catalog.Dispose();
+            _disposed = true;
+        }
+    }
 }
 
 internal sealed class AutoCadBridgeHostFactory : IAutoCadBridgeHostFactory

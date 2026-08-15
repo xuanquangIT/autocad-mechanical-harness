@@ -645,14 +645,19 @@ def _execute_command(
         from cad_harness.domain.errors import IpcTimeoutError
 
         try:
-            response = NamedPipeTransport(
+            transport = NamedPipeTransport(
                 cast(str, payload["pipe_name"]),
                 max_frame_bytes=cast(int, payload["max_frame_bytes"]),
-            ).request(
+            )
+            response = transport.request(
                 cast(dict[str, Any], payload["envelope"]),
                 timeout_seconds=float(cast(int | float, payload["timeout_seconds"])),
             )
-            return {"transport_ok": True, "response": cast(JsonValue, response)}
+            return {
+                "transport_ok": True,
+                "response": cast(JsonValue, response),
+                "server_process_id": transport.last_server_process_id,
+            }
         except TerminalCancellationUnconfirmedError as error:
             return {
                 "transport_ok": False,

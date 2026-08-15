@@ -56,6 +56,7 @@ _DIRECT_RULES = frozenset(
         "TEXTSTYLE_IN_PROFILE",
         "DIMENSION_TEXT_MATCHES_GEOMETRY",
         "FILLET_NOT_TANGENT",
+        "OVERLAPPING_ENTITY",
     }
 )
 
@@ -210,15 +211,16 @@ class RemediationService:
 
         entities = {entity.entity_ref: entity for entity in model.entities}
         technical = technical_inputs or {}
-        allowed_technical_keys = {
-            f"FILLET_NOT_TANGENT:{entity_ref}"
-            for rule_id, entity_ref in selected
-            if rule_id == "FILLET_NOT_TANGENT"
-        }
+        allowed_technical_keys: dict[str, set[str]] = {}
+        for rule_id, entity_ref in selected:
+            if rule_id == "FILLET_NOT_TANGENT":
+                allowed_technical_keys[f"{rule_id}:{entity_ref}"] = {"radius_mm"}
+            elif rule_id == "OVERLAPPING_ENTITY":
+                allowed_technical_keys[f"{rule_id}:{entity_ref}"] = {"strategy"}
         unexpected_technical = {
             key: sorted(values)
             for key, values in technical.items()
-            if key not in allowed_technical_keys or set(values) - {"radius_mm"}
+            if key not in allowed_technical_keys or set(values) - allowed_technical_keys[key]
         }
         if unexpected_technical:
             raise InvalidFeatureParametersError(
@@ -305,6 +307,22 @@ class RemediationService:
                     layer=entity.layer,
                     target_entity_ref=entity_ref,
                     expected={"remediates_rule_id": rule_id},
+                ),
+            )
+        if rule_id == "OVERLAPPING_ENTITY":
+            if technical.get("strategy") != "delete_selected":
+                raise _missing(rule_id, entity_ref, "remediation.overlap.strategy")
+            return (
+                Operation(
+                    operation_id=operation_id(feature_id, "delete-selected"),
+                    feature_id=feature_id,
+                    type=OperationType.DELETE_ENTITY,
+                    layer=entity.layer,
+                    target_entity_ref=entity_ref,
+                    expected={
+                        "remediates_rule_id": rule_id,
+                        "strategy": "delete_selected",
+                    },
                 ),
             )
         if rule_id == "OPEN_CONTOUR":

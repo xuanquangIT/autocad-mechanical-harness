@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ApplicationPackage
   SchemaVersion="1.0"
-  AppVersion="0.1.0.0"
+  AppVersion="0.2.0.0"
   Author="AutoCAD Mechanical Harness Team"
   Name="AutoCAD Mechanical Harness Bridge"
   Description="Local per-user Named Pipe bridge for atomic mechanical drawing jobs."
-  ProductCode="{246FD1B2-83D8-4AAB-9EA4-C86AB9ECCDF2}"
+  ProductCode="{A4B53210-2848-4FA6-8720-5A55A628899C}"
   UpgradeCode="{FA1366B0-8CAB-42B6-B5A2-66D3EF37F0A5}">
   <CompanyDetails
     Name="AutoCAD Mechanical Harness Team"

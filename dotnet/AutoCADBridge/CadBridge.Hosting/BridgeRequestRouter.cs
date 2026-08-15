@@ -83,6 +83,7 @@ public enum BridgeHostOutcome
     Failed,
     StaleDocumentRevision,
     UnknownCommitState,
+    RollbackRecoveryRequired,
 }
 
 /// <summary>
@@ -168,6 +169,7 @@ public sealed class BridgeRequestRouter
         "undo_group",
         "stable_metadata",
         "rollback_undo_group",
+        "checkpoint_restore",
         "in_viewport_preview",
     ];
 
@@ -574,11 +576,6 @@ public sealed class BridgeRequestRouter
         JsonElement parameters,
         CancellationToken cancellationToken)
     {
-        if (!RequireCapability("rollback_undo_group"))
-        {
-            return CapabilityMissing();
-        }
-
         if (!HasExactProperties(parameters, ["job_id", "document_id", "checkpoint_id", "current_revision", "rollback_approval_token", "undo_group"]) ||
             !TryGetString(parameters, "job_id", 1, 64, out var jobId) ||
             !TryGetString(parameters, "document_id", 1, IdentifierLimit, out var documentId) ||
@@ -590,6 +587,14 @@ public sealed class BridgeRequestRouter
             !string.Equals(jobId, envelopeJobId, StringComparison.Ordinal))
         {
             return InvalidParameters();
+        }
+
+        var requiredCapability = undoGroup is null
+            ? "checkpoint_restore"
+            : "rollback_undo_group";
+        if (!RequireCapability(requiredCapability))
+        {
+            return CapabilityMissing();
         }
 
         return Map(await _host.RollbackAsync(
@@ -770,6 +775,12 @@ public sealed class BridgeRequestRouter
                 "UNKNOWN_COMMIT_STATE",
                 "The commit outcome is unknown.",
                 requiredAction: "Reconcile the job before any further commit attempt.")),
+            BridgeHostOutcome.RollbackRecoveryRequired => PipeHandlerResult.Failed(Error(
+                "ROLLBACK_RECOVERY_REQUIRED",
+                "The journaled whole-DWG restore requires an exact retry.",
+                retryable: true,
+                requiredAction:
+                    "Retry the exact rollback with its original in-memory approval and scope.")),
             _ => PipeHandlerResult.Failed(Error(
                 "COM_CALL_FAILED",
                 "The AutoCAD bridge operation failed safely.")),

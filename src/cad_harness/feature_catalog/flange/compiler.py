@@ -15,6 +15,7 @@ from cad_harness.feature_catalog.base import (
     operation_id,
 )
 from cad_harness.geometry.curves import CurveParams, normalize_circle
+from cad_harness.geometry.cutouts import keyway_contour
 from cad_harness.geometry.patterns import bolt_circle
 from cad_harness.geometry.primitives import Point2D
 
@@ -62,7 +63,13 @@ class FlangeCompiler:
         "pcd_mm",
         "datum",
     )
-    optional_parameters = ("thickness_mm", "start_angle_deg", "material")
+    optional_parameters = (
+        "thickness_mm",
+        "start_angle_deg",
+        "material",
+        "keyway_width_mm",
+        "keyway_depth_mm",
+    )
 
     def validate_inputs(self, feature: FeatureSpec, context: CompileContext) -> InputReport:
         report = InputReport()
@@ -103,6 +110,20 @@ class FlangeCompiler:
             "selected_point",
             "named_datum",
         )
+        has_keyway_width = parameters.get("keyway_width_mm") is not None
+        has_keyway_depth = parameters.get("keyway_depth_mm") is not None
+        if has_keyway_width != has_keyway_depth:
+            missing_key = "keyway_depth_mm" if has_keyway_width else "keyway_width_mm"
+            report.require(
+                False,
+                f"{prefix}.{missing_key}",
+                "A keyed flange requires both keyway width and depth",
+                "positive number in millimetres",
+            )
+        if has_keyway_width:
+            _number(parameters, "keyway_width_mm")
+        if has_keyway_depth:
+            _number(parameters, "keyway_depth_mm")
         return report
 
     def compile(self, feature: FeatureSpec, context: CompileContext) -> CompiledFeature:
@@ -135,10 +156,88 @@ class FlangeCompiler:
             )
 
         outer_curve = normalize_circle(center, outer_diameter / 2.0)
-        bore_curve = normalize_circle(center, bore_diameter / 2.0)
         hole_centers = bolt_circle(center, pcd, count, start_angle)
         outer_id = operation_id(feature.feature_id, "outer")
         holes_id = operation_id(feature.feature_id, "bolt-holes")
+        expectations = [
+            ValidationExpectation(
+                rule_id="FLANGE_OUTER_DIAMETER_CLEARANCE",
+                feature_id=feature.feature_id,
+                operation_id=outer_id,
+                expected={
+                    "outer_diameter_mm": outer_diameter,
+                    "pcd_mm": pcd,
+                    "bolt_hole_diameter_mm": hole_diameter,
+                },
+            ),
+            ValidationExpectation(
+                rule_id="FLANGE_HOLES_ON_PCD",
+                feature_id=feature.feature_id,
+                operation_id=holes_id,
+                expected={
+                    "center_mm": list(center.as_tuple()),
+                    "pcd_mm": pcd,
+                    "bolt_hole_count": count,
+                    "angular_spacing_deg": 360.0 / count,
+                },
+            ),
+        ]
+        bore_operation: Operation
+        keyway_width = parameters.get("keyway_width_mm")
+        keyway_depth = parameters.get("keyway_depth_mm")
+        if keyway_width is not None and keyway_depth is not None:
+            keyed_bore = keyway_contour(
+                center,
+                bore_diameter,
+                float(keyway_width),
+                float(keyway_depth),
+                context.tolerance,
+            )
+            keyed_bore_id = operation_id(feature.feature_id, "keyed-bore")
+            bore_operation = Operation(
+                operation_id=keyed_bore_id,
+                feature_id=feature.feature_id,
+                type=OperationType.CREATE_CLOSED_POLYLINE,
+                layer=context.layer_for("hole"),
+                geometry={
+                    "vertices_mm": [
+                        list(point.as_tuple()) for point in keyed_bore.preview_outline.vertices
+                    ]
+                },
+                expected={
+                    "closed": True,
+                    "area_mm2": keyed_bore.preview_outline.area(),
+                    "bore_diameter_mm": bore_diameter,
+                    "keyway_width_mm": keyed_bore.key_width_mm,
+                    "keyway_depth_mm": keyed_bore.key_depth_mm,
+                },
+            )
+            expectations.append(
+                ValidationExpectation(
+                    rule_id="KEYWAY_GEOMETRY",
+                    feature_id=feature.feature_id,
+                    operation_id=keyed_bore_id,
+                    expected={
+                        "bore_diameter_mm": bore_diameter,
+                        "key_width_mm": keyed_bore.key_width_mm,
+                        "key_depth_mm": keyed_bore.key_depth_mm,
+                        "removed_area_mm2": keyed_bore.removed_area_mm2,
+                    },
+                )
+            )
+        else:
+            bore_curve = normalize_circle(center, bore_diameter / 2.0)
+            bore_operation = Operation(
+                operation_id=operation_id(feature.feature_id, "bore"),
+                feature_id=feature.feature_id,
+                type=OperationType.CREATE_CIRCLE,
+                layer=context.layer_for("hole"),
+                geometry=_circle_geometry(bore_curve),
+                expected={
+                    "diameter_mm": bore_diameter,
+                    "center_mm": list(center.as_tuple()),
+                },
+            )
         operations = [
             Operation(
                 operation_id=outer_id,
@@ -148,14 +247,7 @@ class FlangeCompiler:
                 geometry=_circle_geometry(outer_curve),
                 expected={"diameter_mm": outer_diameter, "center_mm": list(center.as_tuple())},
             ),
-            Operation(
-                operation_id=operation_id(feature.feature_id, "bore"),
-                feature_id=feature.feature_id,
-                type=OperationType.CREATE_CIRCLE,
-                layer=context.layer_for("hole"),
-                geometry=_circle_geometry(bore_curve),
-                expected={"diameter_mm": bore_diameter, "center_mm": list(center.as_tuple())},
-            ),
+            bore_operation,
             Operation(
                 operation_id=holes_id,
                 feature_id=feature.feature_id,
@@ -172,29 +264,7 @@ class FlangeCompiler:
         return CompiledFeature(
             feature_id=feature.feature_id,
             operations=operations,
-            expectations=[
-                ValidationExpectation(
-                    rule_id="FLANGE_OUTER_DIAMETER_CLEARANCE",
-                    feature_id=feature.feature_id,
-                    operation_id=outer_id,
-                    expected={
-                        "outer_diameter_mm": outer_diameter,
-                        "pcd_mm": pcd,
-                        "bolt_hole_diameter_mm": hole_diameter,
-                    },
-                ),
-                ValidationExpectation(
-                    rule_id="FLANGE_HOLES_ON_PCD",
-                    feature_id=feature.feature_id,
-                    operation_id=holes_id,
-                    expected={
-                        "center_mm": list(center.as_tuple()),
-                        "pcd_mm": pcd,
-                        "bolt_hole_count": count,
-                        "angular_spacing_deg": 360.0 / count,
-                    },
-                ),
-            ],
+            expectations=expectations,
             defaults_applied=list(report.defaults_applied),
             assumptions=list(report.assumptions),
         )

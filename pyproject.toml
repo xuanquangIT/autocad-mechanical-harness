@@ -1,6 +1,6 @@
 [project]
 name = "cad-harness"
-version = "0.1.0"
+version = "0.2.0"
 description = "Safety-first deterministic 2D mechanical CAD automation over MCP"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
@@ -29,6 +29,7 @@ dependencies = [
     "alembic>=1.14.0,<2",
     "mcp>=1.2.0,<2",
     "opencv-python-headless>=4.10,<5",
+    "cryptography>=44,<51",
 ]
 
 [project.urls]

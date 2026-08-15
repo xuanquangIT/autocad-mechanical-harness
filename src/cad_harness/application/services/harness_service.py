@@ -6,8 +6,10 @@ the audit trail live in this layer so the interface layer stays free of policy.
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager, nullcontext
+from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -28,13 +30,16 @@ from cad_harness.diff.semantic_diff import build_semantic_diff
 from cad_harness.domain.canonical import sha256_of
 from cad_harness.domain.errors import (
     AdapterCapabilityMissingError,
+    ApprovalExpiredError,
     ApprovalRequiredError,
+    ApprovalScopeMismatchError,
     DocumentNotFoundError,
     IdempotencyKeyReusedError,
     InvalidFeatureParametersError,
     PlanHashMismatchError,
     PostCommitValidationFailedError,
     RollbackNotAvailableError,
+    RollbackRecoveryRequiredError,
     StaleDocumentRevisionError,
     UnknownCommitStateError,
 )
@@ -78,9 +83,55 @@ from cad_harness.security.approval import issue_approval, verify_approval_token
 from cad_harness.security.paths import ensure_path_allowed
 from cad_harness.security.rollback_approval import (
     issue_rollback_approval,
+    rollback_approval_token_digest,
     verify_rollback_approval_token,
+    verify_rollback_recovery_token,
 )
 from cad_harness.validation.engine import RuleContext, ValidationEngine, default_engine
+
+_ACCEPTED_RASTER_FEATURE = "_accepted_raster_trace"
+
+
+def _redact_raster_acceptance_tokens(spec: DrawingSpec) -> DrawingSpec:
+    """Keep reviewed trace evidence but never persist its bearer token."""
+    changed = False
+    features = []
+    for feature in spec.features:
+        if feature.type != _ACCEPTED_RASTER_FEATURE or "acceptance_token" not in feature.parameters:
+            features.append(feature)
+            continue
+        parameters = dict(feature.parameters)
+        parameters.pop("acceptance_token", None)
+        parameters["acceptance_token_redacted"] = True
+        features.append(feature.model_copy(update={"parameters": parameters}))
+        changed = True
+    return spec.model_copy(update={"features": tuple(features)}) if changed else spec
+
+
+@dataclass(frozen=True, slots=True)
+class _DurableRollbackRecovery:
+    """Process-local proof that the bridge requested one exact journal retry."""
+
+    job_id: str
+    document_id: str
+    checkpoint_id: str
+    current_revision: str
+    approval_token_digest: str
+
+    def matches_scope(
+        self,
+        *,
+        job_id: str,
+        document_id: str,
+        checkpoint_id: str,
+        current_revision: str,
+    ) -> bool:
+        return (
+            self.job_id == job_id
+            and self.document_id == document_id
+            and self.checkpoint_id == checkpoint_id
+            and self.current_revision == current_revision
+        )
 
 
 class HarnessService:
@@ -137,6 +188,11 @@ class HarnessService:
         #: intentionally process-local: a restarted bridge cannot prove that the same
         #: AutoCAD undo entry is still active, so no receipt is reconstructed from SQLite.
         self._undo_rollback_receipts: dict[str, tuple[str, str]] = {}
+        #: Exact rb1 digest/scope retained only after the real .NET bridge reports a
+        #: typed retryable durable recovery outcome. This process-local cache rejects
+        #: mismatches early; after a Python restart the authenticated C# journal remains
+        #: authoritative without persisting the raw token or customer drawing path here.
+        self._durable_rollback_recoveries: dict[str, _DurableRollbackRecovery] = {}
 
     def _measure(
         self, operation_name: OperationName
@@ -278,7 +334,10 @@ class HarnessService:
         elif job.state is JobState.CREATED:
             job = job.transition_to(JobState.SPEC_ACCEPTED)
 
-        version = self.store.save_spec(job_id, spec)
+        # The compiler below sees and independently verifies the short-lived raster
+        # bearer token. Persistence retains the reviewed report/acceptance, but never
+        # the reusable token itself; a later resubmission requires fresh human review.
+        version = self.store.save_spec(job_id, _redact_raster_acceptance_tokens(spec))
         job = job.model_copy(update={"spec_id": spec.spec_id, "spec_version": version})
         self.store.save_job(job)
         if prior_spec_version is not None:
@@ -626,12 +685,12 @@ class HarnessService:
         )
         return report
 
-    @staticmethod
     def _missing_live_style_findings(
+        self,
         plan: OperationPlan,
         snapshot: DocumentSnapshot,
     ) -> tuple[Finding, ...]:
-        """Fail before approval when a plan names styles absent from the live drawing."""
+        """Fail before approval when the live drawing lacks required plan resources."""
         required: dict[str, dict[str, str]] = {"dimstyle": {}, "textstyle": {}}
         for operation in plan.operations:
             for field_name in required:
@@ -640,6 +699,44 @@ class HarnessService:
                     required[field_name].setdefault(value, operation.operation_id)
 
         findings: list[Finding] = []
+        required_layers: dict[str, str] = {}
+        for operation in plan.operations:
+            required_layers.setdefault(operation.layer, operation.operation_id)
+        available_layers = {layer.name for layer in snapshot.layers}
+        for layer_name, operation_id in sorted(required_layers.items()):
+            if layer_name in available_layers:
+                continue
+            findings.append(
+                Finding(
+                    rule_id="LIVE_LAYER_MISSING",
+                    severity=Severity.BLOCKING,
+                    message="Required layer is not present in the live drawing.",
+                    operation_id=operation_id,
+                    expected=layer_name,
+                    actual=sorted(available_layers),
+                    suggested_fix=(
+                        "Load the approved DWT/DWS layers, then inspect, preview, "
+                        "validate and approve again."
+                    ),
+                )
+            )
+
+        observed_unit = str(snapshot.units)
+        if observed_unit != self.profile.canonical_unit:
+            findings.append(
+                Finding(
+                    rule_id="LIVE_DOCUMENT_UNITS_MISMATCH",
+                    severity=Severity.BLOCKING,
+                    message="Live drawing units do not match the company profile.",
+                    expected=self.profile.canonical_unit,
+                    actual=observed_unit,
+                    suggested_fix=(
+                        "Set the disposable drawing units from the approved template, "
+                        "then inspect, preview, validate and approve again."
+                    ),
+                )
+            )
+
         for field_name, available, rule_id, label in (
             (
                 "dimstyle",
@@ -1293,16 +1390,59 @@ class HarnessService:
         rollback_approval_token: str,
     ) -> RollbackResult:
         job = self._require_job(job_id)
+        undo_receipt = self._undo_rollback_receipts.get(job_id)
+        recovery = self._durable_rollback_recoveries.get(job_id)
+        supplied_token_digest = rollback_approval_token_digest(rollback_approval_token)
+        durable_recovery_candidate = False
+
+        if recovery is not None:
+            is_exact_recovery = recovery.matches_scope(
+                job_id=job.job_id,
+                document_id=job.document_id,
+                checkpoint_id=checkpoint_id,
+                current_revision=current_revision,
+            ) and hmac.compare_digest(
+                recovery.approval_token_digest,
+                supplied_token_digest,
+            )
+            if (
+                undo_receipt is not None
+                or not self.adapter.allows_expired_checkpoint_recovery
+                or not is_exact_recovery
+            ):
+                raise ApprovalScopeMismatchError(
+                    "Rollback recovery does not match the exact journaled attempt",
+                    required_action=(
+                        "Retry with the original in-memory approval and unchanged rollback scope"
+                    ),
+                )
+
         # Authenticate the caller-supplied scope before disclosing whether this job
         # has a checkpoint or which checkpoint the server recorded.
-        approval = verify_rollback_approval_token(
-            rollback_approval_token,
-            self.settings.approval_secret(),
-            job_id=job.job_id,
-            document_id=job.document_id,
-            checkpoint_id=checkpoint_id,
-            current_revision=current_revision,
-        )
+        try:
+            approval = verify_rollback_approval_token(
+                rollback_approval_token,
+                self.settings.approval_secret(),
+                job_id=job.job_id,
+                document_id=job.document_id,
+                checkpoint_id=checkpoint_id,
+                current_revision=current_revision,
+            )
+        except ApprovalExpiredError:
+            if undo_receipt is not None or not self.adapter.allows_expired_checkpoint_recovery:
+                raise
+            # Python verifies the complete signed scope but does not claim that a
+            # journal exists. Only the real C# checkpoint_restore path can prove and
+            # resume that exact token digest; a missing/mismatched journal rejects.
+            approval = verify_rollback_recovery_token(
+                rollback_approval_token,
+                self.settings.approval_secret(),
+                job_id=job.job_id,
+                document_id=job.document_id,
+                checkpoint_id=checkpoint_id,
+                current_revision=current_revision,
+            )
+            durable_recovery_candidate = True
         if job.state not in {JobState.COMMITTED, JobState.FAILED} or job.checkpoint_id is None:
             raise RollbackNotAvailableError(
                 "This job has no proven post-commit checkpoint to restore",
@@ -1315,7 +1455,6 @@ class HarnessService:
                 required_action="Review and approve the job's exact checkpoint",
                 details={"job_checkpoint_id": job.checkpoint_id},
             )
-        undo_receipt = self._undo_rollback_receipts.get(job_id)
         if undo_receipt is not None and undo_receipt[1] != current_revision:
             raise StaleDocumentRevisionError(
                 "The session undo receipt does not match the approved revision",
@@ -1326,11 +1465,14 @@ class HarnessService:
         # passed the live writer compatibility gate.  Calling status/validate_revision
         # here would itself create an AutoCAD command and invalidate the one-step undo
         # fence, so the bridge performs the revision check atomically with rollback.
-        if undo_receipt is None:
+        if undo_receipt is None and recovery is None and not durable_recovery_candidate:
             self._require_writer_compatible()
         with self.lease_service.hold(job.document_id, owner_id=f"rollback:{job_id}"):
-            if undo_receipt is None and not self.adapter.validate_revision(
-                job.document_id, current_revision
+            if (
+                undo_receipt is None
+                and recovery is None
+                and not durable_recovery_candidate
+                and not self.adapter.validate_revision(job.document_id, current_revision)
             ):
                 raise StaleDocumentRevisionError(
                     "Document changed after rollback approval",
@@ -1348,18 +1490,35 @@ class HarnessService:
                     "current_revision": current_revision,
                 },
             )
-            result = self.adapter.rollback(
-                RollbackRequest(
-                    job_id=job_id,
-                    document_id=job.document_id,
-                    checkpoint_id=checkpoint_id,
-                    current_revision=current_revision,
-                    rollback_approval_token=rollback_approval_token,
-                    undo_group=undo_receipt[0] if undo_receipt is not None else None,
+            try:
+                result = self.adapter.rollback(
+                    RollbackRequest(
+                        job_id=job_id,
+                        document_id=job.document_id,
+                        checkpoint_id=checkpoint_id,
+                        current_revision=current_revision,
+                        rollback_approval_token=rollback_approval_token,
+                        undo_group=undo_receipt[0] if undo_receipt is not None else None,
+                    )
                 )
-            )
+            except RollbackRecoveryRequiredError:
+                if undo_receipt is None and self.adapter.allows_expired_checkpoint_recovery:
+                    self._durable_rollback_recoveries[job_id] = _DurableRollbackRecovery(
+                        job_id=job.job_id,
+                        document_id=job.document_id,
+                        checkpoint_id=checkpoint_id,
+                        current_revision=current_revision,
+                        approval_token_digest=supplied_token_digest,
+                    )
+                else:
+                    self._durable_rollback_recoveries.pop(job_id, None)
+                raise
+            except BaseException:
+                self._durable_rollback_recoveries.pop(job_id, None)
+                raise
             self.store.save_job(job.transition_to(JobState.ROLLED_BACK))
             self._undo_rollback_receipts.pop(job_id, None)
+            self._durable_rollback_recoveries.pop(job_id, None)
         self.audit.append(
             event_type=AuditEventType.ROLLBACK_SUCCEEDED.value,
             job_id=job_id,

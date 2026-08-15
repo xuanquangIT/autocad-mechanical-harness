@@ -7,13 +7,20 @@ issues a token bound to one plan hash and revision.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
 from apps.mcp_server.context import build_context
-from cad_harness.domain.errors import ApprovalRequiredError, HarnessError
+from cad_harness.domain.errors import (
+    ApprovalRequiredError,
+    ApprovalScopeMismatchError,
+    HarnessError,
+    UnsupportedInputFormatError,
+)
 from cad_harness.domain.models.raster import RasterTraceReport
 from cad_harness.domain.models.validation import Severity, ValidationStage
 
@@ -180,6 +187,14 @@ def _cmd_raster_accept(args: argparse.Namespace) -> int:
             required_action="Set CAD_HARNESS_APPROVAL_SECRET and retry locally",
         )
     report = RasterTraceReport.model_validate_json(args.report.read_text(encoding="utf-8"))
+    overlay_path, overlay_sha256 = _resolve_raster_overlay(context, report)
+    del overlay_path
+    if not hmac.compare_digest(args.reviewed_overlay_sha256, overlay_sha256):
+        raise ApprovalScopeMismatchError(
+            "Reviewed overlay digest does not match the current trace",
+            required_action="Run raster-review again and review that exact SVG before accepting",
+            details={"expected_overlay_sha256": overlay_sha256},
+        )
     acceptance, token = service.accept(
         report,
         tuple(args.candidate),
@@ -192,6 +207,50 @@ def _cmd_raster_accept(args: argparse.Namespace) -> int:
             "acceptance": acceptance.model_dump(mode="json"),
             "acceptance_token": token,
             "warning": "Token expires in at most 15 minutes and covers only this exact trace.",
+        }
+    )
+    return 0
+
+
+def _resolve_raster_overlay(context: Any, report: RasterTraceReport) -> tuple[Path, str]:
+    try:
+        path = context.raster_tracer.resolve_overlay_path(report)
+        payload = path.read_bytes()
+    except (OSError, ValueError) as exc:
+        raise UnsupportedInputFormatError(
+            "The trace overlay is missing or no longer bound to this report",
+            required_action="Trace the source image again and review the newly generated overlay",
+        ) from exc
+    return path, f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _cmd_raster_review(args: argparse.Namespace) -> int:
+    """Resolve one opaque overlay for explicit local human review."""
+    context = build_context(args.config)
+    report = RasterTraceReport.model_validate_json(args.report.read_text(encoding="utf-8"))
+    overlay_path, overlay_sha256 = _resolve_raster_overlay(context, report)
+    _emit(
+        {
+            "status": "review_required",
+            "trace_id": report.trace_id,
+            "source_sha256": report.source.source_sha256,
+            "overlay_artifact_ref": report.overlay_artifact_ref,
+            "overlay_path": str(overlay_path),
+            "overlay_sha256": overlay_sha256,
+            "candidates": [
+                {
+                    "candidate_id": candidate.candidate_id,
+                    "status": candidate.status.value,
+                    "geometry_kind": candidate.geometry.kind,
+                    "confidence": candidate.confidence,
+                    "fit_error_px": candidate.fit_error_px,
+                }
+                for candidate in report.candidates
+            ],
+            "next_action": (
+                "Open the local SVG, compare every selected candidate to the source, then run "
+                "raster-accept with this exact overlay SHA-256"
+            ),
         }
     )
     return 0
@@ -219,6 +278,13 @@ def build_parser() -> argparse.ArgumentParser:
     migrate = subparsers.add_parser("migrate", help="Create the SQLite schema (dev only)")
     migrate.set_defaults(func=_cmd_migrate)
 
+    raster_review = subparsers.add_parser(
+        "raster-review",
+        help="Resolve a trace overlay and print its hash-bound candidate review summary",
+    )
+    raster_review.add_argument("report", type=Path, help="RasterTraceReport JSON to review")
+    raster_review.set_defaults(func=_cmd_raster_review)
+
     raster_accept = subparsers.add_parser(
         "raster-accept",
         help="Accept reviewed raster candidates and issue a short-lived local token",
@@ -238,6 +304,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirm-reviewed-overlay",
         action="store_true",
         help="Confirm the local SVG overlay and exact candidates were reviewed",
+    )
+    raster_accept.add_argument(
+        "--reviewed-overlay-sha256",
+        required=True,
+        help="Exact SHA-256 printed by raster-review for the reviewed SVG",
     )
     raster_accept.set_defaults(func=_cmd_raster_accept)
 

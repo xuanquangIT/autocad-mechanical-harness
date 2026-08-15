@@ -1,0 +1,35 @@
+{
+  "client": {
+    "ephemeral_session": true,
+    "name": "Codex CLI",
+    "sandbox": "read-only",
+    "version": "0.147.0"
+  },
+  "document": {
+    "active_document_id_sha256": "898e93f90df9e0c078187fe4002dfdd661d0f9114f0307a8e41bbb2a739757f8",
+    "entity_count": 20,
+    "revision": "sha256:bddc8927a9950c77d8301bc39155bc63f64cf25d5fe457270a6cbc39a48e0f1b"
+  },
+  "mcp": {
+    "adapter_type": "dotnet_bridge",
+    "available": true,
+    "cad_version": "26.0",
+    "capabilities": [
+      "inspect_document",
+      "inspect_selection"
+    ],
+    "process_id": 9260,
+    "schema_version": "1.12",
+    "tool_calls": [
+      "cad_status",
+      "cad_document_inspect"
+    ],
+    "write_tool_calls": 0
+  },
+  "production_evidence": false,
+  "real_autocad_evidence": true,
+  "real_autocad_read_only_smoke_passed": true,
+  "registered_client": true,
+  "revision_matches_independent_v035_bridge_read": true,
+  "schema_version": "1.0"
+}

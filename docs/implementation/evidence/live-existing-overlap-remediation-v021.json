@@ -1,0 +1,37 @@
+{
+  "attached_existing_document": true,
+  "automatic_retry_performed": false,
+  "commit_api_outcome": "unknown_commit_state",
+  "drawing_effect_reconciled": true,
+  "drawing_mutated": true,
+  "mcp_transport": "stdio",
+  "opened_or_created_autocad_document": false,
+  "production_evidence": false,
+  "real_autocad_evidence": true,
+  "schema_version": "1.0",
+  "workflow": {
+    "adapter_type": "com",
+    "api_completed_operation_results": 0,
+    "audit_id_sha256": "ce542cf814596f126daa60ef91f29be28b952f7263ffda432b0778977590a5dd",
+    "document_id_sha256": "aabacf908d5be878342cd9a80d59e4818bf05ea403ff7060e253074f453eaa47",
+    "entity_count_after": 20,
+    "entity_count_before": 21,
+    "job_id_sha256": "8ac69d065f5a778c4a00423d1f71062e989ffba89bcbc9fee24c8028c7f84655",
+    "job_state": "UNKNOWN_COMMIT_STATE",
+    "operation_count": 1,
+    "plan_hash": "sha256:190fffbd295ddc59342be4f25a2d3e1394fe5cbbb0688e9c3df30031e3402717",
+    "post_read_selected_entity_present": false,
+    "post_readback_evidence": "live-existing-complex-bridge-v020.json",
+    "preview_deleted": 1,
+    "revision_after_com": "sha256:d372ae0042d96c9247dc9e6187c194c584663baaa5c6fb958f10719224f30295",
+    "revision_before_com": "sha256:d907bd2fd82ab65a66fc37f7f7ff067da12a5414c389c5d8c6d61ea47ba5545d",
+    "selected_entity_ref_sha256": "d5eb233a2c0e4db9e1494f6f9f98c388e59f46e893cb27d0aa51d01ad75b2028"
+  },
+  "failure_analysis": {
+    "adapter_fix": "capture deletion receipt fields before invoking ActiveX Delete",
+    "cause_class": "post_delete_activex_proxy_invalidation_during_receipt_mapping",
+    "fixed_path_live_retested": false,
+    "offline_regression_added": true,
+    "result_policy": "The unknown job was not retried; the drawing effect was reconciled by fresh COM and bridge reads."
+  }
+}

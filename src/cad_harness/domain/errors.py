@@ -39,6 +39,7 @@ class ErrorCode(StrEnum):
     UNKNOWN_COMMIT_STATE = "UNKNOWN_COMMIT_STATE"
     EXPORT_PATH_NOT_ALLOWED = "EXPORT_PATH_NOT_ALLOWED"
     ROLLBACK_NOT_AVAILABLE = "ROLLBACK_NOT_AVAILABLE"
+    ROLLBACK_RECOVERY_REQUIRED = "ROLLBACK_RECOVERY_REQUIRED"
     INVALID_JOB_TRANSITION = "INVALID_JOB_TRANSITION"
     TOOL_NOT_ALLOWED = "TOOL_NOT_ALLOWED"
     UNSUPPORTED_INPUT_FORMAT = "UNSUPPORTED_INPUT_FORMAT"
@@ -181,6 +182,22 @@ class ExportPathNotAllowedError(HarnessError):
 
 class RollbackNotAvailableError(HarnessError):
     code = ErrorCode.ROLLBACK_NOT_AVAILABLE
+
+
+class RollbackRecoveryRequiredError(HarnessError):
+    """A journaled whole-DWG restore must resume with the exact same authority.
+
+    This is deliberately distinct from a generic bridge failure.  It is the only
+    rollback failure for which Engineer Desktop may retain the memory-only rb1
+    credential and exact reviewed scope while the C# journal remains authoritative.
+    """
+
+    code = ErrorCode.ROLLBACK_RECOVERY_REQUIRED
+    retryable = True
+    default_required_action = (
+        "Retry the exact rollback with the original approval and unchanged scope; do not issue "
+        "a replacement token"
+    )
 
 
 class InvalidJobTransitionError(HarnessError):
