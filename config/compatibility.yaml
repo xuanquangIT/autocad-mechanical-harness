@@ -1,5 +1,5 @@
 schema_version: "1.0"
-bridge_bundle_version: "0.2.0"
+bridge_bundle_version: "0.2.1"
 source_url: "https://help.autodesk.com/cloudhelp/2027/ENU/AutoCAD-Customization/files/GUID-A6C680F2-DE2E-418A-A182-E4884073338A.htm"
 targets:
   - autocad_release: 2024

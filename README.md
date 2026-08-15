@@ -94,7 +94,7 @@ Requirements:
 ```powershell
 git clone https://github.com/xuanquangIT/autocad-mechanical-harness.git
 cd autocad-mechanical-harness
-git checkout v0.2.0
+git checkout v0.2.1
 uv sync --frozen
 uv run cad-harness status
 uv run cad-harness demo

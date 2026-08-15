@@ -1,6 +1,6 @@
 # Installation and MCP setup
 
-This guide installs AutoCAD Mechanical Harness `v0.2.0` as an engineering preview. The
+This guide installs AutoCAD Mechanical Harness `v0.2.1` as an engineering preview. The
 offline MCP server is safe to try first. Live AutoCAD writes remain human-approved and
 require a target-specific bridge; the unsigned bridge artifact is not a production release.
 
@@ -12,7 +12,7 @@ Requirements: Git, Python 3.12 or 3.13, and
 ```powershell
 git clone https://github.com/xuanquangIT/autocad-mechanical-harness.git
 Set-Location autocad-mechanical-harness
-git checkout v0.2.0
+git checkout v0.2.1
 uv sync --frozen --all-extras
 uv run cad-harness status
 uv run cad-harness demo
@@ -68,8 +68,8 @@ Set-Location dotnet\AutoCADBridge
   -TargetFramework net10.0-windows `
   -AutoCADManagedApiVersion 26.0.0 `
   -AutoCADSeries R26.0 `
-  -PackageVersion 0.2.0.0 `
-  -ProductCode A4B53210-2848-4FA6-8720-5A55A628899C `
+  -PackageVersion 0.2.1.0 `
+  -ProductCode 0A10BC20-643D-4B39-90DB-76FFD8994FAB `
   -DevelopmentUnsigned
 ```
 
@@ -82,7 +82,7 @@ Validate the artifact without installing it:
 ```powershell
 .\Install-BridgeBundle.ps1 `
   -Action Validate `
-  -BundlePath .\CadBridge.Plugin\bin\BridgePackages\DEVELOPMENT-UNSIGNED-R26-0-net10-0-windows-api-26-0-0-v0-2-0-0\AutoCADHarness.bundle `
+  -BundlePath .\CadBridge.Plugin\bin\BridgePackages\DEVELOPMENT-UNSIGNED-R26-0-net10-0-windows-api-26-0-0-v0-2-1-0\AutoCADHarness.bundle `
   -ExpectedAutoCADSeries R26.0 `
   -DevelopmentUnsigned `
   -InstallRoot D:\cad-harness-development-install
@@ -179,4 +179,4 @@ tunnel transports MCP; it does not replace bridge signing, live-session proof, E
 approval, or customer engineering review.
 
 See [operations](operations.md), [security](security.md), and the
-[v0.2.0 release notes](releases/v0.2.0.md) for verification and remaining limits.
+[v0.2.1 release notes](releases/v0.2.1.md) for verification and remaining limits.

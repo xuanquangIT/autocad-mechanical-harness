@@ -399,10 +399,25 @@ function Test-PathEqualOrWithin {
 function Assert-NoAlternateDataStreams {
     param([Parameter(Mandatory)][string]$LiteralPath)
 
-    try {
-        $streams = @(Get-Item -LiteralPath $LiteralPath -Stream * -ErrorAction Stop)
+    $streams = $null
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        try {
+            $streams = @(Get-Item -LiteralPath $LiteralPath -Stream * -ErrorAction Stop)
+            break
+        }
+        catch [IO.IOException] {
+            if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
+            [Threading.Thread]::Sleep(25)
+        }
+        catch [UnauthorizedAccessException] {
+            if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
+            [Threading.Thread]::Sleep(25)
+        }
+        catch {
+            Stop-Installer 'PATH_UNREADABLE'
+        }
     }
-    catch {
+    if ($null -eq $streams) {
         Stop-Installer 'PATH_UNREADABLE'
     }
     foreach ($stream in $streams) {

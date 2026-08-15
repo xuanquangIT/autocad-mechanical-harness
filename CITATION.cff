@@ -8,7 +8,7 @@ authors:
 repository-code: "https://github.com/xuanquangIT/autocad-mechanical-harness"
 url: "https://github.com/xuanquangIT/autocad-mechanical-harness"
 license: "Apache-2.0"
-version: "0.2.0"
+version: "0.2.1"
 keywords:
   - AutoCAD
   - mechanical CAD
