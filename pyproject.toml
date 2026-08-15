@@ -27,7 +27,7 @@ dependencies = [
     "numpy>=1.26,<3",
     "sqlalchemy>=2.0.36,<3",
     "alembic>=1.14.0,<2",
-    "mcp>=1.2.0,<2",
+    "mcp>=1.2.0,<3",
     "opencv-python-headless>=4.10,<5",
     "cryptography>=44,<51",
 ]
