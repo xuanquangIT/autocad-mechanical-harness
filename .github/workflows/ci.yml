@@ -42,7 +42,7 @@ jobs:
       - name: Golden suite
         run: uv run python scripts/run_golden_tests.py
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
