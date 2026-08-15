@@ -49,10 +49,10 @@ Autodesk's [Managed .NET compatibility table](https://help.autodesk.com/cloudhel
 | AutoCAD | COM release prefix | .NET runtime | Bridge bundle | Verification |
 |---|---:|---:|---:|---|
 | 2024 | 24.3 | 4.8 | separate bundle required | provisional; writer disabled |
-| 2025 | 25.0 | 8.0 | 0.2.1 | provisional; live acceptance pending |
+| 2025 | 25.0 | 8.0 | 0.2.2 | provisional; live acceptance pending |
 | 2026 through Update 1.1 | 25.1 | 8.0 | separate verified build required | provisional; live acceptance pending |
 | 2026 Update 1.2+ | 25.1 | 10.0 | separate verified build required | not packaged by the current net8 bundle |
-| 2027 | 26.0 | 10.0 | 0.2.1 engineering-preview bundle | live development acceptance passed; signed release still required |
+| 2027 | 26.0 | 10.0 | 0.2.2 engineering-preview bundle | live development acceptance passed; signed release still required |
 
 An unlisted or unparseable version is visible in `cad_status` with
 `version_supported=false` and is denied at the writer boundary. “Provisional” means the

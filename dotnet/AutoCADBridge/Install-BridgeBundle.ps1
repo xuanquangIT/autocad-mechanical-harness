@@ -399,31 +399,50 @@ function Test-PathEqualOrWithin {
 function Assert-NoAlternateDataStreams {
     param([Parameter(Mandatory)][string]$LiteralPath)
 
-    $streams = $null
+    if ([IO.Directory]::Exists($LiteralPath)) {
+        for ($attempt = 0; $attempt -lt 20; $attempt++) {
+            try {
+                $streams = @(Get-Item -LiteralPath $LiteralPath -Stream * -ErrorAction Stop)
+                foreach ($stream in $streams) {
+                    if ([string]$stream.Stream -cne ':$DATA') {
+                        Stop-Installer 'ALTERNATE_DATA_STREAM_NOT_ALLOWED'
+                    }
+                }
+                return
+            }
+            catch {
+                if ($_.Exception.Data.Contains('CadHarnessErrorCode')) { throw }
+                if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
+            }
+            [Threading.Thread]::Sleep(25)
+        }
+    }
+
+    $hasAlternateStreams = $false
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $metadataHandle = $null
         try {
-            $streams = @(Get-Item -LiteralPath $LiteralPath -Stream * -ErrorAction Stop)
-            break
-        }
-        catch [IO.IOException] {
-            if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
-            [Threading.Thread]::Sleep(25)
-        }
-        catch [UnauthorizedAccessException] {
-            if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
-            [Threading.Thread]::Sleep(25)
+            # Use a zero-access native metadata handle with read/write/delete sharing.
+            # The PowerShell provider can report PATH_UNREADABLE immediately after a
+            # fault-injected process exits while Windows security software still owns a
+            # short-lived provider handle. The native query observes the same stream
+            # metadata without weakening the ADS or identity boundary.
+            $metadataHandle = [CadHarnessInstallerNative]::OpenDirectoryHandle($LiteralPath)
+            $hasAlternateStreams = [CadHarnessInstallerNative]::HasAlternateDataStreams(
+                $metadataHandle)
+            if ($hasAlternateStreams) {
+                Stop-Installer 'ALTERNATE_DATA_STREAM_NOT_ALLOWED'
+            }
+            return
         }
         catch {
-            Stop-Installer 'PATH_UNREADABLE'
+            if ($_.Exception.Data.Contains('CadHarnessErrorCode')) { throw }
+            if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
         }
-    }
-    if ($null -eq $streams) {
-        Stop-Installer 'PATH_UNREADABLE'
-    }
-    foreach ($stream in $streams) {
-        if ([string]$stream.Stream -cne ':$DATA') {
-            Stop-Installer 'ALTERNATE_DATA_STREAM_NOT_ALLOWED'
+        finally {
+            if ($null -ne $metadataHandle) { $metadataHandle.Dispose() }
         }
+        [Threading.Thread]::Sleep(25)
     }
 }
 
