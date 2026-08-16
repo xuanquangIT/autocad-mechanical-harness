@@ -88,17 +88,42 @@ def test_dependabot_groups_routine_updates_and_defers_major_dependencies() -> No
     assert set(pip["groups"]) == {"python-runtime", "python-development"}
     assert pip["groups"]["python-runtime"]["dependency-type"] == "production"
     assert pip["groups"]["python-development"]["dependency-type"] == "development"
+    assert pip["groups"]["python-runtime"]["update-types"] == ["minor", "patch"]
+    assert pip["groups"]["python-development"]["update-types"] == ["minor", "patch"]
     assert pip["open-pull-requests-limit"] == 2
+
+    explicit_python_caps = {
+        "alembic": [">=2"],
+        "cryptography": [">=51"],
+        "ezdxf": [">=2"],
+        "hypothesis": [">=7"],
+        "mcp": [">=2"],
+        "mypy": [">=2"],
+        "numpy": [">=3"],
+        "opencv-python-headless": [">=5"],
+        "pydantic": [">=3"],
+        "pyside6": [">=7"],
+        "pytest": [">=9"],
+        "pytest-cov": [">=8"],
+        "pyyaml": [">=7"],
+        "ruff": [">=1"],
+        "sqlalchemy": [">=3"],
+        "structlog": [">=26"],
+    }
+    for dependency_name, versions in explicit_python_caps.items():
+        assert {
+            "dependency-name": dependency_name,
+            "versions": versions,
+        } in pip["ignore"]
 
     nuget = updates["nuget"]
     assert nuget["groups"]["dotnet-dependencies"]["patterns"] == ["*"]
     assert nuget["open-pull-requests-limit"] == 1
 
-    for update in (pip, nuget):
-        assert {
-            "dependency-name": "*",
-            "update-types": ["version-update:semver-major"],
-        } in update["ignore"]
+    assert {
+        "dependency-name": "*",
+        "update-types": ["version-update:semver-major"],
+    } in nuget["ignore"]
 
     github_actions = updates["github-actions"]
     assert github_actions["groups"]["github-actions"]["patterns"] == ["*"]

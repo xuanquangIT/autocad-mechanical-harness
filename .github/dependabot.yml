@@ -7,12 +7,65 @@ updates:
     groups:
       python-runtime:
         dependency-type: production
+        update-types:
+          - minor
+          - patch
       python-development:
         dependency-type: development
-    ignore:
-      - dependency-name: "*"
         update-types:
-          - version-update:semver-major
+          - minor
+          - patch
+    ignore:
+      # Support beyond these declared caps requires a lockfile update and
+      # dedicated compatibility evidence; range-only pip updates do neither.
+      - dependency-name: pydantic
+        versions:
+          - ">=3"
+      - dependency-name: pyyaml
+        versions:
+          - ">=7"
+      - dependency-name: mcp
+        versions:
+          - ">=2"
+      - dependency-name: opencv-python-headless
+        versions:
+          - ">=5"
+      - dependency-name: structlog
+        versions:
+          - ">=26"
+      - dependency-name: ezdxf
+        versions:
+          - ">=2"
+      - dependency-name: numpy
+        versions:
+          - ">=3"
+      - dependency-name: sqlalchemy
+        versions:
+          - ">=3"
+      - dependency-name: alembic
+        versions:
+          - ">=2"
+      - dependency-name: cryptography
+        versions:
+          - ">=51"
+      - dependency-name: pyside6
+        versions:
+          - ">=7"
+      - dependency-name: mypy
+        versions:
+          - ">=2"
+      - dependency-name: pytest
+        versions:
+          - ">=9"
+      - dependency-name: pytest-cov
+        versions:
+          - ">=8"
+      - dependency-name: hypothesis
+        versions:
+          - ">=7"
+      - dependency-name: ruff
+        versions:
+          - ">=1"
     open-pull-requests-limit: 2
 
   - package-ecosystem: nuget
