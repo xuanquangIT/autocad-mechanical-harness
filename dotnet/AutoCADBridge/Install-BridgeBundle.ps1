@@ -150,6 +150,27 @@ public static class CadHarnessInstallerNative
         finally { Marshal.FreeCoTaskMem(value); }
     }
 
+    private static string ToExtendedLocalPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path) || path.Length < 3 ||
+            !((path[0] >= 'A' && path[0] <= 'Z') ||
+              (path[0] >= 'a' && path[0] <= 'z')) ||
+            path[1] != ':' || (path[2] != '\\' && path[2] != '/'))
+            throw new ArgumentException("LOCAL_ABSOLUTE_PATH_REQUIRED", "path");
+
+        string normalized = System.IO.Path.GetFullPath(path).Replace('/', '\\');
+        if (normalized.Length < 3 || normalized[1] != ':' || normalized[2] != '\\' ||
+            !String.Equals(
+                normalized.TrimEnd('\\'), path.Replace('/', '\\').TrimEnd('\\'),
+                StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("LOCAL_CANONICAL_PATH_REQUIRED", "path");
+
+        // The PowerShell boundary has already rejected caller-supplied device and UNC
+        // paths. Add the device prefix only here so CreateFileW can inspect owned paths
+        // beyond MAX_PATH without expanding the accepted external path grammar.
+        return @"\\?\" + normalized;
+    }
+
     public static SafeFileHandle OpenDirectoryHandle(string path)
     {
         const uint ShareReadWriteDelete = 0x00000001 | 0x00000002 | 0x00000004;
@@ -157,7 +178,7 @@ public static class CadHarnessInstallerNative
         const uint BackupSemantics = 0x02000000;
         const uint OpenReparsePoint = 0x00200000;
         SafeFileHandle handle = CreateFileW(
-            path, 0, ShareReadWriteDelete, IntPtr.Zero, OpenExisting,
+            ToExtendedLocalPath(path), 0, ShareReadWriteDelete, IntPtr.Zero, OpenExisting,
             BackupSemantics | OpenReparsePoint, IntPtr.Zero);
         if (handle.IsInvalid)
         {
@@ -178,7 +199,7 @@ public static class CadHarnessInstallerNative
         const uint OpenReparsePoint = 0x00200000;
         const uint WriteThrough = 0x80000000;
         SafeFileHandle handle = CreateFileW(
-            path, GenericReadWrite, 0, IntPtr.Zero,
+            ToExtendedLocalPath(path), GenericReadWrite, 0, IntPtr.Zero,
             requireExisting ? OpenExisting : OpenAlways,
             Normal | OpenReparsePoint | WriteThrough, IntPtr.Zero);
         if (handle.IsInvalid)
@@ -214,6 +235,7 @@ public static class CadHarnessInstallerNative
     public static bool HasAlternateDataStreams(SafeFileHandle handle)
     {
         const int FileStreamInfo = 7;
+        const int ErrorHandleEof = 38;
         const int ErrorMoreData = 234;
         int capacity = 65536;
         while (capacity <= 1048576)
@@ -230,6 +252,7 @@ public static class CadHarnessInstallerNative
                         capacity *= 2;
                         continue;
                     }
+                    if (error == ErrorHandleEof) return false;
                     throw new Win32Exception(error);
                 }
                 int offset = 0;
@@ -399,34 +422,15 @@ function Test-PathEqualOrWithin {
 function Assert-NoAlternateDataStreams {
     param([Parameter(Mandatory)][string]$LiteralPath)
 
-    if ([IO.Directory]::Exists($LiteralPath)) {
-        for ($attempt = 0; $attempt -lt 20; $attempt++) {
-            try {
-                $streams = @(Get-Item -LiteralPath $LiteralPath -Stream * -ErrorAction Stop)
-                foreach ($stream in $streams) {
-                    if ([string]$stream.Stream -cne ':$DATA') {
-                        Stop-Installer 'ALTERNATE_DATA_STREAM_NOT_ALLOWED'
-                    }
-                }
-                return
-            }
-            catch {
-                if ($_.Exception.Data.Contains('CadHarnessErrorCode')) { throw }
-                if ($attempt -eq 19) { Stop-Installer 'PATH_UNREADABLE' }
-            }
-            [Threading.Thread]::Sleep(25)
-        }
-    }
-
     $hasAlternateStreams = $false
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
         $metadataHandle = $null
         try {
-            # Use a zero-access native metadata handle with read/write/delete sharing.
-            # The PowerShell provider can report PATH_UNREADABLE immediately after a
-            # fault-injected process exits while Windows security software still owns a
-            # short-lived provider handle. The native query observes the same stream
-            # metadata without weakening the ADS or identity boundary.
+            # Use one zero-access native metadata path for files and directories, with
+            # read/write/delete sharing. FileStreamInfo reports ERROR_HANDLE_EOF for a
+            # clean directory, which the native helper maps to an empty stream set.
+            # This avoids provider-specific directory behavior and inspects extended
+            # internal paths without weakening the ADS or identity boundary.
             $metadataHandle = [CadHarnessInstallerNative]::OpenDirectoryHandle($LiteralPath)
             $hasAlternateStreams = [CadHarnessInstallerNative]::HasAlternateDataStreams(
                 $metadataHandle)

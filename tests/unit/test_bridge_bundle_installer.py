@@ -538,13 +538,24 @@ def test_development_switch_custom_root_and_running_bypass_are_constrained(
     )
 
 
-def test_network_install_root_is_rejected_without_network_access(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "install_root",
+    (
+        r"\\invalid.example\never-contact",
+        r"\\?\C:\never-contact",
+        r"\\.\C:\never-contact",
+    ),
+    ids=("unc", "extended", "device"),
+)
+def test_unc_and_device_install_roots_are_rejected_without_access(
+    tmp_path: Path, install_root: str
+) -> None:
     bundle = _make_bundle(tmp_path / "source")
     _assert_failure(
         _invoke(
             action="Validate",
             bundle=bundle,
-            install_root=r"\\invalid.example\never-contact",
+            install_root=install_root,
         ),
         "INSTALL_ROOT_INVALID",
     )
@@ -601,6 +612,49 @@ def test_receipt_binds_directories_and_rejects_ads(tmp_path: Path) -> None:
     )
     ads_path.unlink()
     _assert_success(_development_uninstall(install_root), "uninstalled")
+
+
+def test_native_ads_inspection_accepts_a_clean_directory(tmp_path: Path) -> None:
+    bundle = _make_bundle(tmp_path / "source")
+    (bundle / "Contents" / "clean-empty-directory").mkdir()
+
+    _assert_success(
+        _invoke(
+            action="Validate",
+            bundle=bundle,
+            install_root=tmp_path / "validation-root",
+        ),
+        "validated",
+    )
+
+
+@pytest.mark.parametrize(
+    "relative_target",
+    (Path("Contents"), Path("Contents") / "Windows" / REQUIRED_ASSEMBLIES[0]),
+    ids=("directory", "file"),
+)
+def test_native_ads_inspection_rejects_directory_and_file_ads(
+    tmp_path: Path, relative_target: Path
+) -> None:
+    bundle = _make_bundle(tmp_path / "source")
+    target = bundle / relative_target
+    ads_path = Path(f"{target}:rogue")
+    try:
+        ads_path.write_bytes(b"not-owned")
+    except OSError as exc:
+        pytest.skip(f"NTFS alternate streams unavailable in this temp volume: {exc}")
+
+    try:
+        _assert_failure(
+            _invoke(
+                action="Validate",
+                bundle=bundle,
+                install_root=tmp_path / "validation-root",
+            ),
+            "ALTERNATE_DATA_STREAM_NOT_ALLOWED",
+        )
+    finally:
+        ads_path.unlink()
 
 
 @pytest.mark.parametrize(
@@ -683,6 +737,38 @@ def test_uninstall_commit_never_reactivates_partial_quarantine(tmp_path: Path, f
     recovered = _assert_success(_development_uninstall(install_root), "uninstalled")
     assert recovered["recovery_status"] == "completed"
     assert not (install_root / BUNDLE_NAME).exists()
+    assert not list(install_root.glob(".AutoCADHarness.bundle.uninstall.*"))
+    assert not (install_root / ".cad-harness-installer-journal.json").exists()
+
+
+def test_uninstall_crash_recovery_supports_max_path_quarantine_assets(
+    tmp_path: Path,
+) -> None:
+    bundle = _make_bundle(tmp_path / "source")
+    relative_asset = Path("Contents") / "Windows" / max(REQUIRED_ASSEMBLIES, key=len)
+    quarantine_template = ".AutoCADHarness.bundle.uninstall." + ("0" * 32)
+    one_character_probe = tmp_path / "x" / quarantine_template / relative_asset
+    root_component_length = 1 + max(0, 260 - len(str(one_character_probe)))
+    install_root = tmp_path / ("x" * root_component_length)
+    expected_quarantine_asset = install_root / quarantine_template / relative_asset
+    assert len(str(expected_quarantine_asset)) >= 260
+
+    _assert_success(_development_install(bundle, install_root), "installed")
+    crashed, _ = _development_uninstall(
+        install_root,
+        test_fault="UninstallAfterRenameBeforeJournal",
+        expect_json=False,
+    )
+    assert crashed.returncode == 91
+
+    quarantines = list(install_root.glob(".AutoCADHarness.bundle.uninstall.*"))
+    assert len(quarantines) == 1
+    quarantined_asset = quarantines[0] / relative_asset
+    assert len(str(quarantined_asset)) >= 260
+    assert quarantined_asset.is_file()
+
+    recovered = _assert_success(_development_uninstall(install_root), "uninstalled")
+    assert recovered["recovery_status"] == "completed"
     assert not list(install_root.glob(".AutoCADHarness.bundle.uninstall.*"))
     assert not (install_root / ".cad-harness-installer-journal.json").exists()
 
