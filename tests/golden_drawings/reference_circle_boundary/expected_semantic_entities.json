@@ -1,0 +1,21 @@
+{
+  "entity_count": 1,
+  "entities": [
+    {
+      "operation_id": "op:reference-circle-boundary:circle",
+      "feature_id": "reference-circle-boundary",
+      "entity_type": "AcDbCircle",
+      "layer": "0",
+      "measurements": {
+        "layer": "0",
+        "center_mm": [
+          -12.5,
+          -3.25
+        ],
+        "diameter_mm": 0.02,
+        "radius_mm": 0.01,
+        "area_mm2": 0.00031415926535897936
+      }
+    }
+  ]
+}

@@ -472,6 +472,8 @@ class FakeAutoCADAdapter(BaseAdapter):
                 measurements["diameter_mm"] = radius * 2.0
             if "area_mm2" in operation.expected:
                 measurements["area_mm2"] = math.pi * radius * radius
+            if "layer" in operation.expected:
+                measurements["layer"] = operation.layer
             return measurements
         if operation.type is OperationType.CREATE_ARC:
             center = [float(value) for value in operation.geometry.get("center_mm", ())]

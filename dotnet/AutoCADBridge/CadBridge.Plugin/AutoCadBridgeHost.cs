@@ -661,7 +661,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
         {
             return BridgeHostResult.Success(new JsonObject
             {
-                ["schema_version"] = "1.12",
+                ["schema_version"] = "1.13",
                 ["job_id"] = request.JobId,
                 ["restored_revision"] = restore.RestoredRevision,
                 ["checkpoint_id"] = request.CheckpointId,
@@ -918,7 +918,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
                     {
                         return ValueTask.FromResult(new JsonObject
                         {
-                            ["schema_version"] = "1.12",
+                            ["schema_version"] = "1.13",
                             ["job_id"] = request.JobId,
                             ["restored_revision"] = restored.Revision,
                             ["checkpoint_id"] = request.CheckpointId,
@@ -1321,7 +1321,7 @@ public sealed class AutoCadBridgeHost : IBridgeHost, IDisposable
 
         return new JsonObject
         {
-            ["schema_version"] = "1.12",
+            ["schema_version"] = "1.13",
             ["job_id"] = request.JobId,
             ["plan_hash"] = planHash,
             ["status"] = "committed",

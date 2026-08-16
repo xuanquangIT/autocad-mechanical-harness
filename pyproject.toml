@@ -1,6 +1,6 @@
 [project]
 name = "cad-harness"
-version = "0.2.2"
+version = "0.3.0"
 description = "Safety-first deterministic 2D mechanical CAD automation over MCP"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"

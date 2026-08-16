@@ -31,6 +31,7 @@ from cad_harness.validation.rules.feature_rules import (
     FlangeOuterDiameterClearanceRule,
     LBracketLegPerpendicularityRule,
     NoUndeclaredContourIntersectionRule,
+    ReferenceCircleGeometryRule,
     SlotArcTangencyRule,
 )
 from cad_harness.validation.rules.geometry_rules import (
@@ -70,6 +71,7 @@ def all_rules() -> list[ValidationRule]:
         SlotArcTangencyRule(),
         LBracketLegPerpendicularityRule(),
         NoUndeclaredContourIntersectionRule(),
+        ReferenceCircleGeometryRule(),
         CanonicalUnitsRule(),
         LayerDeclaredRule(),
         ProfileProvenanceRule(),
@@ -130,6 +132,7 @@ __all__ = [
     "OverlappingEntityRule",
     "PatternIntegrityRule",
     "ProfileProvenanceRule",
+    "ReferenceCircleGeometryRule",
     "SelfIntersectingContourRule",
     "SlotArcTangencyRule",
     "TextstyleInProfileRule",

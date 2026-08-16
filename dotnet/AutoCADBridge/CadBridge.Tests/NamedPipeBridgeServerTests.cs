@@ -123,10 +123,10 @@ public sealed class NamedPipeBridgeServerTests
         };
 
     private static byte[] ValidPayload(string requestId) => Encoding.UTF8.GetBytes(
-        $"{{\"schema_version\":\"1.12\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":{{}}}}");
+        $"{{\"schema_version\":\"1.13\",\"method\":\"status\",\"request_id\":\"{requestId}\",\"params\":{{}}}}");
 
     private static byte[] CancelPayload(string requestId, string targetRequestId) => Encoding.UTF8.GetBytes(
-        $"{{\"schema_version\":\"1.12\",\"method\":\"cancel\",\"request_id\":\"{requestId}\"," +
+        $"{{\"schema_version\":\"1.13\",\"method\":\"cancel\",\"request_id\":\"{requestId}\"," +
         $"\"params\":{{\"target_request_id\":\"{targetRequestId}\"}}}}");
 
     private static byte[] Frame(byte[] payload)

@@ -1,4 +1,4 @@
-"""The 19 high-level MCP tools, grouped by side effect.
+"""The 23 high-level MCP tools, grouped by side effect.
 
 Grouping mirrors the permission model: read tools, internal-DB tools, preview tools and
 write tools. A client profile can be granted the read groups without the write group.
@@ -24,6 +24,7 @@ from apps.mcp_server.tools.permissions import ToolPermissionGuard
 from cad_harness.security.client_profiles import (
     APPROVAL_REQUIRED_TOOLS,
     DWG_MUTATING_TOOLS,
+    PLANNING_TOOLS,
     READ_ONLY_TOOLS,
     TOOL_NAMES,
 )
@@ -45,6 +46,7 @@ def register_all(mcp: FastMCP, context: ServerContext) -> None:
 __all__ = [
     "APPROVAL_REQUIRED_TOOLS",
     "DWG_MUTATING_TOOLS",
+    "PLANNING_TOOLS",
     "READ_ONLY_TOOLS",
     "TOOL_NAMES",
     "register_all",

@@ -28,6 +28,7 @@ from cad_harness.feature_catalog.recognized import (
     RecognizedFilletCornerCompiler,
     RecognizedPartOutlineCompiler,
 )
+from cad_harness.feature_catalog.reference_circle import ReferenceCircleCompiler
 from cad_harness.feature_catalog.registry import (
     describe_all,
     get_compiler,
@@ -48,6 +49,7 @@ register(CornerNotchCompiler())
 register(EdgeCutoutCompiler())
 register(KeywayCompiler())
 register(LinearHolePatternCompiler())
+register(ReferenceCircleCompiler())
 register(RecognizedPartOutlineCompiler())
 register(RecognizedCircularHoleCompiler())
 register(RecognizedFilletCornerCompiler())
@@ -72,6 +74,7 @@ __all__ = [
     "LinearHolePatternCompiler",
     "RectangularHolePatternCompiler",
     "RectangularPlateCompiler",
+    "ReferenceCircleCompiler",
     "SlotCompiler",
     "describe_all",
     "get_compiler",

@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from cad_harness.domain.models.base import SCHEMA_VERSION
+
 FILENAME = "ipc-envelope.schema.json"
 
 METHODS: tuple[str, ...] = (
@@ -46,7 +48,7 @@ IPC_ENVELOPE_SCHEMA: dict[str, Any] = {
             "properties": {
                 "schema_version": {
                     "type": "string",
-                    "pattern": r"^\d+\.\d+$",
+                    "const": SCHEMA_VERSION,
                     "description": "A major version mismatch is rejected, never coerced.",
                 },
                 "method": {"type": "string", "enum": list(METHODS)},
@@ -68,7 +70,7 @@ IPC_ENVELOPE_SCHEMA: dict[str, Any] = {
             "additionalProperties": False,
             "required": ["schema_version", "request_id", "status"],
             "properties": {
-                "schema_version": {"type": "string", "pattern": r"^\d+\.\d+$"},
+                "schema_version": {"type": "string", "const": SCHEMA_VERSION},
                 "request_id": {"type": "string", "minLength": 1, "maxLength": 64},
                 "status": {
                     "type": "string",

@@ -18,6 +18,7 @@ from scripts.live_mcp_r26_acceptance import (
     _configure_acceptance_bundle_environment,
     _configure_durable_restore_environment,
     _durable_artifact_proof,
+    _mcp_server_parameters,
     _run_durable_commit_session,
     _run_durable_rollback_session,
     _run_remediation_acceptance,
@@ -29,6 +30,54 @@ from scripts.live_mcp_r26_acceptance import (
 )
 
 from cad_harness.adapters.autocad_com import ComAutoCADAdapter
+from cad_harness.application.live_session_proof import LIVE_SESSION_PROOF_ENV
+from cad_harness.domain.errors import ApprovalRequiredError
+
+
+def test_write_mcp_parameters_replace_static_confirmation_with_ephemeral_lsp2(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "live.yaml"
+    config_path.write_text("adapter:\n  type: dotnet_bridge\n", encoding="utf-8")
+    calls: list[tuple[Path, str, str]] = []
+
+    def issue(*, config_path: Path, adapter_type: str, secret: str) -> str:
+        calls.append((config_path, adapter_type, secret))
+        return "lsp2.current-scope.signature"
+
+    monkeypatch.setattr(live_acceptance, "issue_existing_live_session_proof", issue)
+    monkeypatch.setenv("CAD_HARNESS_APPROVAL_SECRET", "ephemeral-test-secret")
+    monkeypatch.setenv(
+        "CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS", live_acceptance._SETUP_CONFIRMATIONS
+    )
+    monkeypatch.setenv(LIVE_SESSION_PROOF_ENV, "lsp2.stale-scope.signature")
+
+    parameters = _mcp_server_parameters(config_path)
+
+    assert calls == [(config_path, "dotnet_bridge", "ephemeral-test-secret")]
+    assert parameters.env is not None
+    assert parameters.env[LIVE_SESSION_PROOF_ENV] == "lsp2.current-scope.signature"
+    assert "CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS" not in parameters.env
+
+
+def test_static_confirmation_alone_cannot_build_write_mcp_parameters(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "live.yaml"
+    config_path.write_text("adapter:\n  type: dotnet_bridge\n", encoding="utf-8")
+    monkeypatch.delenv("CAD_HARNESS_APPROVAL_SECRET", raising=False)
+    monkeypatch.setenv(
+        "CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS", live_acceptance._SETUP_CONFIRMATIONS
+    )
+    monkeypatch.setenv(LIVE_SESSION_PROOF_ENV, "lsp2.stale-scope.signature")
+
+    with pytest.raises(ApprovalRequiredError, match="ephemeral approval secret"):
+        _mcp_server_parameters(config_path)
+
+    assert "CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS" not in os.environ
+    assert LIVE_SESSION_PROOF_ENV not in os.environ
 
 
 def test_acceptance_bundle_environment_is_workspace_exact_before_spawn(

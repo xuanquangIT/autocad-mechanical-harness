@@ -1173,7 +1173,7 @@ def test_invalid_takeoff_contract_is_rejected_even_when_hashes_are_updated(tmp_p
     case = payload["cases"][0]
     pointer = case["artifacts"]["expected_takeoff"]
     path = _artifact_file(tmp_path, pointer)
-    path.write_text('{"schema_version":"1.12","parts":["not-a-report"]}', encoding="utf-8")
+    path.write_text('{"schema_version":"1.13","parts":["not-a-report"]}', encoding="utf-8")
     pointer["sha256"] = _sha256(path)
     _sync_calculation(tmp_path, case)
     _sync_review(tmp_path, case)

@@ -77,6 +77,7 @@ class JobStore(ApprovalStore, Protocol):
         operation_id: str,
         entity_ref: str,
         revision: str,
+        expected_layer: str | None = None,
     ) -> None:
         """Record that ``entity_ref`` in the document came from ``operation_id``."""
         ...

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import os
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -29,6 +32,11 @@ from cad_harness.domain.models.validation import (
 from cad_harness.domain.ports.repositories import JobStore
 from cad_harness.persistence.engine import build_engine, build_session_factory, create_all
 from cad_harness.persistence.retry import RetryPolicy
+from cad_harness.persistence.schema_migration import (
+    DatabaseSchemaError,
+    assert_database_current,
+    upgrade_database,
+)
 from cad_harness.persistence.sql_audit_sink import SqlAuditSink
 from cad_harness.persistence.sql_job_store import SqlJobStore
 
@@ -37,6 +45,33 @@ def _store(database: Path) -> SqlJobStore:
     engine = build_engine(database)
     create_all(engine)
     return SqlJobStore(build_session_factory(engine))
+
+
+def _persist_planned_job(
+    store: SqlJobStore,
+    *,
+    job_id: str,
+    plan_id: str,
+) -> tuple[CadJob, OperationPlan]:
+    job = CadJob(
+        job_id=job_id,
+        document_id="doc_same_canonical_plan",
+        expected_revision="sha256:same-revision",
+    )
+    store.save_job(job)
+    job = job.transition_to(JobState.SPEC_ACCEPTED)
+    store.save_job(job)
+    plan = OperationPlan(
+        plan_id=plan_id,
+        job_id=job.job_id,
+        document_id=job.document_id,
+        expected_revision=job.expected_revision,
+        profile_ref="demo-profile@1.0",
+    ).with_hash()
+    store.save_plan(plan)
+    job = job.transition_to(JobState.PLANNED, plan_id=plan.plan_id, plan_hash=plan.plan_hash)
+    store.save_job(job)
+    return job, plan
 
 
 def test_engine_enables_wal_foreign_keys_and_bounded_busy_timeout(tmp_path: Path) -> None:
@@ -142,6 +177,7 @@ def test_sql_job_store_implements_full_port(
         operation_id="op:sql",
         entity_ref="entity:sql",
         revision="rev_2",
+        expected_layer="0",
     )
     store.save_checkpoint(
         Checkpoint(
@@ -155,6 +191,7 @@ def test_sql_job_store_implements_full_port(
     assert store.get_job(job.job_id) is not None
     assert store.get_spec(job.job_id) == spec
     assert store.get_plan(job.job_id) == plan
+    assert store.entity_mappings_for(job.document_id)[0].expected_layer == "0"
     assert store.get_remediation(job.job_id) == (str(plan.plan_hash), remediation_payload)
     assert store.get_validation(job.job_id) == report
     assert store.get_approval(approval.approval_id) == approval
@@ -165,6 +202,27 @@ def test_sql_job_store_implements_full_port(
     assert store.entity_mappings_for(job.document_id)[0].operation_id == "op:sql"
     store.revoke_approvals_for_job(job.job_id)
     assert store.get_approval(approval.approval_id) is None
+
+
+def test_sqlite_scopes_repeated_canonical_plan_hashes_to_their_jobs(tmp_path: Path) -> None:
+    store = _store(tmp_path / "repeated-plan-hash.db")
+
+    first_job, first_plan = _persist_planned_job(
+        store,
+        job_id="job_same_plan_a",
+        plan_id="plan_same_plan_a",
+    )
+    second_job, second_plan = _persist_planned_job(
+        store,
+        job_id="job_same_plan_b",
+        plan_id="plan_same_plan_b",
+    )
+
+    assert first_plan.plan_hash == second_plan.plan_hash
+    assert store.get_job(first_job.job_id) == first_job
+    assert store.get_job(second_job.job_id) == second_job
+    assert store.get_plan(first_job.job_id) == first_plan
+    assert store.get_plan(second_job.job_id) == second_plan
 
 
 def test_runtime_restart_restores_validated_job_and_findings(
@@ -299,6 +357,251 @@ def _metadata_snapshot(database: Path) -> dict[str, object]:
     return snapshot
 
 
+def _upgrade_to_revision(
+    database: Path,
+    revision: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CAD_HARNESS_SQLITE_PATH", str(database))
+    root = Path(__file__).parents[2]
+    command.upgrade(Config(str(root / "alembic.ini")), revision)
+
+
+def _create_legacy_v022_create_all_database(
+    database: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = build_engine(database)
+    create_all(engine)
+    engine.dispose()
+    monkeypatch.setenv("CAD_HARNESS_SQLITE_PATH", str(database))
+    root = Path(__file__).parents[2]
+    configuration = Config(str(root / "alembic.ini"))
+    command.stamp(configuration, "head")
+    command.downgrade(configuration, "e6b3f91a2c40")
+    with sqlite3.connect(database) as connection:
+        # The downgrade names this constraint; v0.2.2 create_all() emitted the
+        # same unique invariant anonymously, as did the real live-com database.
+        connection.executescript(
+            """
+            ALTER TABLE plans RENAME TO plans_with_named_unique;
+            CREATE TABLE plans (
+                plan_id VARCHAR(64) NOT NULL,
+                job_id VARCHAR(64) NOT NULL,
+                schema_version VARCHAR(16) NOT NULL,
+                plan_json JSON NOT NULL,
+                plan_hash VARCHAR(80) NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (plan_id),
+                UNIQUE (plan_hash),
+                FOREIGN KEY(job_id) REFERENCES jobs (job_id)
+            );
+            INSERT INTO plans
+                (plan_id, job_id, schema_version, plan_json, plan_hash, created_at)
+            SELECT plan_id, job_id, schema_version, plan_json, plan_hash, created_at
+            FROM plans_with_named_unique;
+            DROP TABLE plans_with_named_unique;
+            """
+        )
+    _remove_alembic_version(database)
+
+
+def _remove_alembic_version(database: Path, *sql: str) -> None:
+    with sqlite3.connect(database) as connection:
+        connection.execute("DROP TABLE alembic_version")
+        for statement in sql:
+            connection.execute(statement)
+
+
+def _file_digest(database: Path) -> str:
+    return hashlib.sha256(database.read_bytes()).hexdigest()
+
+
+def _data_snapshot(
+    database: Path,
+    columns_by_table: dict[str, tuple[str, ...]] | None = None,
+) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[tuple[Any, ...], ...]]]:
+    selected_columns: dict[str, tuple[str, ...]] = {}
+    rows_by_table: dict[str, tuple[tuple[Any, ...], ...]] = {}
+    with sqlite3.connect(database) as connection:
+        tables = sorted(
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT name FROM sqlite_master
+                WHERE type = 'table'
+                  AND name NOT LIKE 'sqlite_%'
+                  AND name != 'alembic_version'
+                """
+            ).fetchall()
+        )
+        for table in tables:
+            if columns_by_table is None:
+                quoted_table = '"' + table.replace('"', '""') + '"'
+                columns = tuple(
+                    str(row[1]) for row in connection.execute(f"PRAGMA table_xinfo({quoted_table})")
+                )
+            else:
+                columns = columns_by_table[table]
+            selected_columns[table] = columns
+            quoted_columns = ", ".join('"' + column.replace('"', '""') + '"' for column in columns)
+            quoted_table = '"' + table.replace('"', '""') + '"'
+            rows = connection.execute(f"SELECT {quoted_columns} FROM {quoted_table}").fetchall()
+            rows_by_table[table] = tuple(sorted((tuple(row) for row in rows), key=repr))
+    return selected_columns, rows_by_table
+
+
+@pytest.mark.parametrize("existing_empty_file", [False, True])
+def test_safe_migration_upgrades_new_or_empty_exact_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    existing_empty_file: bool,
+) -> None:
+    database = tmp_path / "intended" / "harness.db"
+    if existing_empty_file:
+        database.parent.mkdir(parents=True)
+        with sqlite3.connect(database) as connection:
+            connection.execute("VACUUM")
+    decoy = tmp_path / "must-not-be-opened.db"
+    monkeypatch.setenv("CAD_HARNESS_SQLITE_PATH", str(decoy))
+
+    revision = upgrade_database(database)
+
+    assert revision == "a41d6b8c9e20"
+    assert assert_database_current(database) == revision
+    assert not decoy.exists()
+    assert os.environ["CAD_HARNESS_SQLITE_PATH"] == str(decoy)
+
+
+def test_safe_migration_upgrades_a_structurally_exact_stale_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "stale-versioned.db"
+    _upgrade_to_revision(database, "e6b3f91a2c40", monkeypatch)
+
+    assert upgrade_database(database) == "a41d6b8c9e20"
+    assert assert_database_current(database) == "a41d6b8c9e20"
+
+
+def test_safe_migration_adopts_only_semantically_exact_unversioned_v022_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "unversioned-v022.db"
+    _create_legacy_v022_create_all_database(database, monkeypatch)
+    with sqlite3.connect(database) as connection:
+        effort_columns = connection.execute("PRAGMA table_xinfo(effort_records)").fetchall()
+        assert effort_columns[1][1:5] == ("pilot_run_id", "VARCHAR(128)", 1, None)
+        connection.execute(
+            """
+            INSERT INTO documents (document_id, path_hash, current_revision, last_seen_at)
+            VALUES ('doc-preserved', 'sha256:path', 'sha256:revision', '2026-08-16 00:00:00')
+            """
+        )
+    assert upgrade_database(database) == "a41d6b8c9e20"
+    with sqlite3.connect(database) as connection:
+        assert connection.execute(
+            "SELECT current_revision FROM documents WHERE document_id = 'doc-preserved'"
+        ).fetchone() == ("sha256:revision",)
+    assert assert_database_current(database) == "a41d6b8c9e20"
+
+
+def test_safe_migration_upgrades_copy_of_live_com_v022_database_without_data_loss(
+    tmp_path: Path,
+) -> None:
+    source = Path(__file__).parents[2] / "data" / "live-com" / "harness.db"
+    if not source.exists():
+        pytest.skip("local ignored live-com v0.2.2 database is not available")
+    database = tmp_path / "live-com-v022-copy.db"
+    with (
+        sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True) as source_connection,
+        sqlite3.connect(database) as target_connection,
+    ):
+        source_connection.backup(target_connection)
+    with sqlite3.connect(database) as connection:
+        if connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'alembic_version'"
+        ).fetchone():
+            pytest.skip("local live-com database is no longer unversioned v0.2.2")
+    original_columns, before = _data_snapshot(database)
+
+    assert upgrade_database(database) == "a41d6b8c9e20"
+
+    _, after = _data_snapshot(database, original_columns)
+    assert after == before
+    assert assert_database_current(database) == "a41d6b8c9e20"
+
+
+@pytest.mark.parametrize(
+    "drift_sql",
+    [
+        "DROP TABLE remediation_selections",
+        "ALTER TABLE documents ADD COLUMN unexpected TEXT",
+    ],
+)
+def test_safe_migration_rejects_partial_or_drifted_unversioned_schema_without_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    drift_sql: str,
+) -> None:
+    database = tmp_path / f"drift-{hashlib.sha256(drift_sql.encode()).hexdigest()[:8]}.db"
+    _create_legacy_v022_create_all_database(database, monkeypatch)
+    with sqlite3.connect(database) as connection:
+        connection.execute(drift_sql)
+    before = _file_digest(database)
+
+    with pytest.raises(DatabaseSchemaError, match="refusing to stamp or migrate"):
+        upgrade_database(database)
+
+    assert _file_digest(database) == before
+    with sqlite3.connect(database) as connection:
+        assert (
+            connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'alembic_version'"
+            ).fetchone()
+            is None
+        )
+
+
+def test_safe_migration_rejects_drifted_versioned_schema_without_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "drifted-versioned.db"
+    _upgrade_to_revision(database, "e6b3f91a2c40", monkeypatch)
+    with sqlite3.connect(database) as connection:
+        connection.execute("ALTER TABLE documents ADD COLUMN unexpected TEXT")
+    before = _file_digest(database)
+
+    with pytest.raises(DatabaseSchemaError, match="refusing to stamp or migrate"):
+        upgrade_database(database)
+
+    assert _file_digest(database) == before
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone() == (
+            "e6b3f91a2c40",
+        )
+
+
+def test_safe_migration_rejects_unknown_schema_and_revision_without_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unknown_schema = tmp_path / "unknown-schema.db"
+    with sqlite3.connect(unknown_schema) as connection:
+        connection.execute("CREATE TABLE unrelated (id INTEGER PRIMARY KEY, payload TEXT)")
+    schema_before = _file_digest(unknown_schema)
+    with pytest.raises(DatabaseSchemaError, match="refusing to stamp or migrate"):
+        upgrade_database(unknown_schema)
+    assert _file_digest(unknown_schema) == schema_before
+
+    unknown_revision = tmp_path / "unknown-revision.db"
+    _upgrade_to_revision(unknown_revision, "e6b3f91a2c40", monkeypatch)
+    with sqlite3.connect(unknown_revision) as connection:
+        connection.execute("UPDATE alembic_version SET version_num = 'unknown_revision'")
+    revision_before = _file_digest(unknown_revision)
+    with pytest.raises(DatabaseSchemaError, match="trusted Alembic schema"):
+        upgrade_database(unknown_revision)
+    assert _file_digest(unknown_revision) == revision_before
+
+
 def test_alembic_upgrade_head_is_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -324,6 +627,49 @@ def test_alembic_upgrade_head_is_idempotent(
     inspector = inspect(build_engine(database))
     unique_constraints = inspector.get_unique_constraints("writer_leases")
     assert any(item["column_names"] == ["document_id"] for item in unique_constraints)
+
+
+def test_plan_hash_migration_preserves_rows_and_allows_cross_job_duplicates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "duplicate-plan-hash-migration.db"
+    monkeypatch.setenv("CAD_HARNESS_SQLITE_PATH", str(database))
+    root = Path(__file__).parents[2]
+    configuration = Config(str(root / "alembic.ini"))
+    command.upgrade(configuration, "e6b3f91a2c40")
+
+    legacy_engine = build_engine(database)
+    legacy_store = SqlJobStore(build_session_factory(legacy_engine))
+    first_job, first_plan = _persist_planned_job(
+        legacy_store,
+        job_id="job_migrated_plan_a",
+        plan_id="plan_migrated_plan_a",
+    )
+    legacy_engine.dispose()
+
+    command.upgrade(configuration, "head")
+    migrated_engine = build_engine(database)
+    migrated_store = SqlJobStore(build_session_factory(migrated_engine))
+    second_job, second_plan = _persist_planned_job(
+        migrated_store,
+        job_id="job_migrated_plan_b",
+        plan_id="plan_migrated_plan_b",
+    )
+
+    assert first_plan.plan_hash == second_plan.plan_hash
+    assert migrated_store.get_job(first_job.job_id) == first_job
+    assert migrated_store.get_job(second_job.job_id) == second_job
+    inspector = inspect(migrated_engine)
+    assert not any(
+        constraint["column_names"] == ["plan_hash"]
+        for constraint in inspector.get_unique_constraints("plans")
+    )
+    assert any(
+        index["name"] == "ix_plans_job_id_plan_hash"
+        and index["column_names"] == ["job_id", "plan_hash"]
+        and not index["unique"]
+        for index in inspector.get_indexes("plans")
+    )
 
 
 def test_pilot_metrics_migration_preserves_legacy_baseline_and_rekeys_it(

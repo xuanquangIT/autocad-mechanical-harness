@@ -19,8 +19,8 @@ Create a deliberately unsigned local smoke bundle with an explicit release ident
 ```powershell
 .\Package-BridgeBundle.ps1 -TargetFramework net8.0-windows `
   -AutoCADManagedApiVersion 25.0.1 -AutoCADSeries R25.0 `
-  -PackageVersion 0.2.2.0 `
-  -ProductCode 82658044-ebc3-4ecd-928c-a5b96770fc96 `
+  -PackageVersion 0.3.0.0 `
+  -ProductCode 15ad106e-4705-4cb7-9538-1621587cf860 `
   -DevelopmentUnsigned
 ```
 

@@ -9,7 +9,7 @@ from typing import Any
 from cad_harness.adapters import build_adapter
 from cad_harness.adapters.base import BaseAdapter
 from cad_harness.application.live_session_proof import issue_live_session_proof
-from cad_harness.application.manual_gate import LIVE_SETUP_STEPS
+from cad_harness.application.manual_gate import required_live_setup_steps
 from cad_harness.config import load_settings
 from cad_harness.domain.errors import AdapterCapabilityMissingError
 from cad_harness.domain.ports.autocad_adapter import InspectRequest
@@ -71,7 +71,8 @@ def issue_existing_live_session_proof(
             process_id=status.process_id,
             document_id=snapshot.document_id,
             revision=snapshot.revision,
-            setup_steps=LIVE_SETUP_STEPS,
+            company_profile=settings.standards.company_profile,
+            setup_steps=required_live_setup_steps(adapter_type),
             secret=secret,
         )
     finally:

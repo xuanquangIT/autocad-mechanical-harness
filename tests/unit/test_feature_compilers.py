@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from cad_harness.company_rules.loader import CompanyProfile
+from cad_harness.comprehension.contours import EdgeRecord
 from cad_harness.domain.errors import UnsupportedFeatureError
 from cad_harness.domain.models.drawing_spec import FeatureSpec
 from cad_harness.domain.models.operation_plan import OperationType
@@ -14,6 +15,8 @@ from cad_harness.feature_catalog import registry
 from cad_harness.feature_catalog.base import CompileContext
 from cad_harness.feature_catalog.hole_pattern import BoltCirclePatternCompiler
 from cad_harness.feature_catalog.plate import RectangularPlateCompiler
+from cad_harness.feature_catalog.recognized.compiler import RecognizedPartOutlineCompiler
+from cad_harness.geometry.curves import normalize_circle
 from cad_harness.geometry.primitives import Point2D
 from cad_harness.geometry.tolerance import ToleranceProfile
 
@@ -46,6 +49,7 @@ class TestRegistry:
             "linear_hole_pattern",
             "rectangular_hole_pattern",
             "rectangular_plate",
+            "reference_circle",
             "slot",
         ]
 
@@ -63,6 +67,18 @@ class TestRegistry:
 
     def test_search_matches_description(self) -> None:
         assert any(e["type"] == "bolt_circle_pattern" for e in registry.search("pitch circle"))
+
+
+def test_recognized_full_circle_uses_canonical_diameter_geometry() -> None:
+    operation = RecognizedPartOutlineCompiler._edge_operation(
+        "recognized-outline",
+        0,
+        EdgeRecord(normalize_circle(Point2D(5.0, 7.0), 3.0), "entity:circle"),
+        "OBJECT",
+    )
+
+    assert operation.type is OperationType.CREATE_CIRCLE
+    assert operation.geometry == {"center_mm": [5.0, 7.0], "diameter_mm": 6.0}
 
 
 class TestPlateCompiler:

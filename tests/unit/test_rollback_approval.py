@@ -137,7 +137,7 @@ def test_commit_approval_cannot_authorize_rollback_and_empty_secret_fails_closed
 
 def test_previous_contract_version_cannot_authorize_rollback() -> None:
     approval, _ = _issued()
-    legacy = approval.model_copy(update={"schema_version": "1.10"})
+    legacy = approval.model_copy(update={"schema_version": "1.12"})
     token = make_rollback_approval_token(legacy, SECRET)
 
     with pytest.raises(ApprovalScopeMismatchError, match="contract version"):

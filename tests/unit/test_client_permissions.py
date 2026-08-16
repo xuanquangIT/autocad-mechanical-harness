@@ -3,6 +3,7 @@
 from cad_harness.config import Settings
 from cad_harness.security.client_profiles import (
     APPROVAL_REQUIRED_TOOLS,
+    PLANNING_TOOLS,
     READ_ONLY_TOOLS,
     resolve_profile,
 )
@@ -36,6 +37,57 @@ def test_identityless_stdio_client_can_be_explicitly_granted_preview_access() ->
     profile = resolve_profile(None, settings)
     assert profile.mode == "approval_required"
     assert profile.allowed_tools == READ_ONLY_TOOLS | APPROVAL_REQUIRED_TOOLS
+
+
+def test_identityless_stdio_client_can_be_explicitly_granted_planning_access() -> None:
+    settings = Settings.model_validate(
+        {
+            "adapter": {"type": "fake"},
+            "mcp": {"client_profiles": {"clients": {"anonymous": {"mode": "planning"}}}},
+        }
+    )
+    profile = resolve_profile(None, settings)
+    assert profile.mode == "planning"
+    assert profile.allowed_tools == PLANNING_TOOLS
+
+
+def test_planning_profile_cannot_expand_to_commit_or_export() -> None:
+    settings = Settings.model_validate(
+        {
+            "mcp": {
+                "client_profiles": {
+                    "clients": {
+                        "planner": {
+                            "mode": "planning",
+                            "allowed_tools": [
+                                "cad_preview",
+                                "cad_commit",
+                                "cad_rollback",
+                                "cad_export",
+                                "cad_takeoff_export",
+                            ],
+                        }
+                    }
+                }
+            }
+        }
+    )
+    profile = resolve_profile("planner", settings)
+    assert profile.allowed_tools == frozenset({"cad_preview"})
+
+
+def test_planning_tool_set_is_read_plus_internal_preparation_only() -> None:
+    assert READ_ONLY_TOOLS < PLANNING_TOOLS
+    assert {
+        "cad_job_create",
+        "cad_spec_submit",
+        "cad_change_submit",
+        "cad_change_prepare",
+        "cad_preview",
+    } <= PLANNING_TOOLS
+    assert PLANNING_TOOLS.isdisjoint(
+        {"cad_commit", "cad_rollback", "cad_export", "cad_takeoff_export"}
+    )
 
 
 def test_declared_read_only_client_cannot_expand_its_allowlist() -> None:

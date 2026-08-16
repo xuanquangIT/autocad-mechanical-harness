@@ -1,6 +1,6 @@
 # Installation and MCP setup
 
-This guide installs AutoCAD Mechanical Harness `v0.2.2` as an engineering preview. The
+This guide installs AutoCAD Mechanical Harness `v0.3.0` as an engineering preview. The
 offline MCP server is safe to try first. Live AutoCAD writes remain human-approved and
 require a target-specific bridge; the unsigned bridge artifact is not a production release.
 
@@ -12,8 +12,9 @@ Requirements: Git, Python 3.12 or 3.13, and
 ```powershell
 git clone https://github.com/xuanquangIT/autocad-mechanical-harness.git
 Set-Location autocad-mechanical-harness
-git checkout v0.2.2
+git checkout v0.3.0
 uv sync --frozen --all-extras
+uv run cad-harness --config config/base.yaml migrate
 uv run cad-harness status
 uv run cad-harness demo
 ```
@@ -47,6 +48,67 @@ Use absolute paths. A read-only/offline registration is:
 Restart the MCP client, then verify `cad_status` reports `adapter_type: fake`. This proves
 tool discovery only; it is not a live-CAD result.
 
+For an engineer who already has AutoCAD open, register the same command with
+`config/live-com-planning.yaml` instead. This profile attaches through COM without launching
+AutoCAD and exposes planning only: inspect, internal job creation, compile, preview,
+validation, and semantic diff. It does **not** expose commit, rollback, or export.
+
+For Codex CLI/Desktop:
+
+```powershell
+$repo = (Resolve-Path .).Path
+$uv = (Get-Command uv -ErrorAction Stop).Source
+$config = Join-Path $repo 'config\live-com-planning.yaml'
+Copy-Item (Join-Path $repo 'data\live-com\harness.db') `
+  (Join-Path $repo 'data\live-com\harness.db.pre-v0.3.0.bak') `
+  -ErrorAction SilentlyContinue
+uv --directory $repo run cad-harness --config $config migrate
+codex mcp remove autocad-mechanical-harness 2>$null
+codex mcp add autocad-mechanical-harness `
+  --env "CAD_HARNESS_CONFIG=$config" `
+  -- $uv --directory $repo run cad-harness-mcp
+```
+
+The client starts the STDIO process when it opens the MCP connection and stops it when the
+connection closes. There is no separate Windows service. AutoCAD itself remains open. MCP
+clients are not required to disconnect after an idle period, so this is connection-scoped
+shutdown rather than a guaranteed inactivity timer.
+
+After restarting the client, call `cad_status` and `cad_document_inspect`. Require
+`adapter_type: com`, the expected AutoCAD PID/version/document, `version_supported: true`,
+and an unchanged revision after inspection. A natural-language request with complete values,
+such as "draw R20 mm at [0,0] on layer 0", is represented as `reference_circle`; the client
+should create a job and call `cad_change_prepare` without asking for those values again.
+If the engineer omits the unit, the client may reuse the inspected drawing unit only when it
+exactly matches the selected profile. A unitless, unknown, or mismatched drawing requires one
+focused unit/standards correction before commit; silently treating inch geometry as millimetres
+is forbidden.
+
+The planning registration deliberately carries no write secret. When the returned validation
+allows commit, copy its `job_id` into the human-only Engineer Desktop and grant write authority
+only to that process:
+
+```powershell
+$jobId = '<job_id returned by cad_change_prepare>'
+$env:CAD_HARNESS_APPROVAL_SECRET = [Convert]::ToBase64String(
+  [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+)
+$env:CAD_HARNESS_LIVE_WRITE_VERIFIED = '1'
+try {
+  uv --directory $repo run cad-harness-desktop $jobId --config $config
+}
+finally {
+  Remove-Item Env:CAD_HARNESS_LIVE_WRITE_VERIFIED -ErrorAction SilentlyContinue
+  Remove-Item Env:CAD_HARNESS_APPROVAL_SECRET -ErrorAction SilentlyContinue
+}
+```
+
+For COM, AutoCAD PID, active document, revision and supported version are verified from the
+live adapter. The only setup prompt left is the company-standards confirmation; the exact
+preview/revision approval remains in the Desktop UI. Never put either environment variable in
+the persistent MCP registration. The random secret above is suitable for a controlled test
+session; production workstations still require organisation-managed secret provisioning.
+
 Codex CLI/Desktop can use the same command and environment. Check the effective registration
 without touching AutoCAD:
 
@@ -68,8 +130,8 @@ Set-Location dotnet\AutoCADBridge
   -TargetFramework net10.0-windows `
   -AutoCADManagedApiVersion 26.0.0 `
   -AutoCADSeries R26.0 `
-  -PackageVersion 0.2.2.0 `
-  -ProductCode 82658044-EBC3-4ECD-928C-A5B96770FC96 `
+  -PackageVersion 0.3.0.0 `
+  -ProductCode 15AD106E-4705-4CB7-9538-1621587CF860 `
   -DevelopmentUnsigned
 ```
 
@@ -82,7 +144,7 @@ Validate the artifact without installing it:
 ```powershell
 .\Install-BridgeBundle.ps1 `
   -Action Validate `
-  -BundlePath .\CadBridge.Plugin\bin\BridgePackages\DEVELOPMENT-UNSIGNED-R26-0-net10-0-windows-api-26-0-0-v0-2-2-0\AutoCADHarness.bundle `
+  -BundlePath .\CadBridge.Plugin\bin\BridgePackages\DEVELOPMENT-UNSIGNED-R26-0-net10-0-windows-api-26-0-0-v0-3-0-0\AutoCADHarness.bundle `
   -ExpectedAutoCADSeries R26.0 `
   -DevelopmentUnsigned `
   -InstallRoot D:\cad-harness-development-install
@@ -162,15 +224,34 @@ and performs the separate plan-hash approval. MCP confirmation alone never autho
 1. Stop MCP clients and Engineer Desktop; close AutoCAD.
 2. Back up `harness.db`, local configuration, and required checkpoint/audit data.
 3. Check out the new tag and run `uv sync --frozen --all-extras`.
-4. Build/obtain the exact AutoCAD-series bundle and run installer `Validate`.
-5. Remove duplicate legacy harness bundles using their owned receipts; do not delete unrelated
+4. Run `uv run cad-harness --config <exact-config.yaml> migrate`. The command adopts an
+   unversioned v0.2.2 database only when its complete schema matches the trusted legacy layout;
+   unknown or partially modified databases fail without being stamped.
+5. Build/obtain the exact AutoCAD-series bundle and run installer `Validate`.
+6. Remove duplicate legacy harness bundles using their owned receipts; do not delete unrelated
    Autodesk plug-ins.
-6. Run receipt-bound `Install -Upgrade`, restart AutoCAD, and run the doctor.
-7. Verify status and a read-only document inspection before enabling Engineer Desktop writes.
-8. Recompile and reapprove old plans when the schema or plan hash changes; old approval tokens
+7. Run receipt-bound `Install -Upgrade`, restart AutoCAD, and run the doctor.
+8. Verify status and a read-only document inspection before enabling Engineer Desktop writes.
+9. Recompile and reapprove old plans when the schema or plan hash changes; old approval tokens
    are intentionally invalid across such upgrades.
 
-## 7. ChatGPT web
+## 7. Roll back an unsuccessful upgrade
+
+1. Stop every MCP client and Engineer Desktop process, then close AutoCAD.
+2. Preserve the failed migrated database and installer output for diagnosis; do not open it
+   with an older harness version.
+3. Restore the exact pre-upgrade database backup and matching local configuration to their
+   original paths.
+4. Check out the previous verified release tag and run its locked `uv sync --frozen` command.
+5. For a signed bridge, use the current receipt-bound installer to uninstall the failed bundle,
+   then validate and reinstall the previous organisation-signed bundle. For a development
+   custom root, remove only the exact receipt-owned test bundle and reinstall the previous
+   validated artifact; never delete unrelated Autodesk plug-ins.
+6. Start AutoCAD, run `cad-harness status`, and perform one read-only document inspection.
+   Keep writes disabled until adapter type, version, document identity, units, profile and
+   revision all match the restored release evidence.
+
+## 8. ChatGPT web
 
 ChatGPT web cannot execute a local STDIO server directly. An eligible managed workspace can use
 [OpenAI Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
@@ -179,4 +260,4 @@ tunnel transports MCP; it does not replace bridge signing, live-session proof, E
 approval, or customer engineering review.
 
 See [operations](operations.md), [security](security.md), and the
-[v0.2.2 release notes](releases/v0.2.2.md) for verification and remaining limits.
+[v0.3.0 release notes](releases/v0.3.0.md) for verification and remaining limits.

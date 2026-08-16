@@ -268,7 +268,7 @@ def test_registered_write_or_session_proof_is_rejected_as_stale_authority(
         confirmations=None,
         environment_overrides={
             "CAD_HARNESS_LIVE_WRITE_VERIFIED": "1",
-            "CAD_HARNESS_LIVE_SESSION_PROOF": "lsp1.persisted.invalid",
+            "CAD_HARNESS_LIVE_SESSION_PROOF": "lsp2.persisted.invalid",
         },
     )
     monkeypatch.delenv("CAD_HARNESS_APPROVAL_SECRET", raising=False)

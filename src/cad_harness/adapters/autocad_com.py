@@ -4316,6 +4316,7 @@ class ComAutoCADAdapter(BaseAdapter):
     @classmethod
     def _measure_circle(cls, entity: Any) -> dict[str, Any]:
         return {
+            "layer": str(entity.Layer),
             "center_mm": cls._point(entity.Center),
             "diameter_mm": float(entity.Diameter),
             "radius_mm": float(entity.Radius),

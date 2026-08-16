@@ -23,9 +23,11 @@ from cad_harness.domain.errors import (
     DocumentNotFoundError,
     RollbackRecoveryRequiredError,
 )
+from cad_harness.domain.models.base import SCHEMA_VERSION
 from cad_harness.domain.models.job import JobState
 from cad_harness.domain.models.metrics import EffortRecord, FailureReason
 from cad_harness.domain.models.result import CommitResult, PreviewArtifact, RollbackResult
+from cad_harness.domain.models.validation import ValidationStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,14 +225,16 @@ class EngineerDesktopController:
         after: tuple[PreviewArtifact, ...] = ()
         semantic_diff = None
         if plan is not None:
-            if terminal_job:
+            if terminal_job or job.state is JobState.APPROVED:
                 # Reopening a terminal job must not drive the write state machine
-                # through PREVIEWED again. Existing artifacts may have expired, but
-                # the immutable plan and semantic diff remain valid review evidence.
+                # through PREVIEWED again. An APPROVED job also has no reusable token
+                # after process restart. Existing artifacts may have expired, but the
+                # immutable plan and semantic diff remain valid review evidence.
                 after = ()
             else:
                 preview = self._service.preview(job_id)
                 after = tuple(PreviewArtifact.model_validate(item) for item in preview["artifacts"])
+                report = self._service.validate(job_id, ValidationStage.PRE_COMMIT)
             semantic_diff = build_semantic_diff(plan, snapshot)
             if plan.plan_hash is not None:
                 self._displayed_scope = _DisplayedScope(
@@ -299,6 +303,19 @@ class EngineerDesktopController:
             return ApprovalEligibility(can_approve=False, reasons=("preview_not_ready",))
         if report is None:
             return ApprovalEligibility(can_approve=False, reasons=("validation_missing",))
+        if plan.plan_hash != scope.plan_hash:
+            return ApprovalEligibility(can_approve=False, reasons=("plan_hash_changed",))
+        if (
+            report.schema_version != SCHEMA_VERSION
+            or report.job_id != scope.job_id
+            or report.stage is not ValidationStage.PRE_COMMIT
+            or report.plan_hash != plan.plan_hash
+            or report.profile_ref != plan.profile_ref
+        ):
+            return ApprovalEligibility(
+                can_approve=False,
+                reasons=("validation_scope_changed",),
+            )
         revision_is_current = self._service.validate_displayed_revision(
             job.document_id, scope.expected_revision
         )

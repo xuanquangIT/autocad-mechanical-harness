@@ -298,6 +298,10 @@ def test_each_adapter_declares_its_operation_support() -> None:
     assert DotNetBridgeAdapter.supported_operations == frozenset()
 
 
+def test_circle_readback_includes_the_actual_entity_layer() -> None:
+    assert _TestAdapter._measure_circle(_Entity("A"))["layer"] == "OBJECT"
+
+
 def test_handlers_do_not_consume_business_policy_or_derive_geometry() -> None:
     # Radians/degrees and diameter/radius conversion are representation mappings
     # required by ActiveX. Coordinate derivation and engineering policy are forbidden.
@@ -1334,9 +1338,9 @@ def test_post_startup_rpc_timeout_kills_armed_job_and_has_no_late_effect(
 ) -> None:
     marker = tmp_path / "late-rpc-marker.txt"
     job = _FakeStartupJob()
-    app, _session, _owner = autocad_com_module._run_isolated_startup_boundary(
+    app, _session, owner = autocad_com_module._run_isolated_startup_boundary(
         versioned_prog_id=str(marker),
-        timeout_seconds=1.2,
+        timeout_seconds=5.0,
         preexisting_pids=set(),
         dispatch_started_100ns=1_000,
         current_pids=lambda: {200},
@@ -1346,6 +1350,9 @@ def test_post_startup_rpc_timeout_kills_armed_job_and_has_no_late_effect(
         job_factory=lambda: job,
     )
 
+    # Process spawn is scheduler-dependent on Windows CI.  Give only the already
+    # running RPC its short deadline so this test cannot fail in startup instead.
+    owner._call_timeout_seconds = 0.5
     assert job.disarmed is False
     with pytest.raises(ComCallFailedError) as captured:
         _ = app.Version

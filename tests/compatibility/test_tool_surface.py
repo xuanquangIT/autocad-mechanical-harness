@@ -10,11 +10,13 @@ from apps.mcp_server.server import create_server
 from apps.mcp_server.tools import (
     APPROVAL_REQUIRED_TOOLS,
     DWG_MUTATING_TOOLS,
+    PLANNING_TOOLS,
     READ_ONLY_TOOLS,
     TOOL_NAMES,
 )
 
 from cad_harness.domain.models.envelope import ToolResponse
+from cad_harness.domain.models.job import JobState
 
 #: Primitive drawing tools must never appear: exposing them would let a model assemble
 #: geometry itself, which is the failure mode this architecture exists to prevent.
@@ -51,9 +53,9 @@ def _tools(mcp):
 
 
 class TestToolSurface:
-    def test_exactly_twenty_two_tools(self, server) -> None:
+    def test_exactly_twenty_three_tools(self, server) -> None:
         mcp, _ = server
-        assert len(_tools(mcp)) == 22
+        assert len(_tools(mcp)) == 23
 
     def test_tool_names_match_the_contract(self, server) -> None:
         mcp, _ = server
@@ -99,9 +101,30 @@ class TestToolSurface:
         assert {"job_id", "spec", "remediation"} <= set(properties)
         assert change.inputSchema["required"] == ["job_id"]
 
+    def test_change_prepare_accepts_only_typed_change_inputs(self, server) -> None:
+        mcp, _ = server
+        prepare = next(tool for tool in _tools(mcp) if tool.name == "cad_change_prepare")
+        properties = prepare.inputSchema["properties"]
+        assert {"job_id", "spec", "remediation"} <= set(properties)
+        assert not {"plan", "operation_plan", "script"} & set(properties)
+        assert prepare.inputSchema["required"] == ["job_id"]
+
     def test_permission_sets_are_an_exact_partition(self) -> None:
         assert not READ_ONLY_TOOLS & APPROVAL_REQUIRED_TOOLS
         assert frozenset(TOOL_NAMES) == READ_ONLY_TOOLS | APPROVAL_REQUIRED_TOOLS
+
+    def test_planning_tools_cannot_commit_rollback_or_export(self) -> None:
+        assert READ_ONLY_TOOLS < PLANNING_TOOLS
+        assert {
+            "cad_job_create",
+            "cad_spec_submit",
+            "cad_change_submit",
+            "cad_change_prepare",
+            "cad_preview",
+        } <= PLANNING_TOOLS
+        assert PLANNING_TOOLS.isdisjoint(
+            {"cad_commit", "cad_rollback", "cad_export", "cad_takeoff_export"}
+        )
 
     def test_exactly_two_tools_can_mutate_dwg(self) -> None:
         assert {"cad_commit", "cad_rollback"} == DWG_MUTATING_TOOLS
@@ -110,6 +133,7 @@ class TestToolSurface:
     def test_new_tools_match_the_public_contract(self) -> None:
         assert {
             "cad_drawing_read",
+            "cad_change_prepare",
             "cad_feature_recognize",
             "cad_takeoff",
             "cad_takeoff_export",
@@ -151,9 +175,14 @@ class TestToolSurface:
 
 class TestToolInvocation:
     @staticmethod
-    def _approval_server(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[object, object]:
+    def _profile_server(
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        mode: str,
+    ) -> tuple[object, object]:
         monkeypatch.setenv("CAD_HARNESS_APPROVAL_SECRET", "test-secret")
-        config = tmp_path / "approval-server.yaml"
+        config = tmp_path / f"{mode}-server.yaml"
         config.write_text(
             "\n".join(
                 [
@@ -163,7 +192,7 @@ class TestToolInvocation:
                     "  client_profiles:",
                     "    clients:",
                     "      anonymous:",
-                    "        mode: approval_required",
+                    f"        mode: {mode}",
                     "storage:",
                     f"  sqlite_path: '{(tmp_path / 'approval.db').as_posix()}'",
                     f"  preview_directory: '{(tmp_path / 'previews').as_posix()}'",
@@ -176,6 +205,18 @@ class TestToolInvocation:
             encoding="utf-8",
         )
         return create_server(config)
+
+    @classmethod
+    def _approval_server(
+        cls, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[object, object]:
+        return cls._profile_server(tmp_path, monkeypatch, mode="approval_required")
+
+    @classmethod
+    def _planning_server(
+        cls, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> tuple[object, object]:
+        return cls._profile_server(tmp_path, monkeypatch, mode="planning")
 
     def test_change_submit_routes_only_a_finding_selection(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -253,6 +294,115 @@ class TestToolInvocation:
         assert untrusted_payload["status"] == "rejected"
         assert untrusted_payload["error"]["code"] == "INVALID_FEATURE_PARAMETERS"
 
+    def test_change_prepare_runs_submission_preview_validation_and_diff_without_commit(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        base_plate_spec: dict[str, object],
+    ) -> None:
+        mcp, context = self._planning_server(tmp_path, monkeypatch)
+        created = asyncio.run(mcp.call_tool("cad_job_create", {}))
+        created_payload = created[1] if isinstance(created, tuple) else created
+        job_id = created_payload["data"]["job_id"]
+
+        result = asyncio.run(
+            mcp.call_tool(
+                "cad_change_prepare",
+                {"job_id": job_id, "spec": base_plate_spec},
+            )
+        )
+        payload = result[1] if isinstance(result, tuple) else result
+
+        assert payload["status"] == "ok"
+        assert payload["job_id"] == job_id
+        assert payload["data"]["plan_hash"].startswith("sha256:")
+        assert payload["data"]["expected_revision"] == created_payload["data"]["expected_revision"]
+        assert payload["data"]["preview"]["plan_hash"] == payload["data"]["plan_hash"]
+        assert payload["data"]["validation"]["stage"] == "pre_commit"
+        assert payload["data"]["validation"]["plan_hash"] == payload["data"]["plan_hash"]
+        assert "entries" in payload["data"]["semantic_diff"]
+        assert payload["data"]["approval_required"] is True
+        assert context.service.store.get_job(job_id).state is JobState.VALIDATED
+        assert context.service.adapter.document.entities == {}
+
+    def test_change_prepare_stops_on_needs_input_before_preview_or_validation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mcp, context = self._planning_server(tmp_path, monkeypatch)
+
+        def needs_input(job_id: str, spec: dict[str, object]) -> dict[str, object]:
+            return {
+                "status": "needs_input",
+                "job_id": job_id,
+                "missing_inputs": [
+                    {
+                        "path": "features[0].parameters.radius_mm",
+                        "reason": "Radius is required",
+                    }
+                ],
+            }
+
+        def must_not_run(*args: object, **kwargs: object) -> None:
+            raise AssertionError("prepare continued after needs_input")
+
+        monkeypatch.setattr(context.service, "submit_spec", needs_input)
+        monkeypatch.setattr(context.service, "preview", must_not_run)
+        monkeypatch.setattr(context.service, "validate", must_not_run)
+        monkeypatch.setattr(context.service, "get_diff", must_not_run)
+        result = asyncio.run(
+            mcp.call_tool(
+                "cad_change_prepare",
+                {"job_id": "job_needs_input", "spec": {}},
+            )
+        )
+        payload = result[1] if isinstance(result, tuple) else result
+        assert payload["status"] == "needs_input"
+        assert [item["path"] for item in payload["missing_inputs"]] == [
+            "features[0].parameters.radius_mm"
+        ]
+
+    def test_change_prepare_rejects_untrusted_operation_plan_fields(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mcp, _ = self._planning_server(tmp_path, monkeypatch)
+        result = asyncio.run(
+            mcp.call_tool(
+                "cad_change_prepare",
+                {
+                    "job_id": "job_plan",
+                    "remediation": {
+                        "audit_id": "audit_current",
+                        "selected_findings": [{"rule_id": "DUPLICATE_ENTITY", "entity_ref": "ref"}],
+                        "plan": {"operations": []},
+                    },
+                },
+            )
+        )
+        payload = result[1] if isinstance(result, tuple) else result
+        assert payload["status"] == "rejected"
+        assert payload["error"]["code"] == "INVALID_FEATURE_PARAMETERS"
+
+    def test_planning_profile_cannot_reach_live_commit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mcp, _ = self._planning_server(tmp_path, monkeypatch)
+        result = asyncio.run(
+            mcp.call_tool(
+                "cad_commit",
+                {
+                    "job_id": "job_forbidden",
+                    "idempotency_key": "idem_forbidden",
+                    "expected_revision": "sha256:revision",
+                    "plan_hash": "sha256:plan",
+                    "approval_token": "forbidden",
+                },
+            )
+        )
+        payload = result[1] if isinstance(result, tuple) else result
+        assert payload["status"] == "rejected"
+        assert payload["error"]["code"] == "TOOL_NOT_ALLOWED"
+        assert payload["error"]["details"]["profile_mode"] == "planning"
+
     def test_missing_inputs_return_envelope_instead_of_raising(self, server) -> None:
         mcp, _ = server
         result = asyncio.run(mcp.call_tool("cad_measure", {}))
@@ -320,4 +470,5 @@ class TestToolInvocation:
             "edge_cutout",
             "keyway",
             "linear_hole_pattern",
+            "reference_circle",
         }

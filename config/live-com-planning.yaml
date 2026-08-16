@@ -1,0 +1,49 @@
+# Persistent local MCP profile for an engineer-controlled, already-open AutoCAD session.
+#
+# The AI client can inspect the active drawing and prepare deterministic previews, but
+# this profile cannot reach cad_commit, cad_rollback, or export tools. A live write is
+# enabled only in the separate Engineer Desktop process after adapter-specific setup
+# confirmation and exact plan/revision approval.
+app:
+  environment: development
+  local_only: true
+
+adapter:
+  type: com
+  autocad_prog_id: autocad
+  launch_autocad_if_missing: false
+
+mcp:
+  transport: stdio
+  server_name: cad-harness-live-com-planning
+  client_profiles:
+    default: read_only
+    clients:
+      anonymous:
+        mode: planning
+
+storage:
+  sqlite_path: ./data/live-com/harness.db
+  preview_directory: ./data/live-com/previews
+  checkpoint_directory: ./data/live-com/checkpoints
+  export_directory: ./data/live-com/exports
+
+security:
+  require_commit_approval: true
+  require_export_approval: true
+  allow_arbitrary_export_path: false
+  redact_document_paths: true
+  export_path_allowlist:
+    - ./data/live-com/exports
+
+standards:
+  # Development preview only. Replace this with a reviewed company profile for a pilot.
+  company_profile: demo-profile@1.0
+
+observability:
+  log_level: ERROR
+  log_json: true
+  log_prompts: false
+
+compatibility:
+  matrix_path: compatibility.yaml

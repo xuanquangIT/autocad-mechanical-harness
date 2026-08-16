@@ -73,8 +73,8 @@
           "type": "string"
         },
         "schema_version": {
+          "const": "1.13",
           "description": "A major version mismatch is rejected, never coerced.",
-          "pattern": "^\\d+\\.\\d+$",
           "type": "string"
         }
       },
@@ -108,7 +108,7 @@
           "type": "string"
         },
         "schema_version": {
-          "pattern": "^\\d+\\.\\d+$",
+          "const": "1.13",
           "type": "string"
         },
         "status": {

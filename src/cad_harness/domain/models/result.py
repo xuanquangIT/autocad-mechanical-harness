@@ -40,6 +40,8 @@ class EntityMappingRecord(ContractModel):
     operation_id: str
     entity_ref: str
     last_revision: str
+    #: Exact layer approved in the originating plan. ``None`` only for legacy mappings.
+    expected_layer: str | None = None
 
 
 class Checkpoint(ContractModel):

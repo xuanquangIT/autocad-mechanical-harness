@@ -110,7 +110,10 @@ public static class BridgeAuthorization
         claims = null;
         if (string.IsNullOrEmpty(secret) ||
             string.IsNullOrEmpty(approvalToken) ||
-            approvalToken.Length > MaximumTokenLength)
+            approvalToken.Length > MaximumTokenLength ||
+            plan.ValueKind != JsonValueKind.Object ||
+            !TryRequiredString(plan, "schema_version", out var planSchemaVersion) ||
+            !FixedEquals(planSchemaVersion, IpcContract.CurrentSchemaVersion))
         {
             return false;
         }

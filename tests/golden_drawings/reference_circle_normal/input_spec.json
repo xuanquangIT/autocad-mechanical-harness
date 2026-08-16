@@ -1,0 +1,18 @@
+{
+  "_comment": "Natural-language reference case: draw R20 at the drawing origin on declared layer 0.",
+  "units": "mm",
+  "drawing": {
+    "datum": {
+      "type": "point",
+      "point_mm": [0.0, 0.0]
+    }
+  },
+  "features": [{
+    "feature_id": "reference-circle-normal",
+    "type": "reference_circle",
+    "parameters": {
+      "radius_mm": 20.0,
+      "layer_name": "0"
+    }
+  }]
+}

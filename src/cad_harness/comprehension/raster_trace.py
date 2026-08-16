@@ -386,7 +386,7 @@ def accepted_operations(
             operation_type = OperationType.CREATE_CIRCLE
             wire_geometry = {
                 "center_mm": list(geometry.center_mm),
-                "radius_mm": geometry.radius_mm,
+                "diameter_mm": geometry.radius_mm * 2.0,
             }
             expected = {
                 "center_mm": list(geometry.center_mm),

@@ -42,8 +42,9 @@ from cad_harness.domain.errors import (
     RollbackRecoveryRequiredError,
     StaleDocumentRevisionError,
     UnknownCommitStateError,
+    UnsupportedSchemaVersionError,
 )
-from cad_harness.domain.models.approval import RollbackApprovalRecord
+from cad_harness.domain.models.approval import ApprovalRecord, RollbackApprovalRecord
 from cad_harness.domain.models.base import SCHEMA_VERSION
 from cad_harness.domain.models.document import DocumentSnapshot
 from cad_harness.domain.models.drawing_model import DrawingModel
@@ -325,6 +326,16 @@ class HarnessService:
             "standard_profile",
             {"profile_id": self.profile.profile_id, "version": self.profile.version},
         )
+        submitted_schema = payload.get("schema_version", SCHEMA_VERSION)
+        if submitted_schema != SCHEMA_VERSION:
+            raise UnsupportedSchemaVersionError(
+                "The DrawingSpec schema version is not supported by this harness",
+                required_action="Regenerate the specification with the current MCP contract",
+                details={
+                    "received_schema_version": str(submitted_schema),
+                    "required_schema_version": SCHEMA_VERSION,
+                },
+            )
         spec = DrawingSpec.model_validate(payload)
 
         if job.state not in {JobState.CREATED, JobState.SPEC_ACCEPTED}:
@@ -606,6 +617,7 @@ class HarnessService:
         """Generate preview artifacts. The live drawing is never touched here."""
         job = self._require_job(job_id)
         plan = self._require_plan(job_id)
+        self._require_current_plan_schema(plan)
         self.compiler.preflight(plan)
 
         from cad_harness.adapters.dxf_preview import DxfPreviewAdapter
@@ -644,8 +656,24 @@ class HarnessService:
         }
 
     def validate(self, job_id: str, stage: ValidationStage) -> ValidationReport:
+        return self._validate(job_id, stage, allow_approved=False)
+
+    def _validate(
+        self,
+        job_id: str,
+        stage: ValidationStage,
+        *,
+        allow_approved: bool,
+    ) -> ValidationReport:
         job = self._require_job(job_id)
         plan = self._require_plan(job_id)
+        if job.state is JobState.APPROVED and not allow_approved:
+            raise ApprovalRequiredError(
+                "An approved job cannot replace its reviewed validation through a public tool",
+                required_action=(
+                    "Create a new job for revised validation or apply the approved plan"
+                ),
+            )
 
         report = self.engine.run(
             stage,
@@ -665,7 +693,7 @@ class HarnessService:
         self.store.save_validation(report)
 
         if (
-            stage in {ValidationStage.PRE_COMMIT, ValidationStage.PREVIEW_GEOMETRY}
+            stage is ValidationStage.PRE_COMMIT
             and job.state is JobState.PREVIEWED
             and not report.has_blocking
         ):
@@ -824,11 +852,25 @@ class HarnessService:
                 required_action="Regenerate the preview from the current drawing revision",
                 details={"displayed_revision": displayed_revision},
             )
-        report = self.store.get_validation(job_id)
-        if report is None:
+        displayed_report = self.store.get_validation(job_id)
+        if displayed_report is None or not self._validation_matches_plan(
+            displayed_report, plan, job_id
+        ):
             raise ApprovalRequiredError(
-                "Cannot approve a plan that has not been validated",
-                required_action="Run cad_validate first",
+                "Cannot approve validation evidence for another plan, profile or stage",
+                required_action="Regenerate the preview and PRE_COMMIT validation",
+            )
+        # Refresh all live standards evidence at the human approval boundary. AutoCAD
+        # can change units, layers or styles without changing entity handles. If the
+        # decision changed, the engineer must see the new report before approving it.
+        self.inspect_document(job.document_id)
+        report = self._validate(job_id, ValidationStage.PRE_COMMIT, allow_approved=False)
+        if self._validation_decision_digest(report) != self._validation_decision_digest(
+            displayed_report
+        ):
+            raise ApprovalRequiredError(
+                "Live validation evidence changed after the approval view was prepared",
+                required_action="Review the refreshed PRE_COMMIT findings and approve again",
             )
         if not report.gate_allows_commit():
             raise ApprovalRequiredError(
@@ -920,6 +962,7 @@ class HarnessService:
         """
         job = self._require_job(job_id)
         plan = self._require_plan(job_id)
+        self._require_current_plan_schema(plan)
         request_digest = sha256_of(
             {
                 "job_id": job_id,
@@ -950,6 +993,7 @@ class HarnessService:
         # this exact scope.  This gate also applies to receipt replay so an idempotency
         # key cannot become a bearer credential.  Explicit approval-disabled test/dev
         # configurations retain their configured behaviour.
+        approval: ApprovalRecord | None = None
         if self.settings.security.require_commit_approval:
             approval = self.store.get_approval(job.approval_id) if job.approval_id else None
             if approval is None:
@@ -970,11 +1014,6 @@ class HarnessService:
             _, stored_result = previous
             return CommitResult.model_validate(stored_result)
 
-        # A restart must not turn a remediation plan into an ordinary plan and skip
-        # the mandatory post-commit re-audit. Load and bind its immutable evidence
-        # before any writer capability, revision, lease or adapter side effect.
-        remediation = self._load_remediation_for_plan(job_id, plan)
-
         if job.state is JobState.UNKNOWN_COMMIT_STATE:
             raise UnknownCommitStateError(
                 "This job has an unknown commit outcome and cannot be committed automatically",
@@ -982,25 +1021,73 @@ class HarnessService:
                 details={"job_id": job_id, "document_id": job.document_id},
             )
 
+        # The report the engineer approved remains a hard gate.  A later persisted
+        # blocking/error finding must not be silently replaced by the fresh live
+        # validation below, because that would let the write boundary discard newer
+        # safety evidence without another human review.
+        approved_report = self.store.get_validation(job_id)
+        approved_warning_ids = (
+            {
+                finding.rule_id
+                for finding in approved_report.findings
+                if finding.severity is Severity.WARNING
+            }
+            if approved_report is not None
+            else set()
+        )
+        approved_acknowledgements = (
+            set(approval.warnings_acknowledged) if approval is not None else approved_warning_ids
+        )
+        if (
+            approved_report is None
+            or not self._validation_matches_plan(approved_report, plan, job_id)
+            or not approved_report.gate_allows_commit()
+            or not approved_warning_ids.issubset(approved_acknowledgements)
+        ):
+            raise ApprovalRequiredError(
+                "Approved validation evidence no longer allows this commit",
+                required_action="Review the current PRE_COMMIT findings and approve again",
+                details={
+                    "validation_present": approved_report is not None,
+                    "unacknowledged_warning_rule_ids": sorted(
+                        approved_warning_ids - approved_acknowledgements
+                    ),
+                },
+            )
+
+        # A restart must not turn a remediation plan into an ordinary plan and skip
+        # the mandatory post-commit re-audit. Load and bind its immutable evidence
+        # before any writer capability, revision, lease or adapter side effect.
+        remediation = self._load_remediation_for_plan(job_id, plan)
+
         self._require_writer_compatible()
 
-        # 4. Re-read the latest validation. Approval cannot freeze or bypass a later
-        # blocking report, and a report for another plan/stage is not commit evidence.
-        report = self.store.get_validation(job_id)
+        # 4. Re-inspect and re-run PRE_COMMIT immediately before the write boundary.
+        # Units/layers/styles may change without an entity-handle revision change.
+        self.inspect_document(job.document_id)
+        report = self._validate(job_id, ValidationStage.PRE_COMMIT, allow_approved=True)
+        warning_rule_ids = {
+            finding.rule_id for finding in report.findings if finding.severity is Severity.WARNING
+        }
+        acknowledged_warning_ids = (
+            set(approval.warnings_acknowledged) if approval is not None else warning_rule_ids
+        )
         if (
-            report is None
-            or report.stage is not ValidationStage.PRE_COMMIT
-            or report.plan_hash != plan_hash
+            not self._validation_matches_plan(report, plan, job_id)
             or not report.gate_allows_commit()
+            or not warning_rule_ids.issubset(acknowledged_warning_ids)
         ):
             raise ApprovalRequiredError(
                 "Current validation evidence does not allow this commit",
                 required_action="Resolve findings, re-validate and approve the exact current plan",
                 details={
-                    "validation_present": report is not None,
-                    "stage": report.stage.value if report is not None else None,
-                    "blocking": report.blocking_count if report is not None else None,
-                    "errors": report.error_count if report is not None else None,
+                    "validation_present": True,
+                    "stage": report.stage.value,
+                    "blocking": report.blocking_count,
+                    "errors": report.error_count,
+                    "unacknowledged_warning_rule_ids": sorted(
+                        warning_rule_ids - acknowledged_warning_ids
+                    ),
                 },
             )
 
@@ -1084,6 +1171,9 @@ class HarnessService:
             operation_types = {
                 operation.operation_id: operation.type for operation in plan.operations
             }
+            operation_layers = {
+                operation.operation_id: operation.layer for operation in plan.operations
+            }
             mappings = tuple(
                 EntityMappingRecord(
                     document_id=job.document_id,
@@ -1091,6 +1181,7 @@ class HarnessService:
                     operation_id=entity.operation_id,
                     entity_ref=entity.entity_ref,
                     last_revision=result.new_revision,
+                    expected_layer=operation_layers.get(entity.operation_id),
                 )
                 for entity in result.entity_results
                 if operation_types.get(entity.operation_id) is not OperationType.DELETE_ENTITY
@@ -1170,6 +1261,11 @@ class HarnessService:
                         profile=self.profile,
                         tolerance=self.tolerance,
                         job_id=job_id,
+                        expected_layers_by_ref={
+                            mapping.entity_ref: mapping.expected_layer
+                            for mapping in self.store.entity_mappings_for(job.document_id)
+                            if mapping.expected_layer is not None
+                        },
                     )
                     self.store.save_validation(remediation_report)
                     current_set = {
@@ -1575,4 +1671,63 @@ class HarnessService:
                 "No compiled plan for this job",
                 required_action="Submit a spec with cad_spec_submit first",
             )
+        self._require_current_plan_schema(plan)
+        job = self._require_job(job_id)
+        if (
+            plan.plan_hash is None
+            or not plan.verify_hash(plan.plan_hash)
+            or plan.job_id != job_id
+            or plan.plan_id != job.plan_id
+            or plan.plan_hash != job.plan_hash
+            or plan.document_id != job.document_id
+            or (
+                job.state
+                in {
+                    JobState.PLANNED,
+                    JobState.PREVIEWED,
+                    JobState.VALIDATED,
+                    JobState.APPROVED,
+                    JobState.COMMITTING,
+                }
+                and plan.expected_revision != job.expected_revision
+            )
+            or plan.profile_ref != self.profile.as_ref()
+        ):
+            raise PlanHashMismatchError(
+                "The stored plan body or job binding does not match its immutable plan hash",
+                required_action="Create a new job and regenerate the preview and approval",
+                details={"job_id": job_id},
+            )
         return plan
+
+    @staticmethod
+    def _validation_matches_plan(
+        report: ValidationReport,
+        plan: OperationPlan,
+        job_id: str,
+    ) -> bool:
+        return bool(
+            report.schema_version == SCHEMA_VERSION
+            and report.job_id == job_id
+            and report.stage is ValidationStage.PRE_COMMIT
+            and report.plan_hash == plan.plan_hash
+            and report.profile_ref == plan.profile_ref
+        )
+
+    @staticmethod
+    def _validation_decision_digest(report: ValidationReport) -> str:
+        payload = report.model_dump(mode="json")
+        payload.pop("validation_id", None)
+        return sha256_of(payload)
+
+    @staticmethod
+    def _require_current_plan_schema(plan: OperationPlan) -> None:
+        if plan.schema_version != SCHEMA_VERSION:
+            raise UnsupportedSchemaVersionError(
+                "The stored plan uses an obsolete schema version",
+                required_action="Create a new job and regenerate the plan with the current schema",
+                details={
+                    "plan_schema_version": plan.schema_version,
+                    "required_schema_version": SCHEMA_VERSION,
+                },
+            )

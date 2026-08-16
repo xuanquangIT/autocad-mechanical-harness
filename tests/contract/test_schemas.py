@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
+from scripts.generate_schemas import render
+from scripts.ipc_envelope_schema import IPC_ENVELOPE_SCHEMA
 
 from cad_harness.domain.errors import ErrorCode, StaleDocumentRevisionError
 from cad_harness.domain.models.base import SCHEMA_VERSION
@@ -43,6 +46,23 @@ class TestStrictness:
 
     def test_schema_version_defaults_to_current(self) -> None:
         assert DrawingSpec.model_validate(_minimal_spec_payload()).schema_version == SCHEMA_VERSION
+
+    def test_legacy_spec_can_be_read_for_history_but_not_assumed_current(self) -> None:
+        legacy = DrawingSpec.model_validate({**_minimal_spec_payload(), "schema_version": "1.12"})
+        assert legacy.schema_version == "1.12"
+
+    @pytest.mark.parametrize(
+        "model,filename",
+        [(DrawingSpec, "drawing-spec.schema.json"), (OperationPlan, "operation-plan.schema.json")],
+    )
+    def test_published_input_schema_pins_current_version(self, model: type, filename: str) -> None:
+        rendered = json.loads(render(model, filename))
+        assert rendered["properties"]["schema_version"]["const"] == SCHEMA_VERSION
+
+    def test_published_ipc_envelope_pins_current_version(self) -> None:
+        definitions = IPC_ENVELOPE_SCHEMA["$defs"]
+        assert definitions["request"]["properties"]["schema_version"]["const"] == SCHEMA_VERSION
+        assert definitions["response"]["properties"]["schema_version"]["const"] == SCHEMA_VERSION
 
     def test_invalid_unit_is_rejected(self) -> None:
         with pytest.raises(ValidationError):
@@ -114,7 +134,7 @@ class TestPlanHashing:
         )
 
         assert plan.compute_hash() == (
-            "sha256:6affc600564b5fff6e76877861457b966047c24c7703ec35d9358106f0ff49be"
+            "sha256:40289068e3b4f14a42f0e03392c39e4b807e4b6d2850a7ca1012087f01a42275"
         )
 
     def test_verify_hash(self) -> None:

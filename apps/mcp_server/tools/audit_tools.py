@@ -54,11 +54,17 @@ def register(mcp: FastMCP, context: ServerContext, guard: ToolPermissionGuard) -
         resolved_request_id = _request_id(request_id)
         try:
             profile = context.company_profile if profile_ref is None else load_profile(profile_ref)
+            expected_layers_by_ref = {
+                mapping.entity_ref: mapping.expected_layer
+                for mapping in context.service.store.entity_mappings_for(model.document_id)
+                if mapping.expected_layer is not None
+            }
             evidence = context.drawing_audit_service.audit_with_evidence(
                 model,
                 profile=profile,
                 tolerance=profile.tolerance(),
                 actor_id=_actor_id(request_context),
+                expected_layers_by_ref=expected_layers_by_ref,
             )
             return DrawingAuditToolResponse(
                 status=ToolStatus.OK,

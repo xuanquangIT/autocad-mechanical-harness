@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from cad_harness.company_rules.loader import CompanyProfile
 from cad_harness.domain.models.drawing_model import DrawingModel
 from cad_harness.domain.models.validation import ValidationReport, ValidationStage
@@ -16,10 +18,16 @@ def audit_drawing(
     profile: CompanyProfile,
     tolerance: ToleranceProfile,
     job_id: str = "drawing-audit",
+    expected_layers_by_ref: Mapping[str, str] | None = None,
 ) -> ValidationReport:
     """Run geometry and standard rules in stable rule-id order without any adapter I/O."""
 
-    context = RuleContext(profile=profile, tolerance=tolerance, drawing_model=model)
+    context = RuleContext(
+        profile=profile,
+        tolerance=tolerance,
+        drawing_model=model,
+        extras={"expected_layers_by_ref": dict(expected_layers_by_ref or {})},
+    )
     engine = default_engine()
     rules = {
         rule.rule_id: rule

@@ -7,6 +7,7 @@ from cad_harness.security.approval import (
 )
 from cad_harness.security.client_profiles import (
     APPROVAL_REQUIRED_TOOLS,
+    PLANNING_TOOLS,
     READ_ONLY_TOOLS,
     TOOL_NAMES,
     ClientPermissionProfile,
@@ -22,6 +23,7 @@ from cad_harness.security.rollback_approval import (
 
 __all__ = [
     "APPROVAL_REQUIRED_TOOLS",
+    "PLANNING_TOOLS",
     "READ_ONLY_TOOLS",
     "TOOL_NAMES",
     "ClientPermissionProfile",

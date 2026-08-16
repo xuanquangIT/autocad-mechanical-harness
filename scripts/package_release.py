@@ -13,22 +13,30 @@ import hashlib
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PROJECT_METADATA = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+PROJECT_VERSION = str(PROJECT_METADATA["version"])
+PROJECT_WHEEL_NAME = str(PROJECT_METADATA["name"]).replace("-", "_")
 
 #: Files and directories shipped alongside the wheel.
 PAYLOAD: tuple[str, ...] = (
     "config/base.yaml",
     "config/compatibility.yaml",
+    "config/clients.yaml",
     "config/codex-local.yaml",
+    "config/live-com-planning.yaml",
     "config/live-r26-acceptance.yaml",
+    "config/pilot.yaml",
     ".env.example",
     "LICENSE",
     "NOTICE",
     "README.md",
     "docs/installation.md",
     "docs/operations.md",
+    "docs/releases/v0.3.0.md",
     "docs/AUTOCAD_MECHANICAL_HARNESS_ARCHITECTURE.vn.md",
     "docs/AUTOCAD_MECHANICAL_HARNESS_ARCHITECTURE.en.md",
     "contracts",
@@ -61,14 +69,26 @@ def main() -> int:
             print("uv build failed", file=sys.stderr)
             return result.returncode
 
-    for wheel in args.out.glob("*.whl"):
-        shutil.copy2(wheel, staging / wheel.name)
+    wheel_prefix = f"{PROJECT_WHEEL_NAME}-{PROJECT_VERSION.replace('-', '_')}-"
+    wheels = tuple(sorted(args.out.glob(f"{wheel_prefix}*.whl")))
+    if len(wheels) != 1:
+        print(
+            f"expected exactly one wheel for version {PROJECT_VERSION}, found {len(wheels)}",
+            file=sys.stderr,
+        )
+        return 2
+
+    missing_payload = tuple(entry for entry in PAYLOAD if not (ROOT / entry).exists())
+    if missing_payload:
+        print(
+            "release payload is incomplete: " + ", ".join(missing_payload),
+            file=sys.stderr,
+        )
+        return 2
+    shutil.copy2(wheels[0], staging / wheels[0].name)
 
     for entry in PAYLOAD:
         source = ROOT / entry
-        if not source.exists():
-            print(f"warning: missing payload entry {entry}", file=sys.stderr)
-            continue
         target = staging / entry
         target.parent.mkdir(parents=True, exist_ok=True)
         if source.is_dir():
@@ -86,7 +106,10 @@ def main() -> int:
 
     print(f"bundle: {staging}")
     print(f"files:  {len(lines)}")
-    print("Reminder: live AutoCAD use additionally requires the target-specific C# bundle.")
+    print(
+        "Reminder: COM planning attaches to an already-open supported AutoCAD; "
+        "dotnet_bridge use additionally requires the exact target-specific C# bundle."
+    )
     return 0
 
 

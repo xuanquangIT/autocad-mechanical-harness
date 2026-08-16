@@ -18,6 +18,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from cad_harness.domain.models.approval import ApprovalRecord, RollbackApprovalRecord
+from cad_harness.domain.models.base import SCHEMA_VERSION
 from cad_harness.domain.models.document import DocumentSnapshot, SelectionSnapshot
 from cad_harness.domain.models.drawing_model import DrawingModel, DrawingSummary
 from cad_harness.domain.models.drawing_spec import DrawingSpec, ModifierSpec
@@ -77,7 +78,14 @@ def _dump(schema: dict[str, Any], filename: str) -> str:
 
 
 def render(model: type[BaseModel], filename: str) -> str:
-    return _dump(model.model_json_schema(), filename)
+    schema = model.model_json_schema()
+    properties = schema.get("properties")
+    if isinstance(properties, dict) and "schema_version" in properties:
+        version_schema = dict(properties["schema_version"])
+        version_schema["const"] = SCHEMA_VERSION
+        version_schema["default"] = SCHEMA_VERSION
+        properties["schema_version"] = version_schema
+    return _dump(schema, filename)
 
 
 def main() -> int:

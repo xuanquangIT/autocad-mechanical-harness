@@ -12,6 +12,7 @@ from cad_harness.domain.models.operation_plan import Operation, OperationType
 class _CircleReadback:
     Handle = "2AF"
     ObjectName = "AcDbCircle"
+    Layer = "OBJECT"
     Center = (12.0, 34.0, 0.0)
 
     def __init__(self, diameter: float) -> None:

@@ -75,6 +75,7 @@ def test_preflight_issues_exact_proof_with_read_only_adapter_then_disconnects(
         process_id=9260,
         document_id="doc-live",
         revision="sha256:live",
+        company_profile="demo-profile@1.0",
     )
 
 

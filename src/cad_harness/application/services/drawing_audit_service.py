@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from cad_harness.company_rules.loader import CompanyProfile
 from cad_harness.comprehension.auditor import audit_drawing
 from cad_harness.domain.models.drawing_model import DrawingModel
@@ -29,12 +31,14 @@ class DrawingAuditService:
         profile: CompanyProfile,
         tolerance: ToleranceProfile,
         actor_id: str = "local-user",
+        expected_layers_by_ref: Mapping[str, str] | None = None,
     ) -> ValidationReport:
         return self.audit_with_evidence(
             model,
             profile=profile,
             tolerance=tolerance,
             actor_id=actor_id,
+            expected_layers_by_ref=expected_layers_by_ref,
         ).report
 
     def audit_with_evidence(
@@ -44,9 +48,15 @@ class DrawingAuditService:
         profile: CompanyProfile,
         tolerance: ToleranceProfile,
         actor_id: str = "local-user",
+        expected_layers_by_ref: Mapping[str, str] | None = None,
     ) -> DrawingAuditEvidence:
         """Persist and return the identity required by remediation compilation."""
-        report = audit_drawing(model, profile=profile, tolerance=tolerance)
+        report = audit_drawing(
+            model,
+            profile=profile,
+            tolerance=tolerance,
+            expected_layers_by_ref=expected_layers_by_ref,
+        )
         audit_id = new_id(IdPrefix.DRAWING_AUDIT)
         if self._store is not None:
             self._store.save_drawing_audit(

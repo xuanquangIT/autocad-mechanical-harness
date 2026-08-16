@@ -50,7 +50,7 @@ class LayerDeclaredRule:
         findings: list[Finding] = []
         declared = context.profile.layer_names()
         for operation in context.require_plan().operations:
-            if operation.layer == "0":
+            if operation.layer == "0" and operation.expected.get("layer") != "0":
                 findings.append(
                     finding(
                         self.rule_id,
@@ -60,7 +60,10 @@ class LayerDeclaredRule:
                         operation_id=operation.operation_id,
                         expected=sorted(declared),
                         actual="0",
-                        suggested_fix="Add the missing purpose to layer_map in the profile",
+                        suggested_fix=(
+                            "Map the feature purpose to a declared layer, or explicitly bind "
+                            "layer 0 as a post-commit expectation"
+                        ),
                     )
                 )
             elif operation.layer not in declared:

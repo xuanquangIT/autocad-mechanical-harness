@@ -121,6 +121,39 @@ def test_audit_service_persists_counts_and_metadata_only_event() -> None:
     )
 
 
+def test_audit_uses_the_persisted_approved_layer_for_managed_entities() -> None:
+    profile = load_profile("demo-profile")
+    circle = EntityRecord(
+        entity_ref="managed-circle",
+        entity_type="AcDbCircle",
+        layer="0",
+        visible=True,
+        space="model",
+        geometry=CircleGeometry(center_mm=(0.0, 0.0), radius_mm=20.0),
+        bounding_box_mm=(-20.0, -20.0, 20.0, 20.0),
+    )
+    model = _model().model_copy(update={"entities": (circle,)})
+    service = DrawingAuditService(store=RecordingAuditStore(), audit=InMemoryAuditSink())
+
+    generic = service.audit(model, profile=profile, tolerance=profile.tolerance())
+    approved = service.audit(
+        model,
+        profile=profile,
+        tolerance=profile.tolerance(),
+        expected_layers_by_ref={circle.entity_ref: "0"},
+    )
+    moved = service.audit(
+        model.model_copy(update={"entities": (circle.model_copy(update={"layer": "CENTER"}),)}),
+        profile=profile,
+        tolerance=profile.tolerance(),
+        expected_layers_by_ref={circle.entity_ref: "0"},
+    )
+
+    assert any(f.rule_id == "ENTITY_ON_EXPECTED_LAYER" for f in generic.findings)
+    assert all(f.rule_id != "ENTITY_ON_EXPECTED_LAYER" for f in approved.findings)
+    assert any(f.rule_id == "ENTITY_ON_EXPECTED_LAYER" for f in moved.findings)
+
+
 def test_sql_drawing_audit_store_uses_existing_schema(tmp_path: Path) -> None:
     engine = build_engine(tmp_path / "drawing-audit.db")
     create_all(engine)

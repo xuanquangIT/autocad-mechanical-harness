@@ -8,19 +8,57 @@ import hashlib
 import json
 import os
 import secrets
+from collections.abc import Callable
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
 from cad_harness.adapters.autocad_com import ComAutoCADAdapter
+from cad_harness.application.live_session_proof import LIVE_SESSION_PROOF_ENV
 from cad_harness.config import load_settings
 from scripts.live_mcp_r26_acceptance import (
-    _SETUP_CONFIRMATIONS,
+    _MANUAL_CONFIRMATIONS_ENV,
     _bridge_path_hash,
     _load_spec,
     _run_mcp_workflow,
     _safe_case_name,
 )
 from scripts.live_owned_bridge_process import launch_owned_bridge_process
+
+_SCOPED_ENVIRONMENT_KEYS = (
+    "CAD_HARNESS_ACCEPTANCE_BUNDLE_ROOT",
+    "CAD_HARNESS_CONFIG",
+    "CAD_HARNESS_APPROVAL_SECRET",
+    _MANUAL_CONFIRMATIONS_ENV,
+    LIVE_SESSION_PROOF_ENV,
+    "CAD_HARNESS_SQLITE_PATH",
+    "CAD_HARNESS_PREVIEW_DIR",
+    "CAD_HARNESS_CHECKPOINT_DIR",
+    "CAD_HARNESS_LIVE_WRITE_VERIFIED",
+    "CAD_HARNESS_LOG_LEVEL",
+    "CAD_HARNESS_DURABLE_RESTORE_VERIFIED",
+    "CAD_HARNESS_BRIDGE_PIPE_NAME_TEMPLATE",
+)
+
+
+def _scope_acceptance_environment[**P, T](
+    function: Callable[P, T],
+) -> Callable[P, T]:
+    """Restore every runner-owned environment mutation, including on failure."""
+
+    @wraps(function)
+    def scoped(*args: P.args, **kwargs: P.kwargs) -> T:
+        previous = {name: os.environ.get(name) for name in _SCOPED_ENVIRONMENT_KEYS}
+        try:
+            return function(*args, **kwargs)
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
+    return scoped
 
 
 def _sha256(path: Path) -> str:
@@ -46,7 +84,8 @@ def _configure_parent_environment(
 ) -> None:
     os.environ["CAD_HARNESS_CONFIG"] = str(config_path)
     os.environ["CAD_HARNESS_APPROVAL_SECRET"] = approval_secret
-    os.environ["CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS"] = _SETUP_CONFIRMATIONS
+    os.environ.pop(_MANUAL_CONFIRMATIONS_ENV, None)
+    os.environ.pop(LIVE_SESSION_PROOF_ENV, None)
     os.environ["CAD_HARNESS_SQLITE_PATH"] = str(case_root / "harness.db")
     os.environ["CAD_HARNESS_PREVIEW_DIR"] = str(case_root / "previews")
     os.environ["CAD_HARNESS_CHECKPOINT_DIR"] = str(case_root / "checkpoints")
@@ -55,6 +94,7 @@ def _configure_parent_environment(
     os.environ.pop("CAD_HARNESS_DURABLE_RESTORE_VERIFIED", None)
 
 
+@_scope_acceptance_environment
 def run_acceptance(
     *,
     config_path: Path,

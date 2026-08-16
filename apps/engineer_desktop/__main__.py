@@ -13,8 +13,14 @@ from PySide6.QtWidgets import QApplication
 from apps.engineer_desktop.approval_window import create_approval_window
 from apps.engineer_desktop.controller import EngineerDesktopController
 from apps.mcp_server.context import build_context
-from cad_harness.application.manual_gate import LIVE_SETUP_STEPS, ManualGate, ManualStepId
+from cad_harness.application.manual_gate import (
+    ManualGate,
+    ManualStepId,
+    required_live_setup_steps,
+)
 from cad_harness.config import Settings, load_settings
+from cad_harness.domain.models.document import DocumentSnapshot
+from cad_harness.domain.ports.autocad_adapter import AdapterStatus
 
 
 def _run_live_setup_preflight(
@@ -23,13 +29,14 @@ def _run_live_setup_preflight(
     input_fn: Callable[[str], str] = input,
     output_fn: Callable[[str], Any] = print,
 ) -> tuple[ManualStepId, ...]:
-    """Require the five setup confirmations before a live adapter can attach."""
+    """Require adapter-specific setup confirmations before a live adapter can attach."""
     if settings.adapter.type not in {"com", "dotnet_bridge"}:
         return ()
 
-    gate = ManualGate.live_autocad()
+    required_steps = required_live_setup_steps(settings.adapter.type)
+    gate = ManualGate.live_autocad(settings.adapter.type)
     confirmed_steps: list[ManualStepId] = []
-    for expected_step_id in LIVE_SETUP_STEPS:
+    for expected_step_id in required_steps:
         step = gate.current_step
         if step is None or step.step_id is not expected_step_id:
             raise RuntimeError("Live AutoCAD manual gate sequence is inconsistent")
@@ -66,10 +73,38 @@ def _build_context_after_live_preflight(
     settings_loader: Callable[[Path | None], Settings] = load_settings,
     context_builder: Callable[..., Any] = build_context,
 ) -> Any:
-    """Load configuration and finish live setup gates before adapter construction."""
+    """Attach read-only, pin the live target, then confirm its setup evidence."""
     settings = settings_loader(config_path)
-    confirmed_steps = _run_live_setup_preflight(settings, input_fn=input_fn, output_fn=output_fn)
-    return context_builder(config_path, manual_confirmations=confirmed_steps)
+
+    def confirm_pinned_target(
+        adapter_type: str,
+        status: AdapterStatus,
+        snapshot: DocumentSnapshot,
+        company_profile: str,
+    ) -> tuple[ManualStepId, ...]:
+        if (
+            adapter_type != settings.adapter.type
+            or company_profile != settings.standards.company_profile
+        ):
+            raise RuntimeError("Live configuration changed before setup confirmation")
+        output_fn(
+            "Pinned live target: "
+            f"adapter={adapter_type}; PID={status.process_id}; "
+            f"document={snapshot.display_name}; document_id={snapshot.document_id}; "
+            f"revision={snapshot.revision}; profile={company_profile}."
+        )
+        return _run_live_setup_preflight(
+            settings,
+            input_fn=input_fn,
+            output_fn=output_fn,
+        )
+
+    if settings.adapter.type not in {"com", "dotnet_bridge"}:
+        return context_builder(config_path)
+    return context_builder(
+        config_path,
+        manual_confirmation_provider=confirm_pinned_target,
+    )
 
 
 def main() -> int:

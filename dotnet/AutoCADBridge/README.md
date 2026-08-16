@@ -96,8 +96,8 @@ An unsigned package is development-only and must be requested explicitly:
   -TargetFramework net8.0-windows `
   -AutoCADManagedApiVersion 25.0.1 `
   -AutoCADSeries R25.0 `
-  -PackageVersion 0.2.2.0 `
-  -ProductCode 82658044-EBC3-4ECD-928C-A5B96770FC96 `
+  -PackageVersion 0.3.0.0 `
+  -ProductCode 15AD106E-4705-4CB7-9538-1621587CF860 `
   -DevelopmentUnsigned
 ```
 

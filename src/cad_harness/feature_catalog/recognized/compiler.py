@@ -118,13 +118,13 @@ class _RecognizedCompilerBase:
             )
         assert isinstance(edge, CurveParams) and edge.radius_mm is not None
         operation_type = OperationType.CREATE_CIRCLE if edge.is_full else OperationType.CREATE_ARC
-        geometry: dict[str, Any] = {
-            "center_mm": list(edge.center.as_tuple()),
-            "radius_mm": edge.radius_mm,
-        }
-        if not edge.is_full:
+        geometry: dict[str, Any] = {"center_mm": list(edge.center.as_tuple())}
+        if edge.is_full:
+            geometry["diameter_mm"] = edge.radius_mm * 2.0
+        else:
             geometry.update(
                 {
+                    "radius_mm": edge.radius_mm,
                     "start_angle_deg": edge.start_angle_deg,
                     "end_angle_deg": edge.end_angle_deg,
                 }
@@ -182,7 +182,7 @@ class RecognizedCircularHoleCompiler(_RecognizedCompilerBase):
                     layer=context.layer_for("hole"),
                     geometry={
                         "center_mm": list(geometry.center_mm),
-                        "radius_mm": geometry.radius_mm,
+                        "diameter_mm": geometry.radius_mm * 2.0,
                     },
                     expected={"diameter_mm": 2.0 * geometry.radius_mm},
                 )

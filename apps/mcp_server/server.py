@@ -24,11 +24,13 @@ from cad_harness.domain.models.envelope import ToolResponse
 from cad_harness.domain.value_objects.identifiers import IdPrefix, new_id
 
 INSTRUCTIONS = """\
-AutoCAD Mechanical Harness. Turns engineering requirements into verifiable 2D
-mechanical drawings.
+AutoCAD Mechanical Harness. Turns natural-language engineering requirements into
+verifiable 2D mechanical drawings.
 
-You describe intent; this server computes geometry. Do not compute coordinates,
-intersections, pattern positions or tolerances yourself.
+You describe intent; this server computes derived geometry. Copy explicit values the
+engineer supplied. Do not compute coordinates that were not supplied or deterministically
+resolved by a feature compiler, and do not invent intersections, pattern positions,
+tolerances or manufacturing dimensions.
 
 Workflow:
   0. cad_image_inspect/trace     - optional local calibrated image intake
@@ -36,14 +38,21 @@ Workflow:
   1. cad_status                  - check the adapter and which features exist
   2. cad_document_inspect        - read the document and pin its revision
   3. cad_job_create              - open a change job
-  4. cad_spec_submit             - submit a DrawingSpec; get a plan_hash
-     cad_change_submit           - alternatively submit exact findings from cad_audit
-  5. cad_preview                 - render artifacts and a semantic diff
-  6. cad_validate                - run rules; read the findings
-  7. (engineer approves in their own UI, not through you)
-  8. cad_commit                  - commit with plan_hash, revision and approval token
+  4. cad_change_prepare          - submit, preview, validate and diff in one safe call
+  5. engineer opens Engineer Desktop, reviews once, then approves and applies
+
+Lower-level alternative (do not duplicate the preferred path):
+  cad_spec_submit/cad_change_submit -> cad_preview -> cad_validate -> Engineer Desktop
 
 Rules:
+  - A standalone circle request is complete when radius, center/datum and a declared
+    layer are explicit. Represent it as reference_circle. For example, R20 mm at [0, 0]
+    on layer 0 needs no clarification and must compile to diameter 40 mm. An unqualified
+    radius may use the inspected drawing unit only when it exactly matches the selected
+    profile unit; otherwise ask one focused unit question instead of guessing a scale.
+  - Ask only for a field that changes geometry or engineering meaning and is actually
+    missing. Do not ask again for values already supplied, and do not ask for bridge,
+    pipe, format or manufacturing metadata that is irrelevant to the requested change.
   - If cad_spec_submit returns needs_input, ask the user for those exact fields. Never
     substitute a plausible number for a missing size, datum, hole count, diameter, PCD
     or tolerance class.
@@ -53,6 +62,10 @@ Rules:
   - To repair an existing drawing, select exact cad_audit rule_id/entity_ref pairs and
     submit only that remediation selection. Never submit coordinates or an operation plan.
   - If a commit outcome is unknown, stop and report it. Do not retry.
+  - Planning clients never call cad_commit. Engineer Desktop owns the short-lived
+    approval token and invokes commit after the exact preview/revision review.
+  - Never generate or submit AutoLISP, Python, SCR, SendCommand text or a caller-built
+    OperationPlan. Use bounded DrawingSpec features and the typed adapter pipeline.
 """
 
 

@@ -43,10 +43,10 @@ into safety-sensitive desktop engineering workflows.
 
 | Area | Current state |
 |---|---|
-| Deterministic creation | Ten mechanical feature families, modifiers, annotations, title blocks, and multi-view planning |
+| Deterministic creation | Ten mechanical feature families plus bounded reference circles, modifiers, annotations, title blocks, and multi-view planning |
 | Drawing comprehension | Bounded DXF/bridge reads plus a bounded COM 2D semantic subset, recognition, takeoff, audit, remediation, measurement, and calibrated raster tracing |
 | Safety gates | Exact plan-hash approval, stale-revision rejection, writer leases, idempotency, preview, validation, and readback |
-| Interfaces | CLI, 22 typed MCP tools, and a PySide6 engineer approval desktop |
+| Interfaces | CLI, 23 typed MCP tools, and a PySide6 engineer approval desktop |
 | Persistence | SQLite-backed jobs, audits, leases, reports, evidence, and restart-safe remediation selection |
 | AutoCAD integration | Python COM reader plus a C# named-pipe bridge with bounded inspection and atomic execution |
 | Verification | Unit, property, contract, compatibility, fault-injection, integration, golden, and performance gates |
@@ -94,7 +94,7 @@ Requirements:
 ```powershell
 git clone https://github.com/xuanquangIT/autocad-mechanical-harness.git
 cd autocad-mechanical-harness
-git checkout v0.2.2
+git checkout v0.3.0
 uv sync --frozen
 uv run cad-harness status
 uv run cad-harness demo
@@ -143,6 +143,10 @@ Register it in an MCP-capable client using an absolute repository path:
 pinning the adapter to `fake`. It is the recommended first connection for Codex or another
 MCP client.
 
+For an already-open AutoCAD session, use `config/live-com-planning.yaml`. Its permanent
+`planning` profile can inspect, compile, preview, validate, and diff but cannot call commit,
+rollback, or export. AutoCAD is never started or closed by this profile.
+
 For AutoCAD 2027/R26, bridge packaging, safe install/upgrade, Codex registration, and
 verification commands, follow the [complete installation guide](docs/installation.md).
 Do not install or replace a bridge while AutoCAD is running.
@@ -156,16 +160,19 @@ architecture, safety invariants, and required verification gates.
 A live write follows one route:
 
 1. Inspect the target document and revision.
-2. Create a job and submit a typed specification or selected remediation findings.
-3. Compile a deterministic `OperationPlan`.
-4. Generate a non-mutating preview and validation report.
+2. Create a job, then call `cad_change_prepare` with a typed specification or selected
+   remediation findings.
+3. The server compiles a deterministic `OperationPlan`, renders a non-mutating preview,
+   validates it, and returns the semantic diff in one call.
 5. Review the exact plan in Engineer Desktop.
 6. Approve the plan hash and expected document revision.
 7. Commit through the configured adapter.
 8. Read back and independently re-measure committed entities.
 
 There are no primitive MCP tools such as `draw_line`, `trim`, or `offset`. Geometry belongs
-in the deterministic compiler, not in model-generated tool sequences.
+in the deterministic compiler, not in model-generated tool sequences. A fully specified
+standalone circle uses the bounded `reference_circle` feature; it does not require a script
+or a custom manufacturing feature.
 
 ## Non-negotiable invariants
 
