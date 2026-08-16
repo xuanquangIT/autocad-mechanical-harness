@@ -63,6 +63,7 @@ def test_yaml_community_metadata_is_parseable() -> None:
     paths = (
         "CITATION.cff",
         ".github/dependabot.yml",
+        ".github/workflows/ci.yml",
         ".github/ISSUE_TEMPLATE/bug_report.yml",
         ".github/ISSUE_TEMPLATE/feature_request.yml",
         ".github/ISSUE_TEMPLATE/config.yml",
@@ -75,6 +76,33 @@ def test_yaml_community_metadata_is_parseable() -> None:
     citation = yaml.safe_load((REPOSITORY_ROOT / "CITATION.cff").read_text(encoding="utf-8"))
     assert citation["license"] == "Apache-2.0"
     assert citation["repository-code"].endswith("/autocad-mechanical-harness")
+
+
+def test_dependabot_groups_routine_updates_and_defers_major_dependencies() -> None:
+    payload = yaml.safe_load(
+        (REPOSITORY_ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+    )
+    updates = {entry["package-ecosystem"]: entry for entry in payload["updates"]}
+
+    pip = updates["pip"]
+    assert set(pip["groups"]) == {"python-runtime", "python-development"}
+    assert pip["groups"]["python-runtime"]["dependency-type"] == "production"
+    assert pip["groups"]["python-development"]["dependency-type"] == "development"
+    assert pip["open-pull-requests-limit"] == 2
+
+    nuget = updates["nuget"]
+    assert nuget["groups"]["dotnet-dependencies"]["patterns"] == ["*"]
+    assert nuget["open-pull-requests-limit"] == 1
+
+    for update in (pip, nuget):
+        assert {
+            "dependency-name": "*",
+            "update-types": ["version-update:semver-major"],
+        } in update["ignore"]
+
+    github_actions = updates["github-actions"]
+    assert github_actions["groups"]["github-actions"]["patterns"] == ["*"]
+    assert github_actions["open-pull-requests-limit"] == 1
 
 
 def test_readme_local_links_resolve() -> None:
