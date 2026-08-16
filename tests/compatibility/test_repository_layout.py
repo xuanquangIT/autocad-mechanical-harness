@@ -37,7 +37,7 @@ def test_ci_uploads_one_short_lived_versioned_artifact() -> None:
     upload_steps = [
         step
         for step in _windows_steps()
-        if step.get("uses") == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0"
+        if step.get("uses") == "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
     ]
 
     assert len(upload_steps) == 1
