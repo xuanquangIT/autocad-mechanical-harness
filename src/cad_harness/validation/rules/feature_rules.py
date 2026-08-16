@@ -1,7 +1,8 @@
-"""Feature-specific geometric rules for flange, slot, and L-bracket plans."""
+"""Feature-specific geometric rules for compiled feature plans."""
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from cad_harness.domain.models.operation_plan import Operation, OperationType, ValidationExpectation
@@ -31,6 +32,73 @@ def _expectations(context: RuleContext, rule_id: str) -> list[ValidationExpectat
 
 def _operations(context: RuleContext) -> dict[str, Operation]:
     return {item.operation_id: item for item in context.require_plan().operations}
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceCircleGeometryRule:
+    """Independently verify the circle operation against its semantic expectation."""
+
+    rule_id: str = "REFERENCE_CIRCLE_GEOMETRY"
+    stages: tuple[ValidationStage, ...] = PRE_STAGES
+
+    def evaluate(self, context: RuleContext) -> list[Finding]:
+        findings: list[Finding] = []
+        operations = _operations(context)
+        tolerance = context.tolerance
+        for expectation in _expectations(context, self.rule_id):
+            operation = operations.get(expectation.operation_id or "")
+            if operation is None or operation.type is not OperationType.CREATE_CIRCLE:
+                findings.append(
+                    finding(
+                        self.rule_id,
+                        Severity.BLOCKING,
+                        "Reference-circle expectation has no matching circle operation",
+                        feature_id=expectation.feature_id,
+                        operation_id=expectation.operation_id,
+                        expected=OperationType.CREATE_CIRCLE.value,
+                        actual=operation.type.value if operation is not None else None,
+                    )
+                )
+                continue
+
+            expected = expectation.expected
+            expected_center = expected["center_mm"]
+            center = _point(operation, "center_mm")
+            target_center = Point2D(float(expected_center[0]), float(expected_center[1]))
+            diameter = float(operation.geometry["diameter_mm"])
+            radius = diameter / 2.0
+            circumference = math.tau * radius
+            area = math.pi * radius * radius
+            actual = {
+                "layer": operation.layer,
+                "center_mm": list(center.as_tuple()),
+                "radius_mm": radius,
+                "diameter_mm": diameter,
+                "circumference_mm": circumference,
+                "area_mm2": area,
+            }
+            matches = (
+                operation.layer == expected["layer"]
+                and tolerance.length_close(center.distance_to(target_center), 0.0)
+                and tolerance.length_close(radius, float(expected["radius_mm"]))
+                and tolerance.length_close(diameter, float(expected["diameter_mm"]))
+                and tolerance.length_close(circumference, float(expected["circumference_mm"]))
+                and tolerance.area_close(area, float(expected["area_mm2"]))
+            )
+            if not matches:
+                findings.append(
+                    finding(
+                        self.rule_id,
+                        Severity.ERROR,
+                        "Reference-circle geometry differs from its compiled expectation",
+                        feature_id=expectation.feature_id,
+                        operation_id=operation.operation_id,
+                        expected=expected,
+                        actual=actual,
+                        tolerance=tolerance.absolute_length_mm,
+                    )
+                )
+        return findings
 
 
 @dataclass(frozen=True, slots=True)

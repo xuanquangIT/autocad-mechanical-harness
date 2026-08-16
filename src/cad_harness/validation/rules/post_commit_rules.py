@@ -88,7 +88,7 @@ class MeasurementMatchesExpectationRule:
                     # readback the pass/fail authority instead of a capability warning.
                     severity = (
                         Severity.BLOCKING
-                        if operation.feature_id.startswith("raster-candidate-")
+                        if key == "layer" or operation.feature_id.startswith("raster-candidate-")
                         else Severity.WARNING
                     )
                     findings.append(
@@ -135,6 +135,21 @@ def _matches(key: str, expected: object, actual: object, tolerance: object) -> b
     assert isinstance(tolerance, ToleranceProfile)
     if isinstance(expected, bool) or isinstance(actual, bool):
         return expected == actual
+    if (
+        key.endswith("_mm")
+        and isinstance(expected, list | tuple)
+        and isinstance(actual, list | tuple)
+    ):
+        if len(expected) != len(actual):
+            return False
+        return all(
+            isinstance(expected_value, int | float)
+            and not isinstance(expected_value, bool)
+            and isinstance(actual_value, int | float)
+            and not isinstance(actual_value, bool)
+            and tolerance.length_close(float(expected_value), float(actual_value))
+            for expected_value, actual_value in zip(expected, actual, strict=True)
+        )
     if isinstance(expected, int | float) and isinstance(actual, int | float):
         if key.endswith("_mm2"):
             return tolerance.area_close(float(expected), float(actual))

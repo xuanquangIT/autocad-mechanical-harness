@@ -23,7 +23,7 @@ class AppSettings(_Section):
 
 
 #: Permission modes a client may be granted. Ordered least to most privileged.
-PermissionMode = Literal["read_only", "approval_required", "full"]
+PermissionMode = Literal["read_only", "planning", "approval_required", "full"]
 
 
 class ClientProfileSettings(_Section):

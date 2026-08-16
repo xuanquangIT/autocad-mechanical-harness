@@ -41,13 +41,13 @@ class SemanticTransport:
         params = envelope["params"]
         if method == "handshake":
             data: dict[str, Any] = {
-                "schema_version": "1.12",
+                "schema_version": "1.13",
                 "capabilities": ["inspect_document"],
                 "supported_operations": [],
             }
         elif params.get("response_contract") == "drawing_summary":
             data = {
-                "schema_version": "1.12",
+                "schema_version": "1.13",
                 "document_id": "doc_A",
                 "revision": "sha256:r1",
                 "counts_by_entity_type": {"AcDbLine": len(self.model_entities)},
@@ -58,7 +58,7 @@ class SemanticTransport:
             }
         elif params.get("response_contract") == "drawing_model":
             data = {
-                "schema_version": "1.12",
+                "schema_version": "1.13",
                 "document_id": "doc_A",
                 "revision": "sha256:r1",
                 "display_name": "part.dwg",
@@ -76,7 +76,7 @@ class SemanticTransport:
             }
         else:
             data = {
-                "schema_version": "1.12",
+                "schema_version": "1.13",
                 "document_id": "doc_A",
                 "revision": "sha256:r1",
                 "path_hash": "sha256:path",
@@ -84,7 +84,7 @@ class SemanticTransport:
                 "units": "mm",
             }
         return {
-            "schema_version": "1.12",
+            "schema_version": "1.13",
             "request_id": envelope["request_id"],
             "status": "ok",
             "data": data,

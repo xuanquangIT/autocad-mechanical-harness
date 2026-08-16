@@ -866,7 +866,7 @@ public sealed class DurableCheckpointRestoreCoordinatorTests
     {
         var payload = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string>
         {
-            ["schema_version"] = "1.12",
+            ["schema_version"] = "1.13",
             ["approval_id"] = approvalId,
             ["job_id"] = fixture.JobId,
             ["document_id"] = fixture.DocumentId,

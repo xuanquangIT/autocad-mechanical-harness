@@ -1,6 +1,7 @@
 # Local Codex/ChatGPT desktop smoke profile. This file is deliberately pinned to the
 # fake adapter: it can create jobs, previews and validation evidence, but cannot touch
-# AutoCAD. A live deployment must use a separate reviewed config and Engineer Desktop.
+# AutoCAD. The planning profile deliberately excludes commit, rollback and export.
+# A live deployment must use a separate reviewed config and Engineer Desktop.
 app:
   environment: development
   local_only: true
@@ -16,7 +17,7 @@ mcp:
     default: read_only
     clients:
       anonymous:
-        mode: approval_required
+        mode: planning
 
 observability:
   log_level: ERROR

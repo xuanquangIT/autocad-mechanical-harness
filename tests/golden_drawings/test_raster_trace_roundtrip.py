@@ -75,7 +75,7 @@ def _accepted_operation(tmp_path: Path, kind: str, geometry_kind: str) -> Operat
 def test_raster_primitives_roundtrip_through_hashed_operation_plan(tmp_path: Path) -> None:
     cases = (
         ("line", "line", OperationType.CREATE_LINE, {"start_mm", "end_mm"}),
-        ("circle", "circle", OperationType.CREATE_CIRCLE, {"center_mm", "radius_mm"}),
+        ("circle", "circle", OperationType.CREATE_CIRCLE, {"center_mm", "diameter_mm"}),
         (
             "arc",
             "arc",
@@ -103,7 +103,7 @@ def test_raster_primitives_roundtrip_through_hashed_operation_plan(tmp_path: Pat
     assert line.geometry["end_mm"] == pytest.approx([170.0, 20.0], abs=2.0)
     circle = operations[1]
     assert circle.geometry["center_mm"] == pytest.approx([100.0, -30.0], abs=2.0)
-    assert circle.geometry["radius_mm"] == pytest.approx(55.0, abs=2.0)
+    assert circle.geometry["diameter_mm"] == pytest.approx(110.0, abs=4.0)
     assert len(operations[3].geometry["vertices_mm"]) == 4
 
     plan = OperationPlan(

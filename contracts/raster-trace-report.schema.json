@@ -442,7 +442,8 @@
       "type": "boolean"
     },
     "schema_version": {
-      "default": "1.12",
+      "const": "1.13",
+      "default": "1.13",
       "title": "Schema Version",
       "type": "string"
     },

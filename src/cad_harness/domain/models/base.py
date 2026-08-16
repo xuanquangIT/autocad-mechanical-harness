@@ -14,7 +14,8 @@ from pydantic import BaseModel, ConfigDict
 #: 1.10 - separate rollback approval and exact destructive restore request (ADR-017).
 #: 1.11 - explicit cross-layer inner contours for safe take-off (ADR-019).
 #: 1.12 - selected-finding remediation submission and restart evidence (ADR-020).
-SCHEMA_VERSION = "1.12"
+#: 1.13 - bounded reference geometry and planning-only MCP sessions (ADR-022).
+SCHEMA_VERSION = "1.13"
 
 
 class ContractModel(BaseModel):

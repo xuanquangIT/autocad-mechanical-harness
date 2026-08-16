@@ -298,6 +298,10 @@ def test_each_adapter_declares_its_operation_support() -> None:
     assert DotNetBridgeAdapter.supported_operations == frozenset()
 
 
+def test_circle_readback_includes_the_actual_entity_layer() -> None:
+    assert _TestAdapter._measure_circle(_Entity("A"))["layer"] == "OBJECT"
+
+
 def test_handlers_do_not_consume_business_policy_or_derive_geometry() -> None:
     # Radians/degrees and diameter/radius conversion are representation mappings
     # required by ActiveX. Coordinate derivation and engineering policy are forbidden.

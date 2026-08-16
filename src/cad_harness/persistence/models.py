@@ -16,6 +16,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -72,14 +73,15 @@ class SpecVersion(Base):
 
 class Plan(Base):
     __tablename__ = "plans"
+    __table_args__ = (Index("ix_plans_job_id_plan_hash", "job_id", "plan_hash"),)
 
     plan_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     job_id: Mapped[str] = mapped_column(String(64), ForeignKey("jobs.job_id"), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(16), nullable=False)
     plan_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-    # Unique: the same plan is never stored twice, which is what makes preview and
-    # commit able to key off the hash alone.
-    plan_hash: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    # Canonical hashes intentionally repeat when separate jobs compile the same change.
+    # Persistence and approval scope plans by job; the hash identifies content only.
+    plan_hash: Mapped[str] = mapped_column(String(80), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -148,6 +150,7 @@ class EntityMapping(Base):
     operation_id: Mapped[str] = mapped_column(String(160), nullable=False)
     entity_ref: Mapped[str] = mapped_column(String(128), nullable=False)
     last_revision: Mapped[str] = mapped_column(String(80), nullable=False)
+    expected_layer: Mapped[str | None] = mapped_column(String(128))
 
 
 class CheckpointRow(Base):

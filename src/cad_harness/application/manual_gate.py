@@ -42,6 +42,13 @@ MANUAL_STEP_INSTRUCTIONS: dict[ManualStepId, str] = {
     ),
 }
 
+# COM status/inspection prove the exact PID, document, revision and compatible version
+# before this evidence is signed. The remaining standards assertion cannot yet be
+# derived from a controlled DWT/DWS fingerprint, so it stays human-confirmed.
+COM_LIVE_SETUP_STEPS: tuple[ManualStepId, ...] = (ManualStepId.LOAD_COMPANY_STANDARDS,)
+
+# Backward-compatible name for the full bridge setup sequence. Bridge-only
+# installation and pipe ACL evidence must never be requested from a COM session.
 LIVE_SETUP_STEPS: tuple[ManualStepId, ...] = (
     ManualStepId.OPEN_TARGET_DRAWING,
     ManualStepId.LOAD_COMPANY_STANDARDS,
@@ -51,6 +58,16 @@ LIVE_SETUP_STEPS: tuple[ManualStepId, ...] = (
 )
 
 _MANUAL_CONFIRMATIONS_ENV = "CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS"
+
+
+def required_live_setup_steps(adapter_type: str) -> tuple[ManualStepId, ...]:
+    """Return the exact ordered setup evidence required by one live adapter."""
+    normalized = adapter_type.strip().lower()
+    if normalized == "com":
+        return COM_LIVE_SETUP_STEPS
+    if normalized == "dotnet_bridge":
+        return LIVE_SETUP_STEPS
+    return ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,10 +89,14 @@ class ManualGate:
         self._confirmed = False
 
     @classmethod
-    def live_autocad(cls) -> ManualGate:
+    def live_autocad(cls, adapter_type: str = "dotnet_bridge") -> ManualGate:
+        setup_steps = required_live_setup_steps(adapter_type)
+        if not setup_steps:
+            raise ValueError("Live AutoCAD manual gate requires a live adapter")
         return cls(
             tuple(
-                ManualStep(step_id, MANUAL_STEP_INSTRUCTIONS[step_id]) for step_id in ManualStepId
+                ManualStep(step_id, MANUAL_STEP_INSTRUCTIONS[step_id])
+                for step_id in (*setup_steps, ManualStepId.APPROVE_COMMIT)
             )
         )
 
@@ -127,9 +148,9 @@ class ManualGate:
 def load_live_setup_confirmations_from_environment() -> tuple[ManualStepId, ...]:
     """Read explicit startup evidence for a non-interactive MCP host.
 
-    The value is a comma-separated sequence of the exact five setup step ids.  The
-    commit-approval step is deliberately excluded because it belongs to the Engineer
-    Desktop preview approval flow.
+    The value is a comma-separated sequence of the adapter-specific setup step ids.
+    The commit-approval step is deliberately excluded because it belongs to the
+    Engineer Desktop preview approval flow.
     """
     raw = os.environ.get(_MANUAL_CONFIRMATIONS_ENV, "")
     if not raw.strip():
@@ -151,21 +172,22 @@ def require_live_setup_confirmations(
     confirmations: Sequence[ManualStepId],
 ) -> tuple[ManualStepId, ...]:
     """Fail before live adapter construction unless all setup steps are confirmed."""
-    if adapter_type not in {"com", "dotnet_bridge"}:
+    expected_steps = required_live_setup_steps(adapter_type)
+    if not expected_steps:
         return ()
     provided = tuple(confirmations)
-    if provided != LIVE_SETUP_STEPS:
+    if provided != expected_steps:
         mismatch_index = next(
             (
                 index
-                for index, expected in enumerate(LIVE_SETUP_STEPS)
+                for index, expected in enumerate(expected_steps)
                 if index >= len(provided) or provided[index] is not expected
             ),
-            len(LIVE_SETUP_STEPS),
+            len(expected_steps),
         )
         expected = (
-            LIVE_SETUP_STEPS[mismatch_index]
-            if mismatch_index < len(LIVE_SETUP_STEPS)
+            expected_steps[mismatch_index]
+            if mismatch_index < len(expected_steps)
             else ManualStepId.APPROVE_COMMIT
         )
         raise ApprovalRequiredError(
@@ -175,13 +197,14 @@ def require_live_setup_confirmations(
             ),
             details={
                 "expected_step_id": expected.value,
-                "confirmed_count": min(mismatch_index, len(LIVE_SETUP_STEPS)),
+                "confirmed_count": min(mismatch_index, len(expected_steps)),
             },
         )
     return provided
 
 
 __all__ = [
+    "COM_LIVE_SETUP_STEPS",
     "LIVE_SETUP_STEPS",
     "MANUAL_STEP_INSTRUCTIONS",
     "ManualGate",
@@ -189,4 +212,5 @@ __all__ = [
     "ManualStepId",
     "load_live_setup_confirmations_from_environment",
     "require_live_setup_confirmations",
+    "required_live_setup_steps",
 ]

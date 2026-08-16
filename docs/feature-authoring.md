@@ -21,6 +21,11 @@ Then split its inputs into three groups:
 If you find yourself wanting a fourth group called "sensible default", stop. That is the
 silent-default failure mode.
 
+An explicitly supplied literal value is not a guessed default. For example, the bounded
+`reference_circle` feature copies the engineer's center, radius, and declared layer into
+one deterministic circle operation. It does not infer that the circle is a hole, shaft,
+cut, or manufacturing feature.
+
 ## 2. Add the geometry, if any
 
 Pure functions in `src/cad_harness/geometry/`. No I/O, no AutoCAD, no randomness. Take a
@@ -162,3 +167,26 @@ Modifiers contain dimensions and vertex indices only; intermediate points are al
 `corner_notch` and `edge_cutout` are also child features because they replace the parent boundary. `keyway` accepts a bore diameter, key width, key depth, and an explicit center or resolved datum. All four features use existing polyline/circle operations, so preview and every current writer adapter declare support without a new operation mapping.
 
 Security review: these inputs contain local engineering dimensions only. They add no I/O, path, prompt, network, COM, approval bypass, or logging surface. As with all drawing specs, callers should still avoid placing customer identifiers in feature IDs.
+
+## Bounded standalone circle example
+
+Use `reference_circle` for a literal drafting circle whose manufacturing meaning is not
+being asserted:
+
+```json
+{
+  "feature_id": "reference-circle-001",
+  "type": "reference_circle",
+  "parameters": {
+    "center_mm": [0, 0],
+    "radius_mm": 20,
+    "layer_name": "0"
+  }
+}
+```
+
+`center_mm` may be omitted only when `DrawingSpec.drawing.datum` resolves it. `radius_mm`
+must be positive and finite. `layer_name` must appear in the selected company profile;
+declared AutoCAD layer `0` is valid. The compiler emits one existing `create_circle`
+operation with diameter 40 mm and cross-adapter readback expectations. Missing inputs are
+reported together in one `needs_input` response.

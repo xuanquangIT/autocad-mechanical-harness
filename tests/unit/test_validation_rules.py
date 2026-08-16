@@ -177,9 +177,16 @@ class TestStandardRules:
         assert "STD-LAYER-DECLARED" in rule_ids(run(context_factory(plan)), Severity.ERROR)
 
     def test_layer_zero_fallback_is_an_error(self, context_factory) -> None:
-        """Falling back to layer 0 means an unmapped purpose, which must not ship."""
+        """A generic semantic operation on layer 0 is still an unmapped fallback."""
         plan = build_plan((outline(PLATE, layer="0"),))
         assert "STD-LAYER-DECLARED" in rule_ids(run(context_factory(plan)), Severity.ERROR)
+
+    def test_explicit_hash_bound_declared_layer_zero_is_allowed(self, context_factory) -> None:
+        operation = outline(PLATE, layer="0").model_copy(
+            update={"expected": {**outline(PLATE).expected, "layer": "0"}}
+        )
+        plan = build_plan((operation,))
+        assert "STD-LAYER-DECLARED" not in rule_ids(run(context_factory(plan)))
 
     def test_non_canonical_units_are_blocking(self, context_factory) -> None:
         plan = build_plan((outline(PLATE),), units=Unit.INCH)
@@ -255,6 +262,56 @@ class TestPostCommitRules:
 
         assert "POST-MEASUREMENT-MATCH" in rule_ids(report, Severity.BLOCKING)
 
+    def test_explicit_layer_mismatch_or_missing_readback_is_blocking(self, context_factory) -> None:
+        operation = outline(PLATE).model_copy(
+            update={"expected": {**outline(PLATE).expected, "layer": "0"}}
+        )
+        plan = build_plan((operation,))
+
+        wrong = run(
+            context_factory(
+                plan,
+                self._commit_result(
+                    {
+                        "closed": True,
+                        "vertex_count": 4,
+                        "area_mm2": 16000.0,
+                        "layer": "OBJECT",
+                    }
+                ),
+            ),
+            ValidationStage.POST_COMMIT,
+        )
+        missing = run(
+            context_factory(
+                plan,
+                self._commit_result({"closed": True, "vertex_count": 4, "area_mm2": 16000.0}),
+            ),
+            ValidationStage.POST_COMMIT,
+        )
+
+        assert "POST-MEASUREMENT-MATCH" in rule_ids(wrong, Severity.BLOCKING)
+        assert "POST-MEASUREMENT-MATCH" in rule_ids(missing, Severity.BLOCKING)
+
+    def test_point_measurements_use_length_tolerance(self, context_factory) -> None:
+        operation = Operation(
+            operation_id="op-outline",
+            feature_id="reference-circle",
+            type=OperationType.CREATE_CIRCLE,
+            layer="OBJECT",
+            geometry={"center_mm": [10.0, 20.0], "diameter_mm": 40.0},
+            expected={"center_mm": [10.0, 20.0]},
+        )
+        plan = build_plan((operation,))
+        inside = self._commit_result({"center_mm": [10.0005, 20.0]})
+        outside = self._commit_result({"center_mm": [10.01, 20.0]})
+
+        inside_report = run(context_factory(plan, inside), ValidationStage.POST_COMMIT)
+        outside_report = run(context_factory(plan, outside), ValidationStage.POST_COMMIT)
+
+        assert "POST-MEASUREMENT-MATCH" not in rule_ids(inside_report, Severity.BLOCKING)
+        assert "POST-MEASUREMENT-MATCH" in rule_ids(outside_report, Severity.BLOCKING)
+
     def test_operation_without_an_entity_is_blocking(self, context_factory) -> None:
         plan = build_plan((outline(PLATE), holes([[20.0, 20.0]])), expectations=PARENT_LINK)
         result = self._commit_result({"closed": True, "vertex_count": 4, "area_mm2": 16000.0})
@@ -266,7 +323,7 @@ class TestEngineWiring:
     def test_all_rules_are_registered_once(self) -> None:
         engine = default_engine()
         assert len(engine.rule_ids()) == len(set(engine.rule_ids()))
-        assert len(engine.rule_ids()) == 39
+        assert len(engine.rule_ids()) == 40
         assert {
             "LAYER_SET_MATCHES_PROFILE",
             "ENTITY_ON_EXPECTED_LAYER",

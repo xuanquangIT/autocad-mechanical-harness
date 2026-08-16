@@ -92,6 +92,9 @@ class EntityOnExpectedLayerRule:
     stages: tuple[ValidationStage, ...] = DRAWING_STAGES
 
     def evaluate(self, context: RuleContext) -> list[Finding]:
+        overrides = context.extras.get("expected_layers_by_ref", {})
+        if not isinstance(overrides, dict):
+            overrides = {}
         return [
             finding(
                 self.rule_id,
@@ -103,7 +106,13 @@ class EntityOnExpectedLayerRule:
                 suggested_fix=f"Move the entity to layer '{expected}' through remediation",
             )
             for entity in _model(context).entities
-            if (expected := context.profile.entity_layer_map.get(entity.entity_type)) is not None
+            if (
+                expected := overrides.get(
+                    entity.entity_ref,
+                    context.profile.entity_layer_map.get(entity.entity_type),
+                )
+            )
+            is not None
             and entity.layer != expected
         ]
 

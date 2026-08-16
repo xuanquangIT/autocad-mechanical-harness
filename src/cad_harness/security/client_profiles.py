@@ -7,7 +7,7 @@ from typing import Literal
 from cad_harness.config import Settings
 from cad_harness.domain.models.base import ContractModel
 
-PermissionMode = Literal["read_only", "approval_required", "full"]
+PermissionMode = Literal["read_only", "planning", "approval_required", "full"]
 
 TOOL_NAMES: tuple[str, ...] = (
     "cad_status",
@@ -17,6 +17,7 @@ TOOL_NAMES: tuple[str, ...] = (
     "cad_job_create",
     "cad_spec_submit",
     "cad_change_submit",
+    "cad_change_prepare",
     "cad_preview",
     "cad_validate",
     "cad_diff_get",
@@ -58,6 +59,7 @@ APPROVAL_REQUIRED_TOOLS: frozenset[str] = frozenset(
         "cad_job_create",
         "cad_spec_submit",
         "cad_change_submit",
+        "cad_change_prepare",
         "cad_preview",
         "cad_commit",
         "cad_rollback",
@@ -69,6 +71,18 @@ APPROVAL_REQUIRED_TOOLS: frozenset[str] = frozenset(
 # Filesystem export and internal workflow state may also be approval-gated, but only
 # these two public tools can change live DWG content.
 DWG_MUTATING_TOOLS: frozenset[str] = frozenset({"cad_commit", "cad_rollback"})
+
+# Planning clients may build and inspect a deterministic candidate, but cannot reach
+# any live-DWG mutation or filesystem export operation.
+PLANNING_TOOLS: frozenset[str] = READ_ONLY_TOOLS | frozenset(
+    {
+        "cad_job_create",
+        "cad_spec_submit",
+        "cad_change_submit",
+        "cad_change_prepare",
+        "cad_preview",
+    }
+)
 
 
 class ClientPermissionProfile(ContractModel):
@@ -82,6 +96,8 @@ class ClientPermissionProfile(ContractModel):
 def _tools_for_mode(mode: PermissionMode) -> frozenset[str]:
     if mode == "read_only":
         return READ_ONLY_TOOLS
+    if mode == "planning":
+        return PLANNING_TOOLS
     # Approval remains mandatory in the application service. A profile only decides
     # whether the client can reach that approval-gated operation at all.
     return frozenset(TOOL_NAMES)
@@ -114,6 +130,7 @@ def resolve_profile(client_id: str | None, settings: Settings) -> ClientPermissi
 __all__ = [
     "APPROVAL_REQUIRED_TOOLS",
     "DWG_MUTATING_TOOLS",
+    "PLANNING_TOOLS",
     "READ_ONLY_TOOLS",
     "TOOL_NAMES",
     "ClientPermissionProfile",

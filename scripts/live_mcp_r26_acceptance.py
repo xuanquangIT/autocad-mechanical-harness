@@ -36,12 +36,17 @@ from cad_harness.adapters.autocad_com import (
     _workspace_acceptance_plugins_root,
 )
 from cad_harness.adapters.dotnet_bridge import DotNetBridgeAdapter
-from cad_harness.application.manual_gate import LIVE_SETUP_STEPS
+from cad_harness.application.live_session_proof import LIVE_SESSION_PROOF_ENV
+from cad_harness.application.manual_gate import LIVE_SETUP_STEPS, ManualStepId
+from cad_harness.domain.errors import ApprovalRequiredError
+from cad_harness.domain.models.document import DocumentSnapshot
 from cad_harness.domain.models.envelope import ToolResponse
 from cad_harness.domain.models.validation import Severity
-from cad_harness.domain.ports.autocad_adapter import InspectRequest, RollbackRequest
+from cad_harness.domain.ports.autocad_adapter import AdapterStatus, InspectRequest, RollbackRequest
+from scripts.live_session_preflight import issue_existing_live_session_proof
 
 _SETUP_CONFIRMATIONS = ",".join(step.value for step in LIVE_SETUP_STEPS)
+_MANUAL_CONFIRMATIONS_ENV = "CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS"
 _PROFILE_LAYERS = ("OBJECT", "DIM", "CENTER", "TEXT", "HATCH")
 _DURABLE_CAPABILITY = "checkpoint_restore"
 _DURABLE_CHECKPOINT_DIRECTORY = "whole-dwg-checkpoints-v1"
@@ -189,7 +194,27 @@ async def _call(session: ClientSession, name: str, arguments: dict[str, Any]) ->
     return payload
 
 
-def _mcp_server_parameters() -> StdioServerParameters:
+def _install_ephemeral_live_session_proof(config_path: Path) -> str:
+    """Replace all inherited setup evidence with one current bridge-scoped proof."""
+    os.environ.pop(_MANUAL_CONFIRMATIONS_ENV, None)
+    os.environ.pop(LIVE_SESSION_PROOF_ENV, None)
+    secret = os.environ.get("CAD_HARNESS_APPROVAL_SECRET", "")
+    if not secret:
+        raise ApprovalRequiredError(
+            "Live MCP acceptance has no ephemeral approval secret",
+            required_action="Generate a per-run approval secret before live preflight",
+        )
+    proof = issue_existing_live_session_proof(
+        config_path=config_path,
+        adapter_type="dotnet_bridge",
+        secret=secret,
+    )
+    os.environ[LIVE_SESSION_PROOF_ENV] = proof
+    return proof
+
+
+def _mcp_server_parameters(config_path: Path) -> StdioServerParameters:
+    _install_ephemeral_live_session_proof(config_path)
     return StdioServerParameters(
         command=sys.executable,
         args=["-m", "apps.mcp_server"],
@@ -201,9 +226,9 @@ def _mcp_server_parameters() -> StdioServerParameters:
 
 
 @asynccontextmanager
-async def _mcp_session() -> AsyncIterator[ClientSession]:
+async def _mcp_session(config_path: Path) -> AsyncIterator[ClientSession]:
     """Own one MCP subprocess; leaving this context proves its service memory is gone."""
-    async with stdio_client(_mcp_server_parameters()) as (reader, writer):  # noqa: SIM117
+    async with stdio_client(_mcp_server_parameters(config_path)) as (reader, writer):  # noqa: SIM117
         async with ClientSession(reader, writer) as session:
             await session.initialize()
             yield session
@@ -499,6 +524,18 @@ def _trigger_owned_bridge_load(com: ComAutoCADAdapter) -> None:
 ApprovalIssuer = Callable[[str, str, str], tuple[str, str]]
 
 
+def _acceptance_confirmation_provider(
+    adapter_type: str,
+    _status: AdapterStatus,
+    _snapshot: DocumentSnapshot,
+    _company_profile: str,
+) -> tuple[ManualStepId, ...]:
+    """Supply the fixed acceptance-only setup steps after the target is pinned."""
+    if adapter_type != "dotnet_bridge":
+        raise AssertionError("R26 bridge acceptance requires the dotnet_bridge adapter")
+    return LIVE_SETUP_STEPS
+
+
 def _issue_live_approval(
     config_path: Path,
     job_id: str,
@@ -508,7 +545,7 @@ def _issue_live_approval(
     """Issue approval through the same human-only service boundary used by Desktop."""
     approval_context = build_context(
         config_path,
-        manual_confirmations=LIVE_SETUP_STEPS,
+        manual_confirmation_provider=_acceptance_confirmation_provider,
     )
     report = approval_context.service.store.get_validation(job_id)
     if report is None:
@@ -534,7 +571,7 @@ def _issue_live_rollback_approval(
     """Create rb1 through a fresh human-only context after MCP session A exits."""
     approval_context = build_context(
         config_path,
-        manual_confirmations=LIVE_SETUP_STEPS,
+        manual_confirmation_provider=_acceptance_confirmation_provider,
     )
     scope = approval_context.service.rollback_scope(expected_scope["job_id"])
     if scope != expected_scope:
@@ -740,7 +777,7 @@ def _run_direct_durable_replay(
     """Replay the exact rb1 directly against a fresh bridge adapter, bypassing job state."""
     replay_context = build_context(
         config_path,
-        manual_confirmations=LIVE_SETUP_STEPS,
+        manual_confirmation_provider=_acceptance_confirmation_provider,
     )
     adapter = replay_context.service.adapter
     if not isinstance(adapter, DotNetBridgeAdapter):
@@ -905,7 +942,7 @@ async def _run_durable_checkpoint_restore_workflow(
 ) -> dict[str, Any]:
     expected_display_name = native_dwg.name
     expected_path_hash = _bridge_path_hash(native_dwg)
-    async with _mcp_session() as session_a:
+    async with _mcp_session(config_path) as session_a:
         commit_evidence, state = await _run_durable_commit_session(
             session_a,
             spec=spec,
@@ -941,7 +978,7 @@ async def _run_durable_checkpoint_restore_workflow(
         config_path,
         expected_scope,
     )
-    async with _mcp_session() as session_b:
+    async with _mcp_session(config_path) as session_b:
         rollback_evidence = await _run_durable_rollback_session(
             session_b,
             state=state,
@@ -1221,14 +1258,7 @@ async def _run_mcp_workflow(
     expected_path_hash: str,
     export_target: Path | None = None,
 ) -> dict[str, Any]:
-    server = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "apps.mcp_server"],
-        cwd=str(Path.cwd()),
-        env=dict(os.environ),
-        encoding="utf-8",
-        encoding_error_handler="strict",
-    )
+    server = _mcp_server_parameters(config_path)
     async with stdio_client(server) as (reader, writer):  # noqa: SIM117
         async with ClientSession(reader, writer) as session:
             await session.initialize()
@@ -1447,7 +1477,8 @@ def run_acceptance(
 
     os.environ["CAD_HARNESS_CONFIG"] = str(config_path)
     os.environ["CAD_HARNESS_APPROVAL_SECRET"] = secrets.token_urlsafe(48)
-    os.environ["CAD_HARNESS_MANUAL_GATE_CONFIRMATIONS"] = _SETUP_CONFIRMATIONS
+    os.environ.pop(_MANUAL_CONFIRMATIONS_ENV, None)
+    os.environ.pop(LIVE_SESSION_PROOF_ENV, None)
     os.environ["CAD_HARNESS_SQLITE_PATH"] = str(case_root / "harness.db")
     os.environ["CAD_HARNESS_PREVIEW_DIR"] = str(case_root / "previews")
     os.environ["CAD_HARNESS_CHECKPOINT_DIR"] = str(case_root / "checkpoints")

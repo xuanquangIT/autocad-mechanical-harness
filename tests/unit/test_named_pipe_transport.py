@@ -216,7 +216,7 @@ def test_timeout_cancels_waits_and_closes_before_exact_control_request() -> None
     assert driver.events.index("close:handle-1") < driver.events.index("connect:handle-2")
     cancel_payload = driver.writes[-1][1]
     assert cancel_payload == {
-        "schema_version": "1.12",
+        "schema_version": "1.13",
         "method": "cancel",
         "request_id": "fresh-cancel-request",
         "job_id": None,

@@ -11,7 +11,7 @@ concurrency:
 jobs:
   windows-quality:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -47,6 +47,12 @@ jobs:
       - name: Golden suite
         run: uv run python scripts/run_golden_tests.py
 
+      - name: Bounded MCP integration tests
+        run: >-
+          uv run pytest -q
+          tests/integration/test_mcp_stdio_process_broker.py
+          tests/integration/test_reference_circle_mcp_workflow.py
+
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
@@ -67,3 +73,125 @@ jobs:
         run: |
           dotnet restore dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj --configfile dotnet/AutoCADBridge/NuGet.Config -p:CadBridgeTargetFramework=net10.0-windows -p:AutoCADManagedApiVersion=26.0.0
           dotnet build dotnet/AutoCADBridge/CadBridge.Plugin/CadBridge.Plugin.csproj -c Release --framework net10.0-windows --no-restore --nologo -warnaserror -p:CadBridgeTargetFramework=net10.0-windows -p:AutoCADManagedApiVersion=26.0.0
+
+      - name: Package and validate engineering preview
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/v0.3.0-quick-edit'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $releaseRoot = Join-Path '${{ runner.temp }}' 'cad-harness-v0.3.0-${{ github.run_id }}-${{ github.run_attempt }}'
+          $pythonRoot = Join-Path '${{ runner.temp }}' 'cad-harness-python-v0.3.0-${{ github.run_id }}-${{ github.run_attempt }}'
+          $smokeVenv = Join-Path '${{ runner.temp }}' 'cad-harness-smoke-v0.3.0-${{ github.run_id }}-${{ github.run_attempt }}'
+          New-Item -ItemType Directory -Path $releaseRoot -ErrorAction Stop | Out-Null
+          New-Item -ItemType Directory -Path $pythonRoot -ErrorAction Stop | Out-Null
+
+          uv run python scripts/package_release.py --out $pythonRoot
+          if ($LASTEXITCODE -ne 0) {
+            throw "Python release packaging failed with exit code $LASTEXITCODE."
+          }
+
+          $wheels = @(Get-ChildItem -LiteralPath $pythonRoot -Filter 'cad_harness-0.3.0-*.whl' -File)
+          $sdists = @(Get-ChildItem -LiteralPath $pythonRoot -Filter 'cad_harness-0.3.0.tar.gz' -File)
+          if ($wheels.Count -ne 1 -or $sdists.Count -ne 1) {
+            throw 'Expected exactly one cad_harness 0.3.0 wheel and one source distribution.'
+          }
+
+          $pythonBundle = Join-Path $pythonRoot 'bundle'
+          $bundledWheel = Join-Path $pythonBundle $wheels[0].Name
+          if (-not (Test-Path -LiteralPath $bundledWheel -PathType Leaf)) {
+            throw 'The clean Python bundle does not contain its version-matched wheel.'
+          }
+
+          uv venv $smokeVenv --python 3.12
+          if ($LASTEXITCODE -ne 0) {
+            throw "Smoke virtual environment creation failed with exit code $LASTEXITCODE."
+          }
+          $smokePython = Join-Path $smokeVenv 'Scripts\python.exe'
+          $smokeCli = Join-Path $smokeVenv 'Scripts\cad-harness.exe'
+          uv pip install --python $smokePython $bundledWheel
+          if ($LASTEXITCODE -ne 0) {
+            throw "Wheel installation failed with exit code $LASTEXITCODE."
+          }
+          Push-Location $pythonBundle
+          try {
+            & $smokeCli --config config/base.yaml status
+            if ($LASTEXITCODE -ne 0) {
+              throw "Clean-bundle status smoke failed with exit code $LASTEXITCODE."
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          Copy-Item -LiteralPath $wheels[0].FullName -Destination $releaseRoot
+          Copy-Item -LiteralPath $sdists[0].FullName -Destination $releaseRoot
+
+          $packager = Resolve-Path 'dotnet/AutoCADBridge/Package-BridgeBundle.ps1'
+          $installer = Resolve-Path 'dotnet/AutoCADBridge/Install-BridgeBundle.ps1'
+          $productCode = '15AD106E-4705-4CB7-9538-1621587CF860'
+          & $packager `
+            -TargetFramework net8.0-windows `
+            -AutoCADManagedApiVersion 25.0.1 `
+            -AutoCADSeries R25.0 `
+            -PackageVersion 0.3.0.0 `
+            -ProductCode $productCode `
+            -DevelopmentUnsigned | Out-Host
+          & $packager `
+            -TargetFramework net10.0-windows `
+            -AutoCADManagedApiVersion 26.0.0 `
+            -AutoCADSeries R26.0 `
+            -PackageVersion 0.3.0.0 `
+            -ProductCode $productCode `
+            -DevelopmentUnsigned | Out-Host
+
+          $bridgePackages = 'dotnet/AutoCADBridge/CadBridge.Plugin/bin/BridgePackages'
+          $r25Bundle = Join-Path $bridgePackages 'DEVELOPMENT-UNSIGNED-R25-0-net8-0-windows-api-25-0-1-v0-3-0-0/AutoCADHarness.bundle'
+          $r26Bundle = Join-Path $bridgePackages 'DEVELOPMENT-UNSIGNED-R26-0-net10-0-windows-api-26-0-0-v0-3-0-0/AutoCADHarness.bundle'
+          foreach ($bundle in @($r25Bundle, $r26Bundle)) {
+            if (-not (Test-Path -LiteralPath $bundle -PathType Container)) {
+              throw "Expected bridge bundle was not produced: $bundle"
+            }
+          }
+
+          & $installer `
+            -Action Validate `
+            -BundlePath $r25Bundle `
+            -ExpectedAutoCADSeries R25.0 `
+            -InstallRoot (Join-Path '${{ runner.temp }}' 'cad-harness-r25-validation') `
+            -DevelopmentUnsigned | Out-Host
+          & $installer `
+            -Action Validate `
+            -BundlePath $r26Bundle `
+            -ExpectedAutoCADSeries R26.0 `
+            -InstallRoot (Join-Path '${{ runner.temp }}' 'cad-harness-r26-validation') `
+            -DevelopmentUnsigned | Out-Host
+
+          $r25Zip = Join-Path $releaseRoot 'AutoCADHarness-R25.0-0.3.0.0-DEVELOPMENT-UNSIGNED.zip'
+          $r26Zip = Join-Path $releaseRoot 'AutoCADHarness-R26.0-0.3.0.0-DEVELOPMENT-UNSIGNED.zip'
+          Compress-Archive -LiteralPath $r25Bundle -DestinationPath $r25Zip -CompressionLevel Optimal
+          Compress-Archive -LiteralPath $r26Bundle -DestinationPath $r26Zip -CompressionLevel Optimal
+
+          $assetNames = [string[]]@(
+            Get-ChildItem -LiteralPath $releaseRoot -File | ForEach-Object Name
+          )
+          [Array]::Sort($assetNames, [StringComparer]::Ordinal)
+          $checksumLines = foreach ($assetName in $assetNames) {
+            $assetPath = Join-Path $releaseRoot $assetName
+            $hash = (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $assetName"
+          }
+          [IO.File]::WriteAllText(
+            (Join-Path $releaseRoot 'SHA256SUMS.txt'),
+            ($checksumLines -join "`n") + "`n",
+            [Text.UTF8Encoding]::new($false))
+
+      - name: Upload engineering preview artifacts
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/v0.3.0-quick-edit'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        with:
+          name: v0.3.0-engineering-preview
+          path: ${{ runner.temp }}/cad-harness-v0.3.0-${{ github.run_id }}-${{ github.run_attempt }}/*
+          retention-days: 3
+          if-no-files-found: error

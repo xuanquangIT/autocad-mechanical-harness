@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -39,6 +40,15 @@ def _tree(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path]:
     return work, drawing, config, spec, bundle
 
 
+def _seed_scoped_environment(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    previous = {
+        name: f"prior-{index}" for index, name in enumerate(subject._SCOPED_ENVIRONMENT_KEYS)
+    }
+    for name, value in previous.items():
+        monkeypatch.setenv(name, value)
+    return previous
+
+
 def test_owned_mcp_acceptance_runs_real_workflow_and_redacts_secret(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -54,6 +64,7 @@ def test_owned_mcp_acceptance_runs_real_workflow_and_redacts_secret(
             {7348: (r"D:\CAD\AutoCAD 2027\acad.exe", 1)},
         ]
     )
+    previous_environment = _seed_scoped_environment(monkeypatch)
     monkeypatch.setattr(subject, "_load_spec", lambda _path: {"features": []})
     monkeypatch.setattr(subject, "_process_snapshot", lambda: next(snapshots))
     monkeypatch.setattr(
@@ -96,6 +107,9 @@ def test_owned_mcp_acceptance_runs_real_workflow_and_redacts_secret(
     child = launch_args["child_environment_overrides"]
     assert child["CAD_HARNESS_LIVE_WRITE_VERIFIED"] == "1"
     assert child["CAD_HARNESS_APPROVAL_SECRET"]
+    assert {
+        name: os.environ.get(name) for name in subject._SCOPED_ENVIRONMENT_KEYS
+    } == previous_environment
     serialized = evidence.read_text(encoding="utf-8")
     assert child["CAD_HARNESS_APPROVAL_SECRET"] not in serialized
     assert json.loads(serialized)["export"]["format"] == "dwg"
@@ -116,6 +130,7 @@ def test_owned_mcp_acceptance_rejects_unrelated_autocad_process_drift(
             {7348: ("acad.exe", 1), 9999: ("acad.exe", 2)},
         ]
     )
+    previous_environment = _seed_scoped_environment(monkeypatch)
     monkeypatch.setattr(subject, "_load_spec", lambda _path: {"features": []})
     monkeypatch.setattr(subject, "_process_snapshot", lambda: next(snapshots))
     monkeypatch.setattr(
@@ -147,3 +162,6 @@ def test_owned_mcp_acceptance_rejects_unrelated_autocad_process_drift(
 
     assert process.closed
     assert not (tmp_path / "evidence.json").exists()
+    assert {
+        name: os.environ.get(name) for name in subject._SCOPED_ENVIRONMENT_KEYS
+    } == previous_environment

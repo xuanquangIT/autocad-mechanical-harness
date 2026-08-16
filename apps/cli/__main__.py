@@ -23,6 +23,7 @@ from cad_harness.domain.errors import (
 )
 from cad_harness.domain.models.raster import RasterTraceReport
 from cad_harness.domain.models.validation import Severity, ValidationStage
+from cad_harness.persistence.schema_migration import DatabaseSchemaError
 
 #: The pilot case study from architecture section 32.
 DEMO_SPEC: dict[str, Any] = {
@@ -161,14 +162,13 @@ def _cmd_demo(args: argparse.Namespace) -> int:
 
 
 def _cmd_migrate(args: argparse.Namespace) -> int:
-    """Create the SQLite schema directly. Pilot machines should use Alembic instead."""
+    """Safely initialize or upgrade the exact configured SQLite database."""
     from cad_harness.config import load_settings
-    from cad_harness.persistence.engine import build_engine, create_all
+    from cad_harness.persistence.schema_migration import upgrade_database
 
     settings = load_settings(args.config)
-    engine = build_engine(Path(settings.storage.sqlite_path))
-    create_all(engine)
-    _emit({"status": "ok", "sqlite_path": str(settings.storage.sqlite_path)})
+    revision = upgrade_database(Path(settings.storage.sqlite_path))
+    _emit({"status": "ok", "database_revision": revision})
     return 0
 
 
@@ -275,7 +275,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--approved-by", default="cli-user", help="Approver identity to record")
     demo.set_defaults(func=_cmd_demo)
 
-    migrate = subparsers.add_parser("migrate", help="Create the SQLite schema (dev only)")
+    migrate = subparsers.add_parser(
+        "migrate", help="Safely initialize or upgrade the configured SQLite database"
+    )
     migrate.set_defaults(func=_cmd_migrate)
 
     raster_review = subparsers.add_parser(
@@ -321,6 +323,22 @@ def main() -> int:
         return int(args.func(args))
     except HarnessError as error:
         _emit({"status": "error", "error": error.to_payload()})
+        return 1
+    except DatabaseSchemaError:
+        _emit(
+            {
+                "status": "error",
+                "error": {
+                    "code": "DATABASE_SCHEMA_UNSAFE",
+                    "message": "The configured database schema cannot be safely migrated.",
+                    "retryable": False,
+                    "required_action": (
+                        "Back up the configured database, verify its release provenance, "
+                        "and retry cad-harness migrate."
+                    ),
+                },
+            }
+        )
         return 1
 
 

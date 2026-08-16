@@ -1,0 +1,13 @@
+{
+  "_comment": "Invalid reference circle: a zero radius must fail before preview or commit.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "reference-circle-invalid",
+    "type": "reference_circle",
+    "parameters": {
+      "center_mm": [0.0, 0.0],
+      "radius_mm": 0.0,
+      "layer_name": "0"
+    }
+  }]
+}

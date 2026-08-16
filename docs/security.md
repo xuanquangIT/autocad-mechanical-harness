@@ -19,7 +19,7 @@ cannot commit anything without a human-issued approval token it does not have ac
 
 | Control | Where |
 |---|---|
-| No primitive drawing tools exposed | `apps/mcp_server/tools/` — 22 high-level tools only |
+| No primitive drawing tools exposed | `apps/mcp_server/tools/` — 23 high-level tools only |
 | HMAC-signed approval tokens scoped to `(job_id, plan_hash, revision)` | `security/approval.py` |
 | Short-lived approvals (15 min default) | `config.security.approval_ttl_minutes` |
 | Approval revoked on any spec or plan change | `HarnessService.submit_spec` |
@@ -35,6 +35,7 @@ cannot commit anything without a human-issued approval token it does not have ac
 | COM confined to one module | Ruff banned-api rule on `win32com` / `pythoncom` |
 | Local-only by default | `config.app.local_only` |
 | Per-client tool allowlist enforced on every MCP call | `apps/mcp_server/tools/permissions.py`, `security/client_profiles.py` |
+| Planning-only profile excludes commit, rollback, and export | `security/client_profiles.py::PLANNING_TOOLS` |
 | Cross-process writer lease with heartbeat and atomic terminal release | `persistence/sql_lease_store.py`, `application/services/lease_service.py` |
 | Current-user-only Named Pipe endpoint | `CadBridge.Ipc/WindowsNamedPipeFactory.cs` |
 | Durable SQLite audit chain verification | `persistence/sql_audit_sink.py::verify_chain` |

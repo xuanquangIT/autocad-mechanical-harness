@@ -111,6 +111,7 @@ class InMemoryJobStore:
         operation_id: str,
         entity_ref: str,
         revision: str,
+        expected_layer: str | None = None,
     ) -> None:
         self.entity_mappings.append(
             EntityMappingRecord(
@@ -119,6 +120,7 @@ class InMemoryJobStore:
                 operation_id=operation_id,
                 entity_ref=entity_ref,
                 last_revision=revision,
+                expected_layer=expected_layer,
             )
         )
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -45,16 +46,20 @@ from cad_harness.comprehension.raster_trace import LocalRasterTracer, RasterTrac
 from cad_harness.config import Settings, load_settings, resolve_config_relative_path
 from cad_harness.domain.errors import (
     AdapterCapabilityMissingError,
+    ApprovalScopeMismatchError,
     ErrorCode,
     HarnessError,
     IdempotencyKeyReusedError,
     StaleDocumentRevisionError,
     WriterLeaseConflictError,
 )
+from cad_harness.domain.models.document import DocumentSnapshot
 from cad_harness.domain.models.drawing_model import DrawingModel, ReadScope
 from cad_harness.domain.models.envelope import ToolResponse, ToolStatus
 from cad_harness.domain.ports.autocad_adapter import (
     AdapterCapability,
+    AdapterStatus,
+    AutoCADAdapter,
     InspectRequest,
 )
 from cad_harness.domain.ports.drawing_source import (
@@ -66,7 +71,12 @@ from cad_harness.geometry.tolerance import ToleranceProfile
 from cad_harness.metrics.collector import load_pilot_thresholds
 from cad_harness.metrics.recorder import OperationMetricsRecorder
 from cad_harness.observability.logging import configure_logging, get_logger
-from cad_harness.persistence.engine import build_engine, build_session_factory, create_all
+from cad_harness.persistence.engine import build_engine, build_session_factory
+from cad_harness.persistence.schema_migration import (
+    DatabaseSchemaError,
+    assert_database_current,
+    upgrade_database,
+)
 from cad_harness.persistence.sql_audit_sink import SqlAuditSink
 from cad_harness.persistence.sql_drawing_audit_store import SqlDrawingAuditStore
 from cad_harness.persistence.sql_job_store import SqlJobStore
@@ -115,13 +125,64 @@ class ServerContext:
     raster_trace_service: RasterTraceService | None
 
 
+def _reinspect_unchanged_live_target(
+    adapter: AutoCADAdapter,
+    status: AdapterStatus,
+    snapshot: DocumentSnapshot,
+) -> tuple[AdapterStatus, DocumentSnapshot]:
+    """Re-read the pinned target after a human prompt and reject any drift."""
+    rechecked_status = adapter.status()
+    if (
+        not rechecked_status.available
+        or rechecked_status.process_id != status.process_id
+        or rechecked_status.active_document_id != status.active_document_id
+        or rechecked_status.cad_version != status.cad_version
+        or rechecked_status.version_supported != status.version_supported
+    ):
+        raise ApprovalScopeMismatchError(
+            "The active AutoCAD session changed during setup confirmation",
+            required_action=(
+                "Review the newly active drawing and repeat the standards confirmation"
+            ),
+        )
+    rechecked_snapshot = adapter.inspect_document(
+        InspectRequest(document_id=rechecked_status.active_document_id)
+    )
+    if (
+        rechecked_snapshot.document_id != snapshot.document_id
+        or rechecked_snapshot.revision != snapshot.revision
+    ):
+        raise ApprovalScopeMismatchError(
+            "The active drawing changed during setup confirmation",
+            required_action=(
+                "Review the current drawing revision and repeat the standards confirmation"
+            ),
+        )
+    return rechecked_status, rechecked_snapshot
+
+
 def build_context(
     config_path: Path | None = None,
     *,
-    manual_confirmations: tuple[ManualStepId, ...] | None = None,
+    manual_confirmation_provider: Callable[
+        [str, AdapterStatus, DocumentSnapshot, str], tuple[ManualStepId, ...]
+    ]
+    | None = None,
 ) -> ServerContext:
     """Load settings, configure logging, wire the adapter and the service."""
     settings = load_settings(config_path)
+    database_path = Path(settings.storage.sqlite_path).expanduser().resolve()
+    if not database_path.exists() or database_path.stat().st_size == 0:
+        upgrade_database(database_path)
+    else:
+        try:
+            assert_database_current(database_path)
+        except DatabaseSchemaError as exc:
+            raise DatabaseSchemaError(
+                "The harness database is not at the current trusted schema. Back it up, "
+                "then run 'cad-harness --config <config> migrate' before starting MCP or "
+                "Engineer Desktop."
+            ) from exc
     write_requested = os.environ.get("CAD_HARNESS_LIVE_WRITE_VERIFIED") == "1"
     configure_local_only_network_guard(enabled=settings.app.local_only)
     configure_logging(
@@ -187,20 +248,38 @@ def build_context(
                 required_action="Complete the adapter-specific atomic write acceptance gate",
             )
         secret = settings.approval_secret()
-        if manual_confirmations is not None:
+        if manual_confirmation_provider is not None:
+            manual_confirmations = manual_confirmation_provider(
+                settings.adapter.type,
+                status,
+                snapshot,
+                settings.standards.company_profile,
+            )
             confirmations = require_live_setup_confirmations(
                 settings.adapter.type, manual_confirmations
             )
+            status, snapshot = _reinspect_unchanged_live_target(adapter, status, snapshot)
+            if status.process_id is None:
+                raise ApprovalScopeMismatchError(
+                    "The active AutoCAD process identity disappeared during setup",
+                    required_action="Repeat setup confirmation for the current AutoCAD session",
+                )
             session_proof = issue_live_session_proof(
                 adapter_type=settings.adapter.type,
                 process_id=status.process_id,
                 document_id=snapshot.document_id,
                 revision=snapshot.revision,
+                company_profile=settings.standards.company_profile,
                 setup_steps=confirmations,
                 secret=secret,
             )
         else:
             session_proof = os.environ.get(LIVE_SESSION_PROOF_ENV, "")
+        if status.process_id is None:
+            raise ApprovalScopeMismatchError(
+                "The live session proof cannot bind an AutoCAD process identity",
+                required_action="Repeat setup confirmation for the current AutoCAD session",
+            )
         verify_live_session_proof(
             session_proof,
             secret,
@@ -208,6 +287,7 @@ def build_context(
             process_id=status.process_id,
             document_id=snapshot.document_id,
             revision=snapshot.revision,
+            company_profile=settings.standards.company_profile,
         )
 
     get_logger(__name__).info(
@@ -216,11 +296,7 @@ def build_context(
         environment=settings.app.environment,
         profile=settings.standards.company_profile,
     )
-    engine = build_engine(Path(settings.storage.sqlite_path))
-    # Development remains zero-setup; pilot/production schema changes are applied by
-    # Alembic so migration history and backups stay auditable.
-    if settings.app.environment == "development":
-        create_all(engine)
+    engine = build_engine(database_path)
     session_factory = build_session_factory(engine)
     store = SqlJobStore(session_factory)
     audit = SqlAuditSink(session_factory)

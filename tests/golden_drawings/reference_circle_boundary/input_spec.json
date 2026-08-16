@@ -1,0 +1,13 @@
+{
+  "_comment": "Boundary reference circle with a small positive radius and explicit negative centre.",
+  "units": "mm",
+  "features": [{
+    "feature_id": "reference-circle-boundary",
+    "type": "reference_circle",
+    "parameters": {
+      "center_mm": [-12.5, -3.25],
+      "radius_mm": 0.01,
+      "layer_name": "0"
+    }
+  }]
+}

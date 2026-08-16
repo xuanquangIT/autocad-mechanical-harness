@@ -6,5 +6,8 @@ mcp:
     clients:
       example-read-only-client:
         mode: read_only
+      example-planning-client:
+        # May create internal jobs and previews, never commit/rollback/export.
+        mode: planning
       example-engineering-client:
         mode: approval_required

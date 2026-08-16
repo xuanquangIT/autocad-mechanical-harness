@@ -1,8 +1,8 @@
 """Short-lived proof binding manual live setup to one AutoCAD session.
 
 The proof is deliberately separate from commit approval.  It authorizes exposing a
-live adapter's write capability for one exact process, document and revision; every
-individual plan still requires its ordinary engineer approval token.
+live adapter's write capability for one exact process, document, revision and company
+profile; every individual plan still requires its ordinary engineer approval token.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from typing import Any
 
-from cad_harness.application.manual_gate import LIVE_SETUP_STEPS, ManualStepId
+from cad_harness.application.manual_gate import ManualStepId, required_live_setup_steps
 from cad_harness.domain.canonical import canonical_json
 from cad_harness.domain.errors import (
     ApprovalExpiredError,
@@ -25,8 +25,8 @@ from cad_harness.domain.errors import (
     ApprovalScopeMismatchError,
 )
 
-_TOKEN_VERSION = "lsp1"
-_SIGNING_DOMAIN = b"cad-harness-live-session-proof-v1\0"
+_TOKEN_VERSION = "lsp2"
+_SIGNING_DOMAIN = b"cad-harness-live-session-proof-v2\0"
 _MAX_TOKEN_LENGTH = 4096
 _MAX_TTL = timedelta(minutes=15)
 _BASE64URL_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
@@ -37,6 +37,7 @@ _CLAIM_FIELDS = frozenset(
         "process_id",
         "document_id",
         "revision",
+        "company_profile",
         "setup_steps",
         "issued_at",
         "expires_at",
@@ -58,17 +59,19 @@ def _claims(
     process_id: int,
     document_id: str,
     revision: str,
+    company_profile: str,
     setup_steps: Sequence[ManualStepId],
     issued_at: datetime,
     expires_at: datetime,
     nonce: str,
 ) -> dict[str, Any]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "adapter_type": adapter_type,
         "process_id": process_id,
         "document_id": document_id,
         "revision": revision,
+        "company_profile": company_profile,
         "setup_steps": [step.value for step in setup_steps],
         "issued_at": _timestamp(issued_at),
         "expires_at": _timestamp(expires_at),
@@ -93,7 +96,7 @@ def _decode(payload: str) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) != _CLAIM_FIELDS:
         raise ValueError("invalid live session proof claims")
     if (
-        value.get("schema_version") != "1.0"
+        value.get("schema_version") != "2.0"
         or value.get("adapter_type") not in {"com", "dotnet_bridge"}
         or not isinstance(value.get("process_id"), int)
         or isinstance(value.get("process_id"), bool)
@@ -104,7 +107,7 @@ def _decode(payload: str) -> dict[str, Any]:
         or isinstance(value.get("expires_at"), bool)
     ):
         raise ValueError("invalid live session proof typed claims")
-    for field in ("document_id", "revision", "nonce"):
+    for field in ("document_id", "revision", "company_profile", "nonce"):
         item = value.get(field)
         if (
             not isinstance(item, str)
@@ -114,7 +117,8 @@ def _decode(payload: str) -> dict[str, Any]:
         ):
             raise ValueError("invalid live session proof string claim")
     steps = value.get("setup_steps")
-    if not isinstance(steps, list) or steps != [step.value for step in LIVE_SETUP_STEPS]:
+    expected_steps = [step.value for step in required_live_setup_steps(value["adapter_type"])]
+    if not expected_steps or not isinstance(steps, list) or steps != expected_steps:
         raise ValueError("invalid live session proof setup steps")
     if value["expires_at"] <= value["issued_at"]:
         raise ValueError("invalid live session proof lifetime")
@@ -129,6 +133,7 @@ def issue_live_session_proof(
     process_id: int,
     document_id: str,
     revision: str,
+    company_profile: str,
     setup_steps: Sequence[ManualStepId],
     secret: str,
     ttl: timedelta = _MAX_TTL,
@@ -140,9 +145,10 @@ def issue_live_session_proof(
             "No live session proof signing secret is configured",
             required_action="Set CAD_HARNESS_APPROVAL_SECRET outside client configuration",
         )
-    if tuple(setup_steps) != LIVE_SETUP_STEPS:
+    expected_steps = required_live_setup_steps(adapter_type)
+    if not expected_steps or tuple(setup_steps) != expected_steps:
         raise ApprovalRequiredError(
-            "Every live setup step must be confirmed in order",
+            "Every adapter-specific live setup step must be confirmed in order",
             required_action="Complete the Engineer Desktop live setup preflight",
         )
     if ttl <= timedelta(0) or ttl > _MAX_TTL:
@@ -153,6 +159,7 @@ def issue_live_session_proof(
         process_id=process_id,
         document_id=document_id,
         revision=revision,
+        company_profile=company_profile,
         setup_steps=setup_steps,
         issued_at=issued_at,
         expires_at=issued_at + ttl,
@@ -173,6 +180,7 @@ def verify_live_session_proof(
     process_id: int,
     document_id: str,
     revision: str,
+    company_profile: str,
     now: datetime | None = None,
 ) -> None:
     """Verify signature first, then exact live scope and expiry."""
@@ -206,11 +214,18 @@ def verify_live_session_proof(
             "Live session proof claims are invalid",
             required_action="Repeat the live setup preflight for this AutoCAD session",
         ) from exc
+    expected_steps = [step.value for step in required_live_setup_steps(adapter_type)]
+    if not expected_steps or claims["setup_steps"] != expected_steps:
+        raise ApprovalScopeMismatchError(
+            "Live session proof setup does not match the selected adapter",
+            required_action="Repeat the adapter-specific live setup preflight",
+        )
     expected_scope = {
         "adapter_type": adapter_type,
         "process_id": process_id,
         "document_id": document_id,
         "revision": revision,
+        "company_profile": company_profile,
     }
     if any(
         not hmac.compare_digest(str(claims[field]), str(expected))

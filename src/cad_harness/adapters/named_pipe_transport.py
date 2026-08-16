@@ -402,7 +402,7 @@ class NamedPipeTransport:
         return self._driver
 
     def request(self, envelope: dict[str, Any], *, timeout_seconds: float) -> dict[str, Any]:
-        """Send one envelope and return its matching schema-1.12 response.
+        """Send one envelope and return its matching schema-1.13 response.
 
         Timeout is strict: an operation completing exactly at the deadline succeeds;
         completion even one monotonic tick after it triggers terminal cancellation.

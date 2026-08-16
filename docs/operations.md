@@ -49,10 +49,10 @@ Autodesk's [Managed .NET compatibility table](https://help.autodesk.com/cloudhel
 | AutoCAD | COM release prefix | .NET runtime | Bridge bundle | Verification |
 |---|---:|---:|---:|---|
 | 2024 | 24.3 | 4.8 | separate bundle required | provisional; writer disabled |
-| 2025 | 25.0 | 8.0 | 0.2.2 | provisional; live acceptance pending |
+| 2025 | 25.0 | 8.0 | 0.3.0 | provisional; live acceptance pending |
 | 2026 through Update 1.1 | 25.1 | 8.0 | separate verified build required | provisional; live acceptance pending |
 | 2026 Update 1.2+ | 25.1 | 10.0 | separate verified build required | not packaged by the current net8 bundle |
-| 2027 | 26.0 | 10.0 | 0.2.2 engineering-preview bundle | live development acceptance passed; signed release still required |
+| 2027 | 26.0 | 10.0 | 0.3.0 engineering-preview bundle | live development acceptance passed; signed release still required |
 
 An unlisted or unparseable version is visible in `cad_status` with
 `version_supported=false` and is denied at the writer boundary. “Provisional” means the
@@ -110,14 +110,15 @@ admin controls. See the official
 ## Database
 
 ```powershell
-$env:CAD_HARNESS_SQLITE_PATH = "./data/harness.db"
-uv run alembic upgrade head
-uv run alembic current
+Copy-Item .\data\harness.db .\data\harness.db.pre-migration.bak -ErrorAction SilentlyContinue
+uv run cad-harness --config .\config\base.yaml migrate
 ```
 
-Back up `harness.db` before every migration on a machine with real job history. The audit
-chain is only trustworthy if history survives upgrades. `cad-harness migrate` uses
-`create_all` and is for development only.
+Back up the exact configured database before every migration on a machine with real job
+history. `cad-harness migrate` verifies the complete trusted schema, safely adopts only the
+known unversioned v0.2.2 layout, and then runs the packaged Alembic migrations. Unknown,
+partial, or drifted databases fail before they are stamped. Do not run raw `alembic stamp`
+or `alembic upgrade` against an unversioned workstation database.
 
 ## What to watch
 
@@ -168,20 +169,17 @@ Generate a fresh key; do not strip the key to work around it.
 
 ## Required manual gates for real AutoCAD
 
-The live workflow must display each instruction and wait for confirmation of that exact
-step before running its next action. The ordered steps are:
+Setup evidence is adapter-specific. Both live adapters inspect and bind the active AutoCAD
+PID, document, revision and supported version automatically. COM does not use a bridge bundle
+or Named Pipe, so its only setup prompt is confirmation that the active drawing has the
+reviewed company standards loaded. A `dotnet_bridge` session additionally requires verified
+evidence for the exact signed bundle and per-user pipe ACL; those are machine checks, not COM
+questions. In either case, the engineer separately reviews the exact preview, findings, plan
+hash and revision before applying a write.
 
-1. Open AutoCAD with a disposable copy of the target DWG and verify it is active.
-2. Load the controlled company DWT and DWS files.
-3. Install the signed C# Bridge `.bundle` matching the target release.
-4. Grant the current Windows user access to the per-user Named Pipe ACL.
-5. Confirm the detected AutoCAD version is accepted by `config/compatibility.yaml`.
-6. Review the exact preview, findings, plan hash and revision in Engineer Desktop, then
-   approve commit.
-
-Engineer Desktop collects the first five confirmations interactively. For a write-capable
-launch it then inspects the actual adapter and issues an `lsp1` live-session proof, valid for
-at most 15 minutes and bound to the exact adapter type, AutoCAD PID, document id and revision.
+For a write-capable launch Engineer Desktop issues an `lsp2` live-session proof, valid for
+at most 15 minutes and bound to the exact adapter type, AutoCAD PID, document id, revision and
+company-profile identity.
 The proof may be passed to one non-interactive child through
 `CAD_HARNESS_LIVE_SESSION_PROOF`; it must never be stored in Codex configuration, a database,
 logs, evidence, or source control. `CAD_HARNESS_LIVE_WRITE_VERIFIED=1` only requests write

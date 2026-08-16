@@ -66,7 +66,9 @@ def register(mcp: FastMCP, context: ServerContext, guard: ToolPermissionGuard) -
                     "blocking_count": report.blocking_count,
                     "error_count": report.error_count,
                     "warning_count": report.warning_count,
-                    "commit_allowed": report.gate_allows_commit(),
+                    "commit_allowed": (
+                        parsed_stage is ValidationStage.PRE_COMMIT and report.gate_allows_commit()
+                    ),
                     "findings": [
                         f.model_dump(mode="json", exclude_none=True) for f in report.findings
                     ],

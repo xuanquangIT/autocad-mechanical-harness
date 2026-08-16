@@ -255,7 +255,9 @@ def test_property_42_every_recognized_type_compile_round_trips(
         assert isinstance(source, CircleGeometry)
         operation = compiled.operations[0]
         _assert_points_match([operation.geometry["center_mm"]], [source.center_mm], TOLERANCE)
-        assert TOLERANCE.length_close(float(operation.geometry["radius_mm"]), source.radius_mm)
+        assert TOLERANCE.length_close(
+            float(operation.geometry["diameter_mm"]), 2.0 * source.radius_mm
+        )
         return
 
     if feature.feature_type in {

@@ -6,7 +6,9 @@ from measurements and rules, never from an image.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
+from typing import Any
 
 from cad_harness.domain.models.operation_plan import OperationPlan, OperationType
 from cad_harness.geometry.primitives import BoundingBox, Point2D
@@ -15,6 +17,22 @@ STROKE_NEW = "#2e7d32"
 STROKE_MODIFIED = "#f9a825"
 STROKE_DELETED = "#c62828"
 MARGIN_MM = 20.0
+
+
+def _circle_radius_mm(geometry: dict[str, Any]) -> float:
+    """Resolve the two typed circle geometry variants used by catalog compilers."""
+    diameter = geometry.get("diameter_mm")
+    radius = geometry.get("radius_mm")
+    if (diameter is None) == (radius is None):
+        raise ValueError("Circle geometry requires exactly one of diameter_mm or radius_mm")
+    if radius is not None:
+        value = float(radius)
+    else:
+        assert diameter is not None
+        value = float(diameter) / 2.0
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError("Circle radius must be a positive finite number")
+    return value
 
 
 def _plan_points(plan: OperationPlan) -> list[Point2D]:
@@ -27,6 +45,23 @@ def _plan_points(plan: OperationPlan) -> list[Point2D]:
             raw = operation.geometry.get(key)
             if raw is not None:
                 points.append(Point2D(float(raw[0]), float(raw[1])))
+        if operation.type in {OperationType.CREATE_CIRCLE, OperationType.CREATE_CIRCLES}:
+            radius = _circle_radius_mm(operation.geometry)
+            centers = (
+                [operation.geometry["center_mm"]]
+                if operation.type is OperationType.CREATE_CIRCLE
+                else operation.geometry["centers_mm"]
+            )
+            for raw in centers:
+                center = Point2D(float(raw[0]), float(raw[1]))
+                points.extend(
+                    (
+                        Point2D(center.x - radius, center.y),
+                        Point2D(center.x + radius, center.y),
+                        Point2D(center.x, center.y - radius),
+                        Point2D(center.x, center.y + radius),
+                    )
+                )
     return points
 
 
@@ -68,7 +103,7 @@ def write_svg(plan: OperationPlan, target: Path, *, scale: float = 2.0) -> Path:
             )
             parts.append(f'<{tag} points="{coords}"/>')
         elif operation.type is OperationType.CREATE_CIRCLES:
-            radius = float(operation.geometry["diameter_mm"]) / 2.0 * scale
+            radius = _circle_radius_mm(operation.geometry) * scale
             for center in operation.geometry["centers_mm"]:
                 parts.append(
                     f'<circle cx="{sx(float(center[0])):.2f}" cy="{sy(float(center[1])):.2f}" '
@@ -76,7 +111,7 @@ def write_svg(plan: OperationPlan, target: Path, *, scale: float = 2.0) -> Path:
                 )
         elif operation.type is OperationType.CREATE_CIRCLE:
             center = operation.geometry["center_mm"]
-            radius = float(operation.geometry["diameter_mm"]) / 2.0 * scale
+            radius = _circle_radius_mm(operation.geometry) * scale
             parts.append(
                 f'<circle cx="{sx(float(center[0])):.2f}" cy="{sy(float(center[1])):.2f}" '
                 f'r="{radius:.2f}"/>'

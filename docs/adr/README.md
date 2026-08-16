@@ -33,6 +33,7 @@ New decisions get their own file here: `NNN-short-title.md`.
 | 019 | Schema 1.11: explicit cross-layer take-off contours | [019-explicit-takeoff-contours.md](019-explicit-takeoff-contours.md) |
 | 020 | Schema 1.12: remediation submission and restart evidence | [020-schema-1-12-remediation-submission.md](020-schema-1-12-remediation-submission.md) |
 | 021 | Trust-anchored production evidence attestations | [021-production-evidence-attestations.md](021-production-evidence-attestations.md) |
+| 022 | Schema 1.13: bounded reference geometry and planning-only MCP sessions | [022-bounded-reference-geometry.md](022-bounded-reference-geometry.md) |
 
 ## Template
 

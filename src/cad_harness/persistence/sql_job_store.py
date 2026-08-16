@@ -120,7 +120,10 @@ class SqlJobStore:
             plan_row = None
             if row.plan_hash is not None:
                 plan_row = session.scalar(
-                    select(Plan).where(Plan.plan_hash == row.plan_hash).limit(1)
+                    select(Plan)
+                    .where(Plan.job_id == job_id, Plan.plan_hash == row.plan_hash)
+                    .order_by(Plan.created_at.desc(), Plan.plan_id.desc())
+                    .limit(1)
                 )
             approval_row = session.scalar(
                 select(Approval)
@@ -371,6 +374,7 @@ class SqlJobStore:
         operation_id: str,
         entity_ref: str,
         revision: str,
+        expected_layer: str | None = None,
     ) -> None:
         def action(session: Session) -> None:
             row = session.scalar(
@@ -387,12 +391,14 @@ class SqlJobStore:
                         operation_id=operation_id,
                         entity_ref=entity_ref,
                         last_revision=revision,
+                        expected_layer=expected_layer,
                     )
                 )
                 return
             row.feature_id = feature_id
             row.operation_id = operation_id
             row.last_revision = revision
+            row.expected_layer = expected_layer
 
         self._write(action)
 
@@ -410,6 +416,7 @@ class SqlJobStore:
                     operation_id=row.operation_id,
                     entity_ref=row.entity_ref,
                     last_revision=row.last_revision,
+                    expected_layer=row.expected_layer,
                 )
                 for row in rows
             )
@@ -536,9 +543,11 @@ class SqlJobStore:
                     operation_id=mapping.operation_id,
                     entity_ref=mapping.entity_ref,
                     last_revision=mapping.last_revision,
+                    expected_layer=mapping.expected_layer,
                 )
             )
             return
         row.feature_id = mapping.feature_id
         row.operation_id = mapping.operation_id
         row.last_revision = mapping.last_revision
+        row.expected_layer = mapping.expected_layer
